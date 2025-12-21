@@ -59,3 +59,49 @@ async def predict_disaster(request: DisasterPredictionRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi tính toán UPT: {str(e)}")
+    
+from app.services.earthquake_service import USGSService # Import file mới tạo
+
+# API Mới: Lấy dữ liệu thật từ USGS
+@router.get("/realtime/usgs")
+async def get_realtime_prediction():
+    # 1. Lấy dữ liệu thật
+    real_sensors = USGSService.fetch_live_data()
+    
+    if not real_sensors:
+        return {"message": "Không có dữ liệu động đất mới hoặc lỗi kết nối USGS."}
+
+    # 2. Chuyển đổi sang format của UPT Engine
+    # Vì hàm tính toán của chúng ta cần object SensorData, ta làm giả lập nhanh ở đây
+    # (Trong production cần convert kỹ hơn)
+    
+    # Tính trung bình nhanh để đưa ra cảnh báo chung
+    avg_energy = sum(s['energy_level'] for s in real_sensors) / len(real_sensors)
+    avg_anomaly = sum(s['anomaly_score'] for s in real_sensors) / len(real_sensors)
+    
+    # 3. Chạy công thức UPT (Sụp đổ & Cộng hưởng) [cite: 10, 29]
+    prob_index = UPTMath.calculate_collapse_probability(avg_anomaly, avg_energy, conditions=0.5)
+    resonance = UPTMath.calculate_resonance([
+        # Mock object cho hàm tính toán
+        type('obj', (object,), s) for s in real_sensors 
+    ])
+    
+    stability = UPTMath.calculate_stability(resonance, 0.5, 0.1, 0.0)
+    
+    # 4. Logic Cảnh báo
+    alert = "NORMAL"
+    if prob_index > 0.4: alert = "WARNING"
+    if prob_index > 0.7: alert = "CRITICAL"
+
+    return {
+        "source": "USGS Live Data",
+        "detected_events": len(real_sensors),
+        "latest_event": real_sensors[0]['place'],
+        "upt_metrics": {
+            "probability_index": prob_index,
+            "network_resonance": resonance,
+            "stability_score": stability,
+            "alert_level": alert
+        },
+        "raw_sensors": real_sensors
+    }
