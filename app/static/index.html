@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>UPT Disaster Monitor v2</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0f172a;
+        color: #00ff00;
+        font-family: "Courier New", Courier, monospace;
+      }
+      #map {
+        height: 60vh;
+        width: 100%;
+        border-bottom: 2px solid #00ff00;
+      }
+      .dashboard {
+        padding: 20px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        padding: 15px;
+        flex: 1;
+        border-radius: 8px;
+        min-width: 250px;
+      }
+      h2 {
+        margin-top: 0;
+        color: #38bdf8;
+        font-size: 1.1rem;
+      }
+      .metric {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #fff;
+      }
+      .btn-scan {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 15px;
+        width: 100%;
+        font-size: 1.2rem;
+        cursor: pointer;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+      .slider-container {
+        margin: 15px 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #94a3b8;
+      }
+      input[type="range"] {
+        width: 100%;
+      }
+      .val-display {
+        float: right;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div class="dashboard">
+      <div class="card" style="border-color: #f59e0b">
+        <h2>🎛️ Bảng Điều Khiển UPT</h2>
+
+        <div class="slider-container">
+          <label
+            >Năng lượng Tích lũy (E)
+            <span id="val-energy" class="val-display">0.5</span></label
+          >
+          <input
+            type="range"
+            id="in-energy"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.5"
+            oninput="updateVal('energy', this.value)"
+          />
+        </div>
+
+        <div class="slider-container">
+          <label
+            >Bất thường Cảm biến (A)
+            <span id="val-anomaly" class="val-display">0.5</span></label
+          >
+          <input
+            type="range"
+            id="in-anomaly"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.5"
+            oninput="updateVal('anomaly', this.value)"
+          />
+        </div>
+
+        <div class="slider-container">
+          <label
+            >Độ yếu Địa chất (C_geo)
+            <span id="val-geo" class="val-display">0.5</span></label
+          >
+          <input
+            type="range"
+            id="in-geo"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.5"
+            oninput="updateVal('geo', this.value)"
+          />
+        </div>
+
+        <button class="btn-scan" onclick="scanDisaster()">CHẠY MÔ PHỎNG</button>
+      </div>
+
+      <div class="card">
+        <h2>Xác Suất Sụp Đổ (P)</h2>
+        <div id="prob-val" class="metric">--</div>
+        <div style="margin-top: 10px; font-size: 0.8em; color: gray">
+          Công thức: P = A * E * C
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Độ Ổn Định (Stability)</h2>
+        <div id="stab-val" class="metric">--</div>
+        <div id="status-text" style="color: yellow">Sẵn sàng</div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      var map = L.map("map").setView([16.047, 108.206], 5);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      ).addTo(map);
+      var currentCircle = null;
+
+      function updateVal(id, val) {
+        document.getElementById("val-" + id).innerText = val;
+      }
+
+      async function scanDisaster() {
+        // 1. Lấy giá trị từ thanh trượt
+        let energy = parseFloat(document.getElementById("in-energy").value);
+        let anomaly = parseFloat(document.getElementById("in-anomaly").value);
+        let geo = parseFloat(document.getElementById("in-geo").value);
+
+        document.getElementById("status-text").innerText = "Đang tính toán...";
+
+        // 2. Tạo payload động
+        const payload = {
+          region_name: "Khu vực Mô phỏng",
+          sensors: [
+            {
+              station_id: "S1",
+              energy_level: energy,
+              anomaly_score: anomaly,
+              location_weight: 1.0,
+            },
+          ],
+          geo_vulnerability: geo,
+          environmental_noise: 0.1,
+          active_dampening: 0.0,
+        };
+
+        // 3. Gọi API
+        try {
+          const res = await fetch("/api/v1/disaster/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+
+          // 4. Hiển thị số liệu
+          document.getElementById("prob-val").innerText =
+            (data.probability_index * 100).toFixed(0) + "%";
+          document.getElementById("stab-val").innerText =
+            data.stability_score.toFixed(2);
+          document.getElementById("status-text").innerText = data.alert_level;
+
+          // 5. Xử lý Vòng tròn đỏ trên bản đồ
+          if (currentCircle) map.removeLayer(currentCircle); // Xóa vòng cũ
+
+          if (data.alert_level === "CRITICAL") {
+            // Nếu Nguy hiểm: Vẽ vòng đỏ to
+            currentCircle = L.circle([16.047, 108.206], {
+              color: "red",
+              fillColor: "#f03",
+              fillOpacity: 0.5,
+              radius: 400000,
+            }).addTo(map);
+          } else if (data.alert_level === "WARNING") {
+            // Nếu Cảnh báo: Vẽ vòng vàng nhỏ
+            currentCircle = L.circle([16.047, 108.206], {
+              color: "yellow",
+              fillColor: "#fc3",
+              fillOpacity: 0.5,
+              radius: 200000,
+            }).addTo(map);
+          }
+          // Nếu Normal thì không vẽ gì cả
+        } catch (e) {
+          alert("Lỗi: " + e);
+        }
+      }
+    </script>
+  </body>
+</html>
