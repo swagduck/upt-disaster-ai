@@ -1,48 +1,48 @@
-# app/upt_engine/formulas.py
-from typing import List
-from app.schemas.prediction_schema import SensorData
+import math
 
 class UPTMath:
     """
-    Unified Pulse Theory (UPT) Mathematical Core.
-    Chuyển đổi từ tài liệu lý thuyết UPT_NEWLY.pdf và UPT_CompactNuclearReactor.pdf.
+    Bộ công thức Toán học cho Lý thuyết Unified Pulse Theory (UPT)
     """
 
     @staticmethod
-    def calculate_resonance(sensors: List[SensorData]) -> float:
+    def calculate_collapse_probability(anomaly_score: float, energy_level: float, geo_vulnerability: float) -> float:
         """
-        Công thức 3: Cộng Hưởng Tập Thể (Resonance)
-        R(t) = Sum(E_i(t) * A_i(t))
+        Công thức Sụp đổ Xác suất: P(φ) = A(t) * E(t) * C(t)
+        """
+        # Đảm bảo giá trị nằm trong khoảng [0, 1]
+        a = max(0.0, min(1.0, anomaly_score))
+        e = max(0.0, min(1.0, energy_level))
+        c = max(0.0, min(1.0, geo_vulnerability))
         
-        [cite_start]Nguồn: [cite: 10] "Tổng cộng hưởng của nhóm cá nhân trong hệ thống"
-        Ở đây áp dụng cho mạng lưới cảm biến: Tổng (Năng lượng * Bất thường).
-        """
-        resonance = sum(s.energy_level * s.anomaly_score * s.location_weight for s in sensors)
-        # Chuẩn hóa về 0-1 trung bình để dễ đánh giá (tùy chỉnh theo logic thực tế)
-        return resonance / len(sensors) if sensors else 0.0
+        return a * e * c
 
     @staticmethod
-    def calculate_collapse_probability(avg_anomaly: float, avg_energy: float, conditions: float) -> float:
+    def calculate_resonance(sensors: list) -> float:
         """
-        Công thức 2: Sụp Đổ Xác Suất (Collapse Probability)
-        P(phi_k) = A(t) * E(t) * C(t)
+        Tính Cộng hưởng Mạng lưới R(t)
+        R(t) = (Tổng Anomaly * Tổng Energy) / Số lượng cảm biến
+        """
+        if not sensors:
+            return 0.0
         
-        [cite_start]Nguồn: [cite: 10] "Dự đoán khả năng một trạng thái lượng tử trở thành hiện thực"
-        Áp dụng: A (Bất thường tb) * E (Năng lượng tb) * C (Điều kiện địa chất).
-        """
-        return avg_anomaly * avg_energy * conditions
+        total_anomaly = sum(s.anomaly_score if hasattr(s, 'anomaly_score') else s['anomaly_score'] for s in sensors)
+        total_energy = sum(s.energy_level if hasattr(s, 'energy_level') else s['energy_level'] for s in sensors)
+        n = len(sensors)
+        
+        # Công thức cộng hưởng đơn giản hóa
+        return (total_anomaly * total_energy) / n
 
     @staticmethod
-    def calculate_stability(destructive_force: float, resilience: float, noise: float, dampening: float) -> float:
+    def calculate_stability(resonance: float, noise: float, dampening: float) -> float:
         """
-        Phái sinh từ Công thức Lò phản ứng UPT-RC (Stability Metric)
-        k_eff = ... / (1 + noise + dampening)
-        
-        [cite_start]Nguồn: [cite: 169] Công thức k_eff trong lò phản ứng.
-        Ý nghĩa: Mẫu số càng lớn (nhiễu + can thiệp), hệ thống càng ổn định (k_eff giảm).
+        Tính độ Ổn định (Stability Score)
+        S = Resonance / (1 + Noise + Dampening)
         """
-        numerator = destructive_force * resilience
+        numerator = resonance
         denominator = 1.0 + noise + dampening
         
-        if denominator == 0: return 999.0 # Tránh chia cho 0
+        if denominator == 0:
+            return 10.0 # Tránh chia cho 0, trả về giá trị rủi ro cao nhất
+            
         return numerator / denominator
