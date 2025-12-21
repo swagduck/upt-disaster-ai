@@ -2,186 +2,448 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <title>UPT Disaster Monitor v2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UPT QUANTUM CORE // SYSTEM V3</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
+      :root {
+        --neon-green: #0f0;
+        --neon-red: #f00;
+        --neon-blue: #0ff;
+        --bg-color: #050a10;
+        --glass: rgba(10, 20, 30, 0.85);
+      }
+
       body {
         margin: 0;
         padding: 0;
-        background: #0f172a;
-        color: #00ff00;
-        font-family: "Courier New", Courier, monospace;
+        background-color: var(--bg-color);
+        background-image: linear-gradient(
+            rgba(0, 255, 255, 0.03) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        color: var(--neon-green);
+        font-family: "Share Tech Mono", monospace;
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      /* --- MAP & SCANNER EFFECT --- */
+      #map-container {
+        position: relative;
+        height: 65vh;
+        border-bottom: 2px solid var(--neon-blue);
+        box-shadow: 0 0 20px var(--neon-blue);
       }
       #map {
-        height: 60vh;
+        height: 100%;
         width: 100%;
-        border-bottom: 2px solid #00ff00;
+        filter: grayscale(80%) contrast(1.2) invert(10%);
       }
-      .dashboard {
-        padding: 20px;
+
+      .scan-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: rgba(0, 255, 255, 0.8);
+        box-shadow: 0 0 15px var(--neon-blue);
+        z-index: 999;
+        animation: scan 4s infinite linear;
+        pointer-events: none;
+      }
+      @keyframes scan {
+        0% {
+          top: 0%;
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          top: 100%;
+          opacity: 0;
+        }
+      }
+
+      /* --- HUD CONTROL PANEL --- */
+      .hud-container {
         display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
+        height: 35vh;
+        background: var(--bg-color);
+        padding: 10px;
+        gap: 15px;
       }
-      .card {
-        background: #1e293b;
-        border: 1px solid #334155;
+
+      .panel {
+        border: 1px solid var(--neon-blue);
+        background: var(--glass);
         padding: 15px;
         flex: 1;
-        border-radius: 8px;
-        min-width: 250px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1);
       }
+
+      .panel::before {
+        content: "UPT_MODULE";
+        position: absolute;
+        top: -10px;
+        left: 10px;
+        background: var(--bg-color);
+        padding: 0 5px;
+        color: var(--neon-blue);
+        font-size: 0.8em;
+      }
+
       h2 {
-        margin-top: 0;
-        color: #38bdf8;
-        font-size: 1.1rem;
-      }
-      .metric {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #fff;
-      }
-      .btn-scan {
-        background: #ef4444;
-        color: white;
-        border: none;
-        padding: 15px;
-        width: 100%;
+        margin: 0 0 15px 0;
+        color: var(--neon-blue);
+        font-family: "Orbitron", sans-serif;
         font-size: 1.2rem;
-        cursor: pointer;
+        letter-spacing: 2px;
         text-transform: uppercase;
-        font-weight: bold;
+        border-bottom: 1px dashed #333;
+        padding-bottom: 5px;
       }
-      .slider-container {
-        margin: 15px 0;
+
+      /* --- SLIDERS --- */
+      .control-group {
+        margin-bottom: 12px;
       }
       label {
-        display: block;
-        margin-bottom: 5px;
-        color: #94a3b8;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        margin-bottom: 3px;
       }
       input[type="range"] {
+        appearance: none; /* Thêm dòng này để chuẩn hóa */
+        -webkit-appearance: none; /* Dòng này để chạy trên Chrome/Safari */
         width: 100%;
+        background: transparent;
       }
-      .val-display {
-        float: right;
-        color: #fff;
+
+      /* Phần dưới giữ nguyên */
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 15px;
+        width: 15px;
+        background: var(--neon-blue);
+        cursor: pointer;
+        margin-top: -5px;
+        box-shadow: 0 0 10px var(--neon-blue);
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        background: #333;
+        border: 1px solid #555;
+      }
+
+      /* --- METRICS --- */
+      .big-number {
+        font-size: 3.5rem;
+        font-family: "Orbitron", sans-serif;
+        font-weight: bold;
+        text-shadow: 0 0 15px currentColor;
+        line-height: 1;
+      }
+      .unit {
+        font-size: 1rem;
+        opacity: 0.7;
+      }
+
+      /* --- LIVE LOGS --- */
+      #log-window {
+        flex: 1.5;
+        font-size: 0.85rem;
+        overflow-y: auto;
+        border: 1px solid #333;
+        padding: 5px;
+        background: #000;
+        font-family: "Courier New", monospace;
+      }
+      .log-entry {
+        margin-bottom: 4px;
+        border-bottom: 1px solid #111;
+        padding-bottom: 2px;
+      }
+      .log-time {
+        color: #888;
+        margin-right: 5px;
+      }
+      .log-crit {
+        color: var(--neon-red);
+        font-weight: bold;
+      }
+      .log-warn {
+        color: yellow;
+      }
+      .log-ok {
+        color: var(--neon-green);
+      }
+
+      /* --- BUTTONS --- */
+      .btn-glitch {
+        background: transparent;
+        border: 1px solid var(--neon-red);
+        color: var(--neon-red);
+        padding: 10px;
+        font-family: "Orbitron";
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-top: auto;
+      }
+      .btn-glitch:hover {
+        background: var(--neon-red);
+        color: #000;
+        box-shadow: 0 0 20px var(--neon-red);
+      }
+
+      .active-mode {
+        background: var(--neon-green) !important;
+        color: black !important;
+        border-color: var(--neon-green) !important;
+        box-shadow: 0 0 20px var(--neon-green);
+      }
+
+      /* --- ALERT OVERLAY --- */
+      #alert-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(50, 0, 0, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 9999;
+        pointer-events: none;
+        animation: flash 0.5s infinite;
+      }
+      @keyframes flash {
+        0% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 0.8;
+        }
+        100% {
+          opacity: 0.3;
+        }
+      }
+      .alert-text {
+        font-family: "Orbitron";
+        font-size: 5rem;
+        color: var(--neon-red);
+        text-shadow: 0 0 30px var(--neon-red);
+        border: 5px solid var(--neon-red);
+        padding: 20px 50px;
+        background: black;
+        transform: rotate(-5deg);
       }
     </style>
   </head>
   <body>
-    <div id="map"></div>
+    <div id="alert-overlay">
+      <div class="alert-text">WARNING: COLLAPSE</div>
+    </div>
 
-    <div class="dashboard">
-      <div class="card" style="border-color: #f59e0b">
-        <h2>🎛️ Bảng Điều Khiển UPT</h2>
+    <div id="map-container">
+      <div class="scan-line"></div>
+      <div id="map"></div>
+    </div>
 
-        <div class="slider-container">
-          <label
-            >Năng lượng Tích lũy (E)
-            <span id="val-energy" class="val-display">0.5</span></label
-          >
+    <div class="hud-container">
+      <div class="panel" style="flex: 1">
+        <h2>Input Parameters</h2>
+        <div class="control-group">
+          <label>ENERGY (E) <span id="val-energy">0.50</span></label>
           <input
             type="range"
             id="in-energy"
             min="0"
             max="1"
-            step="0.05"
+            step="0.01"
             value="0.5"
-            oninput="updateVal('energy', this.value)"
+            oninput="updateVal(this)"
           />
         </div>
-
-        <div class="slider-container">
-          <label
-            >Bất thường Cảm biến (A)
-            <span id="val-anomaly" class="val-display">0.5</span></label
-          >
+        <div class="control-group">
+          <label>ANOMALY (A) <span id="val-anomaly">0.50</span></label>
           <input
             type="range"
             id="in-anomaly"
             min="0"
             max="1"
-            step="0.05"
+            step="0.01"
             value="0.5"
-            oninput="updateVal('anomaly', this.value)"
+            oninput="updateVal(this)"
           />
         </div>
-
-        <div class="slider-container">
-          <label
-            >Độ yếu Địa chất (C_geo)
-            <span id="val-geo" class="val-display">0.5</span></label
-          >
+        <div class="control-group">
+          <label>GEO_VULNERABILITY <span id="val-geo">0.50</span></label>
           <input
             type="range"
             id="in-geo"
             min="0"
             max="1"
-            step="0.05"
+            step="0.01"
             value="0.5"
-            oninput="updateVal('geo', this.value)"
+            oninput="updateVal(this)"
           />
         </div>
-
-        <button class="btn-scan" onclick="scanDisaster()">CHẠY MÔ PHỎNG</button>
+        <button id="btn-auto" class="btn-glitch" onclick="toggleAutoMode()">
+          [ ACTIVATING AI AUTO-PILOT ]
+        </button>
       </div>
 
-      <div class="card">
-        <h2>Xác Suất Sụp Đổ (P)</h2>
-        <div id="prob-val" class="metric">--</div>
-        <div style="margin-top: 10px; font-size: 0.8em; color: gray">
-          Công thức: P = A * E * C
+      <div class="panel" style="flex: 1; text-align: center">
+        <h2>P(Collapse)</h2>
+        <div id="prob-val" class="big-number" style="color: var(--neon-blue)">
+          0%
+        </div>
+        <div class="unit">QUANTUM PROBABILITY</div>
+
+        <div
+          style="
+            margin-top: 15px;
+            border-top: 1px dashed #333;
+            padding-top: 10px;
+          "
+        >
+          <div style="font-size: 0.8em; color: #888">STABILITY INDEX</div>
+          <div id="stab-val" style="font-size: 1.5em; font-weight: bold">
+            1.00
+          </div>
         </div>
       </div>
 
-      <div class="card">
-        <h2>Độ Ổn Định (Stability)</h2>
-        <div id="stab-val" class="metric">--</div>
-        <div id="status-text" style="color: yellow">Sẵn sàng</div>
+      <div
+        class="panel"
+        style="flex: 1.5; display: flex; flex-direction: column"
+      >
+        <h2>System Logs</h2>
+        <div id="log-window">
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span> SYSTEM INITIALIZED...
+          </div>
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span> WAITING FOR SENSOR DATA...
+          </div>
+        </div>
       </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      var map = L.map("map").setView([16.047, 108.206], 5);
+      // --- 1. SETUP MAP ---
+      var map = L.map("map", { zoomControl: false }).setView(
+        [16.047, 108.206],
+        5
+      );
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       ).addTo(map);
-      var currentCircle = null;
+      var pulseCircle = null;
 
-      function updateVal(id, val) {
-        document.getElementById("val-" + id).innerText = val;
+      // --- 2. VARIABLES ---
+      let autoMode = false;
+      let autoInterval = null;
+
+      // --- 3. FUNCTIONS ---
+      function updateVal(el) {
+        // Update số hiển thị bên cạnh thanh trượt
+        el.previousElementSibling.firstElementChild.innerText = parseFloat(
+          el.value
+        ).toFixed(2);
+        if (!autoMode) scanDisaster(); // Nếu không auto thì quét ngay khi kéo
+      }
+
+      function addLog(msg, type = "log-ok") {
+        const logWin = document.getElementById("log-window");
+        const now = new Date().toLocaleTimeString("en-US", { hour12: false });
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        entry.innerHTML = `<span class="log-time">[${now}]</span> <span class="${type}">${msg}</span>`;
+        logWin.appendChild(entry);
+        logWin.scrollTop = logWin.scrollHeight; // Auto scroll
+      }
+
+      function toggleAutoMode() {
+        autoMode = !autoMode;
+        const btn = document.getElementById("btn-auto");
+
+        if (autoMode) {
+          btn.classList.add("active-mode");
+          btn.innerText = "[ AI AUTO-PILOT: ONLINE ]";
+          addLog("AI CONTROL ENGAGED. STARTING SEQUENCE...", "log-warn");
+
+          // Chạy vòng lặp mô phỏng
+          autoInterval = setInterval(() => {
+            // Random giá trị để tạo cảm giác data thật
+            document.getElementById("in-energy").value =
+              Math.random().toFixed(2);
+            document.getElementById("in-anomaly").value =
+              Math.random().toFixed(2);
+            // Update UI text
+            updateVal(document.getElementById("in-energy"));
+            updateVal(document.getElementById("in-anomaly"));
+
+            scanDisaster();
+          }, 2000); // 2 giây quét 1 lần
+        } else {
+          btn.classList.remove("active-mode");
+          btn.innerText = "[ ACTIVATE AI AUTO-PILOT ]";
+          addLog("AI DISENGAGED. MANUAL CONTROL.", "log-ok");
+          clearInterval(autoInterval);
+          document.getElementById("alert-overlay").style.display = "none";
+        }
       }
 
       async function scanDisaster() {
-        // 1. Lấy giá trị từ thanh trượt
-        let energy = parseFloat(document.getElementById("in-energy").value);
-        let anomaly = parseFloat(document.getElementById("in-anomaly").value);
-        let geo = parseFloat(document.getElementById("in-geo").value);
+        // Lấy input
+        let e = parseFloat(document.getElementById("in-energy").value);
+        let a = parseFloat(document.getElementById("in-anomaly").value);
+        let c = parseFloat(document.getElementById("in-geo").value);
 
-        document.getElementById("status-text").innerText = "Đang tính toán...";
-
-        // 2. Tạo payload động
+        // Gửi API
         const payload = {
-          region_name: "Khu vực Mô phỏng",
+          region_name: "Sector V-Alpha",
           sensors: [
             {
-              station_id: "S1",
-              energy_level: energy,
-              anomaly_score: anomaly,
+              station_id: "UPT-01",
+              energy_level: e,
+              anomaly_score: a,
               location_weight: 1.0,
             },
           ],
-          geo_vulnerability: geo,
-          environmental_noise: 0.1,
+          geo_vulnerability: c,
+          environmental_noise: 0.05,
           active_dampening: 0.0,
         };
 
-        // 3. Gọi API
         try {
           const res = await fetch("/api/v1/disaster/predict", {
             method: "POST",
@@ -190,36 +452,58 @@
           });
           const data = await res.json();
 
-          // 4. Hiển thị số liệu
-          document.getElementById("prob-val").innerText =
-            (data.probability_index * 100).toFixed(0) + "%";
+          // Cập nhật Giao diện
+          const prob = (data.probability_index * 100).toFixed(0);
+          const probEl = document.getElementById("prob-val");
+          probEl.innerText = prob + "%";
           document.getElementById("stab-val").innerText =
-            data.stability_score.toFixed(2);
-          document.getElementById("status-text").innerText = data.alert_level;
+            data.stability_score.toFixed(3);
 
-          // 5. Xử lý Vòng tròn đỏ trên bản đồ
-          if (currentCircle) map.removeLayer(currentCircle); // Xóa vòng cũ
+          // Màu sắc số liệu
+          if (prob > 70) {
+            probEl.style.color = "var(--neon-red)";
+            probEl.style.textShadow = "0 0 20px red";
+          } else if (prob > 40) {
+            probEl.style.color = "yellow";
+            probEl.style.textShadow = "none";
+          } else {
+            probEl.style.color = "var(--neon-blue)";
+            probEl.style.textShadow = "none";
+          }
+
+          // Xử lý Cảnh báo
+          if (pulseCircle) map.removeLayer(pulseCircle);
 
           if (data.alert_level === "CRITICAL") {
-            // Nếu Nguy hiểm: Vẽ vòng đỏ to
-            currentCircle = L.circle([16.047, 108.206], {
+            document.getElementById("alert-overlay").style.display = "flex";
+            addLog(
+              `CRITICAL ALERT! PROB: ${prob}% - COLLAPSE IMMINENT`,
+              "log-crit"
+            );
+
+            pulseCircle = L.circle([16.047, 108.206], {
               color: "red",
               fillColor: "#f03",
-              fillOpacity: 0.5,
-              radius: 400000,
+              fillOpacity: 0.4,
+              radius: 500000,
             }).addTo(map);
           } else if (data.alert_level === "WARNING") {
-            // Nếu Cảnh báo: Vẽ vòng vàng nhỏ
-            currentCircle = L.circle([16.047, 108.206], {
+            document.getElementById("alert-overlay").style.display = "none";
+            addLog(`WARNING DETECTED. Stability dropping...`, "log-warn");
+
+            pulseCircle = L.circle([16.047, 108.206], {
               color: "yellow",
               fillColor: "#fc3",
-              fillOpacity: 0.5,
-              radius: 200000,
+              fillOpacity: 0.3,
+              radius: 250000,
             }).addTo(map);
+          } else {
+            document.getElementById("alert-overlay").style.display = "none";
+            addLog(`System Stable. Monitoring...`, "log-ok");
           }
-          // Nếu Normal thì không vẽ gì cả
-        } catch (e) {
-          alert("Lỗi: " + e);
+        } catch (err) {
+          console.error(err);
+          addLog("CONNECTION ERROR TO CORE API", "log-crit");
         }
       }
     </script>
