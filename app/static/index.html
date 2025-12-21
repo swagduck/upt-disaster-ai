@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT QUANTUM CORE // LIVE MONITOR</title>
+    <title>UPT QUANTUM CORE // LIVE COMMAND</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -39,17 +39,19 @@
         height: 100vh;
       }
 
-      /* MAP */
+      /* --- MAP SECTION --- */
       #map-container {
         position: relative;
         height: 60vh;
         border-bottom: 2px solid var(--neon-blue);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
       }
       #map {
         height: 100%;
         width: 100%;
         filter: grayscale(85%) contrast(1.2) invert(10%);
       }
+
       .scan-line {
         position: absolute;
         top: 0;
@@ -67,13 +69,16 @@
           top: 0%;
           opacity: 0;
         }
+        50% {
+          opacity: 1;
+        }
         100% {
           top: 100%;
           opacity: 0;
         }
       }
 
-      /* HUD */
+      /* --- HUD CONTROL SECTION --- */
       .hud-container {
         display: flex;
         height: 40vh;
@@ -89,6 +94,7 @@
         display: flex;
         flex-direction: column;
         position: relative;
+        box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.05);
       }
       h2 {
         margin: 0 0 10px 0;
@@ -96,31 +102,40 @@
         font-family: "Orbitron";
         font-size: 1rem;
         border-bottom: 1px dashed #333;
+        padding-bottom: 5px;
       }
 
-      /* SLIDERS */
+      /* --- SLIDERS (Custom Style) --- */
       .control-group {
-        margin-bottom: 8px;
+        margin-bottom: 12px;
       }
       label {
         display: flex;
         justify-content: space-between;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: #aaa;
       }
+      .val-display {
+        color: #fff;
+        font-weight: bold;
+      }
+
       input[type="range"] {
         appearance: none;
-        -webkit-appearance: none;
+        -webkit-appearance: none; /* Fix lỗi vàng trong VS Code */
         width: 100%;
         background: transparent;
       }
       input[type="range"]::-webkit-slider-thumb {
         -webkit-appearance: none;
-        height: 10px;
-        width: 10px;
+        height: 12px;
+        width: 12px;
         background: var(--neon-blue);
         cursor: pointer;
-        margin-top: -4px;
-        box-shadow: 0 0 5px var(--neon-blue);
+        margin-top: -5px;
+        box-shadow: 0 0 8px var(--neon-blue);
+        border-radius: 50%;
       }
       input[type="range"]::-webkit-slider-runnable-track {
         width: 100%;
@@ -128,25 +143,32 @@
         background: #333;
       }
 
-      /* LOGS & METRICS */
+      /* --- METRICS & LOGS --- */
       #log-window {
         flex: 1;
         font-size: 0.75rem;
         overflow-y: auto;
         border: 1px solid #333;
-        padding: 5px;
+        padding: 8px;
         background: #000;
         font-family: "Courier New";
+        scroll-behavior: smooth;
       }
       .log-entry {
-        margin-bottom: 2px;
+        margin-bottom: 3px;
         border-bottom: 1px solid #111;
+        padding-bottom: 2px;
       }
       .log-time {
         color: #666;
+        margin-right: 5px;
       }
       .log-crit {
         color: var(--neon-red);
+        text-shadow: 0 0 5px red;
+      }
+      .log-warn {
+        color: var(--neon-yellow);
       }
       .log-ok {
         color: var(--neon-green);
@@ -154,34 +176,54 @@
 
       .big-stat {
         font-family: "Orbitron";
-        font-size: 2.5rem;
+        font-size: 3rem;
         color: white;
         text-align: center;
+        text-shadow: 0 0 10px currentColor;
       }
       .sub-stat {
         text-align: center;
         font-size: 0.8rem;
         color: #888;
+        letter-spacing: 2px;
       }
 
-      /* BUTTONS */
+      /* --- BUTTONS --- */
       .btn-live {
-        background: transparent;
+        background: rgba(0, 255, 0, 0.1);
         border: 1px solid var(--neon-green);
         color: var(--neon-green);
-        padding: 10px;
+        padding: 12px;
         font-family: "Orbitron";
         cursor: pointer;
         margin-top: auto;
+        font-weight: bold;
         transition: 0.3s;
         text-transform: uppercase;
         letter-spacing: 1px;
       }
-      .btn-live:hover,
-      .active-mode {
+      .btn-live:hover {
         background: var(--neon-green);
         color: black;
-        box-shadow: 0 0 15px var(--neon-green);
+        box-shadow: 0 0 20px var(--neon-green);
+      }
+
+      .active-mode {
+        background: var(--neon-green) !important;
+        color: black !important;
+        box-shadow: 0 0 15px var(--neon-green) !important;
+        animation: pulse-btn 2s infinite;
+      }
+      @keyframes pulse-btn {
+        0% {
+          box-shadow: 0 0 5px var(--neon-green);
+        }
+        50% {
+          box-shadow: 0 0 20px var(--neon-green);
+        }
+        100% {
+          box-shadow: 0 0 5px var(--neon-green);
+        }
       }
     </style>
   </head>
@@ -192,32 +234,57 @@
     </div>
 
     <div class="hud-container">
-      <div class="panel" style="flex: 0.8">
+      <div class="panel" style="flex: 0.9">
         <h2>// PARAMETERS</h2>
+
         <div class="control-group">
-          <label>ENERGY (E) <span id="val-energy">0.00</span></label
-          ><input
+          <label
+            >ENERGY (Magnitude/10)
+            <span id="val-energy" class="val-display">0.50</span></label
+          >
+          <input
             type="range"
             id="in-energy"
             min="0"
             max="1"
             step="0.01"
             value="0.5"
-            oninput="updateUI(this)"
+            oninput="manualUpdate(this)"
           />
         </div>
+
         <div class="control-group">
-          <label>ANOMALY (A) <span id="val-anomaly">0.00</span></label
-          ><input
+          <label
+            >ANOMALY (Significance)
+            <span id="val-anomaly" class="val-display">0.50</span></label
+          >
+          <input
             type="range"
             id="in-anomaly"
             min="0"
             max="1"
             step="0.01"
             value="0.5"
-            oninput="updateUI(this)"
+            oninput="manualUpdate(this)"
           />
         </div>
+
+        <div class="control-group">
+          <label
+            >GEO_WEAKNESS (Manual)
+            <span id="val-geo" class="val-display">0.50</span></label
+          >
+          <input
+            type="range"
+            id="in-geo"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0.5"
+            oninput="manualUpdate(this)"
+          />
+        </div>
+
         <button id="btn-live" class="btn-live" onclick="toggleLiveMode()">
           [ CONNECT SATELLITE ]
         </button>
@@ -227,39 +294,73 @@
         <h2>// CORE ANALYTICS</h2>
         <div id="prob-val" class="big-stat">--%</div>
         <div class="sub-stat">COLLAPSE PROBABILITY</div>
-        <div style="margin-top: 10px; border-top: 1px dashed #333"></div>
+
         <div
-          id="stab-val"
-          class="big-stat"
-          style="font-size: 1.5rem; margin-top: 10px"
+          style="
+            margin-top: 20px;
+            border-top: 1px dashed #333;
+            padding-top: 10px;
+          "
         >
-          --
+          <div
+            id="stab-val"
+            style="
+              font-size: 2rem;
+              font-weight: bold;
+              text-align: center;
+              color: var(--neon-blue);
+            "
+          >
+            --
+          </div>
+          <div class="sub-stat">STABILITY INDEX</div>
         </div>
-        <div class="sub-stat">STABILITY INDEX</div>
       </div>
 
-      <div class="panel" style="flex: 1.4">
+      <div class="panel" style="flex: 1.3">
         <h2>// LIVE EVENT LOG</h2>
         <div id="log-window">
-          <div class="log-entry">SYSTEM READY. WAITING FOR CONNECTION...</div>
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span> SYSTEM INITIALIZED.
+          </div>
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span> WAITING FOR DATA STREAM...
+          </div>
         </div>
       </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      // INIT MAP
-      var map = L.map("map", { zoomControl: false }).setView([30, -100], 3); // Nhìn toàn cảnh Thái Bình Dương
+      // 1. SETUP MAP
+      var map = L.map("map", {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([20, 0], 2);
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       ).addTo(map);
+      var markersGroup = L.layerGroup().addTo(map);
 
-      var markersGroup = L.layerGroup().addTo(map); // Layer chứa các chấm động đất
+      // 2. VARIABLES
       var liveInterval = null;
       var isLive = false;
 
-      function updateUI(el) {
-        el.previousElementSibling.firstElementChild.innerText = el.value;
+      // 3. HELPER FUNCTIONS
+      function manualUpdate(el) {
+        // Update số hiển thị
+        el.previousElementSibling.firstElementChild.innerText = parseFloat(
+          el.value
+        ).toFixed(2);
+        // Nếu không phải Live mode thì cho phép người dùng tự mô phỏng kết quả
+        if (!isLive) simulateCalculation();
+      }
+
+      function updateSliderUI(id, val) {
+        const input = document.getElementById(id);
+        input.value = val;
+        input.previousElementSibling.firstElementChild.innerText =
+          val.toFixed(2);
       }
 
       function addLog(msg, type = "log-ok") {
@@ -269,24 +370,38 @@
         win.scrollTop = win.scrollHeight;
       }
 
+      // 4. MAIN LOGIC
       async function toggleLiveMode() {
         const btn = document.getElementById("btn-live");
         isLive = !isLive;
 
         if (isLive) {
+          // BẬT CHẾ ĐỘ VỆ TINH
           btn.classList.add("active-mode");
           btn.innerText = ">> SATELLITE LINK ACTIVE <<";
-          addLog("ESTABLISHING LINK TO USGS SERVERS...", "log-ok");
-          fetchRealData(); // Gọi ngay lập tức
-          liveInterval = setInterval(fetchRealData, 10000); // Gọi lại mỗi 10s
+
+          // Khóa input manual để tránh xung đột (visual only)
+          document.getElementById("in-energy").style.opacity = "0.5";
+          document.getElementById("in-anomaly").style.opacity = "0.5";
+
+          addLog("ESTABLISHING SECURE CONNECTION...", "log-warn");
+          fetchRealData();
+          liveInterval = setInterval(fetchRealData, 10000); // 10s quét 1 lần
         } else {
+          // TẮT CHẾ ĐỘ VỆ TINH
           btn.classList.remove("active-mode");
           btn.innerText = "[ CONNECT SATELLITE ]";
+
+          // Mở lại input
+          document.getElementById("in-energy").style.opacity = "1";
+          document.getElementById("in-anomaly").style.opacity = "1";
+
           clearInterval(liveInterval);
-          addLog("LINK TERMINATED. MANUAL MODE.", "log-crit");
+          addLog("LINK TERMINATED. RETURN TO MANUAL.", "log-crit");
         }
       }
 
+      // Gọi API Backend lấy dữ liệu thật
       async function fetchRealData() {
         try {
           addLog("SCANNING GLOBAL SEISMIC NETWORK...", "log-ok");
@@ -294,52 +409,104 @@
           const data = await res.json();
 
           if (data.upt_metrics) {
-            // 1. Cập nhật Số liệu UPT
-            const prob = (data.upt_metrics.probability_index * 100).toFixed(2);
+            // A. CẬP NHẬT METRICS
+            const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
             const probEl = document.getElementById("prob-val");
             probEl.innerText = prob + "%";
             document.getElementById("stab-val").innerText =
               data.upt_metrics.stability_score.toFixed(3);
 
-            // Đổi màu cảnh báo
-            if (data.upt_metrics.alert_level === "CRITICAL")
+            // Màu sắc cảnh báo
+            if (data.upt_metrics.alert_level === "CRITICAL") {
               probEl.style.color = "var(--neon-red)";
-            else if (data.upt_metrics.alert_level === "WARNING")
+              probEl.style.textShadow = "0 0 20px red";
+            } else if (data.upt_metrics.alert_level === "WARNING") {
               probEl.style.color = "var(--neon-yellow)";
-            else probEl.style.color = "white";
+              probEl.style.textShadow = "none";
+            } else {
+              probEl.style.color = "white";
+              probEl.style.textShadow = "none";
+            }
 
-            // 2. Vẽ Bản đồ (Quan trọng)
-            markersGroup.clearLayers(); // Xóa điểm cũ
+            // B. TỰ ĐỘNG CẬP NHẬT THANH TRƯỢT (AUTO-PILOT)
+            // Tìm giá trị lớn nhất trong đám dữ liệu lấy về để hiển thị
+            let maxEnergy = 0;
+            let maxAnomaly = 0;
 
+            if (data.raw_sensors && data.raw_sensors.length > 0) {
+              data.raw_sensors.forEach((s) => {
+                if (s.energy_level > maxEnergy) maxEnergy = s.energy_level;
+                if (s.anomaly_score > maxAnomaly) maxAnomaly = s.anomaly_score;
+              });
+
+              // Cập nhật thanh trượt tự động
+              updateSliderUI("in-energy", maxEnergy);
+              updateSliderUI("in-anomaly", maxAnomaly);
+
+              addLog(
+                `AUTO-SYNC: E=${maxEnergy.toFixed(2)} | A=${maxAnomaly.toFixed(
+                  2
+                )}`,
+                "log-warn"
+              );
+            }
+
+            // C. VẼ BẢN ĐỒ
+            markersGroup.clearLayers();
             data.raw_sensors.forEach((quake) => {
-              // Tính bán kính dựa trên năng lượng (Mag)
-              const radius = quake.energy_level * 500000;
-
-              // Màu sắc dựa trên mức độ nguy hiểm
               let color = "#0f0";
-              if (quake.energy_level > 0.6) color = "#f00";
-              else if (quake.energy_level > 0.4) color = "#ff0";
+              let radius = quake.energy_level * 300000; // Radius theo năng lượng
+
+              if (quake.energy_level > 0.6) {
+                color = "#f00";
+                radius *= 1.5;
+              } else if (quake.energy_level > 0.4) {
+                color = "#ff0";
+              }
 
               L.circle([quake.lat, quake.lon], {
                 color: color,
                 fillColor: color,
-                fillOpacity: 0.3,
+                fillOpacity: 0.4,
                 radius: radius,
               })
                 .addTo(markersGroup)
                 .bindPopup(
-                  `<b>${quake.place}</b><br>Energy: ${quake.energy_level}<br>Anomaly: ${quake.anomaly_score}`
+                  `<strong style="color:black">${quake.place}</strong><br><span style="color:black">E: ${quake.energy_level} | A: ${quake.anomaly_score}</span>`
                 );
 
-              addLog(
-                `DETECTED: ${quake.place} (E=${quake.energy_level})`,
-                "log-ok"
-              );
+              // Log sự kiện lớn
+              if (quake.energy_level > 0.4) {
+                addLog(
+                  `DETECTED: ${quake.place.substring(0, 20)}...`,
+                  "log-crit"
+                );
+              }
             });
           }
         } catch (e) {
-          addLog("CONNECTION LOST: " + e, "log-crit");
+          addLog("CONNECTION LOST / OFFLINE MODE", "log-crit");
+          console.error(e);
         }
+      }
+
+      // Hàm giả lập cho chế độ Manual (để khi kéo tay vẫn thấy số nhảy)
+      async function simulateCalculation() {
+        // Logic đơn giản để hiện số cho vui mắt khi manual
+        let e = parseFloat(document.getElementById("in-energy").value);
+        let a = parseFloat(document.getElementById("in-anomaly").value);
+        let c = parseFloat(document.getElementById("in-geo").value);
+
+        let p = a * e * c; // Công thức UPT gốc
+        let prob = (p * 100).toFixed(1);
+
+        document.getElementById("prob-val").innerText = prob + "%";
+
+        // Màu sắc
+        const probEl = document.getElementById("prob-val");
+        if (p > 0.7) probEl.style.color = "var(--neon-red)";
+        else if (p > 0.4) probEl.style.color = "var(--neon-yellow)";
+        else probEl.style.color = "white";
       }
     </script>
   </body>
