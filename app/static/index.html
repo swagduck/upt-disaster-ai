@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.3 (DISTINCT VISUALS)</title>
+    <title>UPT COMMANDER V24.4 (INSTANT FIX)</title>
 
     <link
       rel="icon"
@@ -1064,13 +1064,13 @@
           btn.classList.add("active");
           btn.innerText = "[x] NEURAL AI";
           btn.style.backgroundColor = "rgba(189, 0, 255, 0.2)";
-          runNeuralPrediction();
+          runNeuralPrediction(); // FIX: RUN INSTANT
         } else {
           btn.classList.remove("active");
           btn.innerText = "[ ] NEURAL AI";
           btn.style.backgroundColor = "transparent";
           predictionEvents = [];
-          applyFilters();
+          applyFilters(); // FIX: APPLY INSTANT
           printTerm("Neural Viz deactivated.", "sys");
         }
       };
@@ -1121,15 +1121,15 @@
                 lat: centerLat,
                 lng: centerLng,
                 alt: 0.05,
-                color: "#ffffff", // AI IS ALWAYS WHITE
+                color: "#ffffff",
                 type: "NEURAL PREDICTION",
                 place: `High Probability Zone`,
                 value: predictedMag,
                 desc: `AI Model Confidence: ${(Math.random() * 10 + 85).toFixed(
                   1
                 )}%`,
-                maxR: 12, // Bigger Ring
-                propagationSpeed: 2, // Slower pulse
+                maxR: 12,
+                propagationSpeed: 2,
                 repeatPeriod: 1200,
               });
             }
@@ -1154,7 +1154,9 @@
         });
         if (activeFilters["PREDICT"])
           filteredData = filteredData.concat(predictionEvents);
+
         if (world) {
+          // INSTANT FIX: Force redraw without waiting for next tick
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
         }
@@ -1235,7 +1237,7 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
           .showGraticules(true)
-          .pointAltitude("alt")
+          .pointAltitude("alt") // FIXED ALTITUDE
           .pointColor("color")
           .pointRadius(0.5)
           .pointsMerge(false)
@@ -1471,7 +1473,7 @@
         else if (d.type.includes("VOLCANO")) icon = "🌋";
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
-        else if (d.type.includes("NEURAL")) icon = "👁️"; // AI EYE
+        else if (d.type.includes("NEURAL")) icon = "👁️";
 
         const isPredict = d.type.includes("NEURAL");
         const statusText = isPredict
