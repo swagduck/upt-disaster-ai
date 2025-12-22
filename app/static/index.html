@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V21.1 (STATUS FIX)</title>
+    <title>UPT COMMANDER V21.2 (CALIBRATED)</title>
 
     <link
       rel="icon"
@@ -338,7 +338,6 @@
         color: #fff;
       }
 
-      /* FILTERS */
       .filter-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -365,7 +364,6 @@
         background: rgba(0, 255, 100, 0.1);
       }
 
-      /* COUNTDOWN */
       .countdown-ring {
         position: absolute;
         top: 10px;
@@ -409,8 +407,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v21.1 loaded.</div>
-        <div class="term-line sys">Counter logic fixed.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v21.2 loaded.</div>
+        <div class="term-line sys">Threat Sensitivity: Calibrated.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -605,7 +603,6 @@
     </div>
 
     <script>
-      // --- ERROR SUPPRESSION ---
       const originalError = console.error;
       console.error = function (...args) {
         if (
@@ -617,7 +614,6 @@
         originalError.apply(console, args);
       };
 
-      // --- AUDIO ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -664,7 +660,6 @@
       }
       const sfx = new AudioSynth();
 
-      // --- TERMINAL ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -722,7 +717,6 @@
           return;
         }
 
-        // FIXED STATUS COMMAND
         if (cmd.includes("status")) {
           printTerm(`--- SYSTEM REPORT ---`, "sys");
           printTerm(`DEFCON LEVEL: ${currentDefcon}`, "sys");
@@ -903,28 +897,32 @@
         }, 1000);
       }
 
+      // --- FIX: CALIBRATED THRESHOLDS ---
       function updateDefcon(score) {
         const el = document.getElementById("defcon-level");
         const bar = document.getElementById("defcon-bar");
         const body = document.body;
         let level = 5;
         let color = "var(--defcon-5)";
-        if (score > 5) {
+
+        // New Calibrated Thresholds:
+        if (score > 15) {
           level = 4;
           color = "var(--defcon-4)";
-        }
-        if (score > 10) {
+        } // Normal active day
+        if (score > 30) {
           level = 3;
           color = "var(--defcon-3)";
-        }
-        if (score > 20) {
+        } // Heightened
+        if (score > 50) {
           level = 2;
           color = "var(--defcon-2)";
-        }
-        if (score > 50) {
+        } // High
+        if (score > 80) {
           level = 1;
           color = "var(--defcon-1)";
-        }
+        } // Severe
+
         if (level !== currentDefcon) {
           currentDefcon = level;
           el.innerText = `DEFCON ${level}`;
@@ -1150,13 +1148,19 @@
         }
 
         allEventsCache = combinedEvents;
-        currentNodeCount = combinedEvents.length; // <--- FIX LỖI Ở ĐÂY
-        statsCache = counts; // Lưu thống kê để báo cáo
+        currentNodeCount = combinedEvents.length;
+        statsCache = counts;
 
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
+
+        // --- CALIBRATED DANGER SCORE ---
         const dangerScore =
-          maxIntensity + counts.VOLCANO * 2 + counts.STORM * 1.5;
+          maxIntensity * 2 +
+          counts.VOLCANO * 1 +
+          counts.STORM * 2 +
+          counts.FIRE * 0.1;
+
         updateDefcon(dangerScore);
         updateTicker(maxIntensity, combinedEvents.length);
         sfx.playScan();
