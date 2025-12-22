@@ -3,9 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HOLOGRAPHIC V10.6 (FIXED)</title>
-
-    <script src="//unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
+    <title>UPT COMMANDER V10.7 (STABLE)</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
@@ -34,7 +32,6 @@
         height: 100vh;
       }
 
-      /* LAYOUT */
       .grid-container {
         display: grid;
         grid-template-rows: 100vh;
@@ -48,7 +45,6 @@
         z-index: 1;
       }
 
-      /* HUD OVERLAY */
       .hud-overlay {
         position: absolute;
         bottom: 0;
@@ -76,7 +72,6 @@
         pointer-events: auto;
       }
 
-      /* INSPECTOR */
       #inspector {
         position: absolute;
         top: 0;
@@ -96,7 +91,6 @@
         right: 0;
       }
 
-      /* UI ELEMENTS */
       h3 {
         margin: 0 0 5px 0;
         font-family: "Orbitron";
@@ -167,6 +161,12 @@
         }
       }
     </style>
+
+    <script type="importmap">
+      {
+        "imports": { "three": "https://unpkg.com/three/build/three.module.js" }
+      }
+    </script>
   </head>
   <body>
     <div id="globe-viz"></div>
@@ -177,7 +177,7 @@
       </h2>
       <div id="inspector-content">Waiting for selection...</div>
       <button
-        onclick="closeInspector()"
+        id="btn-dismiss"
         style="
           width: 100%;
           margin-top: 20px;
@@ -234,30 +234,71 @@
       <div class="panel" style="flex: 1; border-color: var(--danger)">
         <h3 style="color: var(--danger)">// COMMAND LINK</h3>
         <div id="log-box"></div>
-        <button id="btn-link" class="btn-link" onclick="toggleSystem()">
-          INITIALIZE [3s]
-        </button>
+        <button id="btn-link" class="btn-link">INITIALIZE [3s]</button>
       </div>
     </div>
 
-    <script>
-      // --- 1. KHAI BÁO BIẾN ---
+    <script type="module">
+      import Globe from "https://esm.sh/globe.gl";
+
+      // --- 1. GLOBALS ---
       let isLive = false;
       let timer = null;
-      let globe;
+      let world; // Globe instance
 
-      // --- 2. LOGGING ---
+      // --- 2. HELPERS ---
       function log(msg) {
         const box = document.getElementById("log-box");
+        if (!box) return;
         const t = new Date().toLocaleTimeString("en-US", { hour12: false });
         box.innerHTML =
           `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
       }
 
-      // --- 3. KHỞI TẠO GLOBE ---
-      // Chúng ta đặt trong try-catch để nếu lỗi thì vẫn hiện thông báo
+      // --- 3. UI FUNCTIONS ---
+      window.showInspector = (d) => {
+        // Gán vào window để gọi được toàn cục
+        const p = document.getElementById("inspector");
+        p.classList.add("active");
+
+        let icon = "📍";
+        if (d.type.includes("EARTHQUAKE")) icon = "📉";
+        else if (d.type.includes("TSUNAMI")) icon = "🌊";
+        else if (d.type.includes("VOLCANO")) icon = "🌋";
+        else if (d.type.includes("STORM")) icon = "🌀";
+        else if (d.type.includes("SOLAR")) icon = "☀️";
+
+        document.getElementById("inspector-content").innerHTML = `
+                <div class="row"><span class="lbl">TYPE</span> <span class="val" style="color:var(--primary); font-size:1.2rem">${icon} ${
+          d.type
+        }</span></div>
+                <div class="row"><span class="lbl">LOCATION</span> <span class="val">${
+                  d.place
+                }</span></div>
+                <div class="row"><span class="lbl">ENERGY (E)</span> <span class="val" style="color:var(--warn)">${d.energy_level.toFixed(
+                  3
+                )}</span></div>
+                <div style="margin-top:20px; border:1px solid #444; padding:15px; text-align:center; background:rgba(0,0,0,0.5)">
+                    <strong style="font-size:1.5rem; color:${
+                      d.energy_level > 0.6 ? "var(--danger)" : "var(--primary)"
+                    }">
+                        ${d.energy_level > 0.6 ? "CRITICAL" : "STABLE"}
+                    </strong>
+                </div>
+            `;
+      };
+
+      window.closeInspector = () => {
+        document.getElementById("inspector").classList.remove("active");
+        if (world) world.pointOfView({ altitude: 2.5 }, 2000);
+      };
+
+      // Gắn sự kiện click cho nút Dismiss
+      document.getElementById("btn-dismiss").onclick = window.closeInspector;
+
+      // --- 4. INIT GLOBE ---
       try {
-        globe = Globe()(document.getElementById("globe-viz"))
+        world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
           .bumpImageUrl(
             "//unpkg.com/three-globe/example/img/earth-topology.png"
@@ -268,39 +309,36 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.15)
 
-          // Cấu hình Cột & Transition
+          // Config Points & Transitions
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.6)
           .pointsMerge(false)
-
-          // --- CHỖ NÀY ĐÃ ĐƯỢC FIX NHỜ VERSION 2.32.0 ---
-          .pointAltitudeTransition(1500)
+          .pointAltitudeTransition(1500) // Đã hoạt động với bản ESM mới nhất
           .pointColorTransition(1500)
           .pointRadiusTransition(1500)
-          // ----------------------------------------------
 
-          // Vòng sóng
+          // Config Rings
           .ringColor("color")
           .ringMaxRadius("maxR")
           .ringPropagationSpeed(3)
           .ringRepeatPeriod(1000)
 
-          // Tương tác
+          // Interactions
           .pointLabel((d) => `Target: ${d.place}`)
           .onPointClick((d) => {
-            globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
-            showInspector(d);
+            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
+            window.showInspector(d);
           });
 
-        globe.controls().autoRotate = true;
-        globe.controls().autoRotateSpeed = 0.5;
+        world.controls().autoRotate = true;
+        world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
-        console.error("Lỗi khởi tạo:", e);
-        log("Critical Error: WebGL failed.");
+        console.error("Globe init error:", e);
+        log("Critical 3D Engine Error.");
       }
 
-      // --- 4. CHARTS ---
+      // --- 5. CHARTS ---
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
@@ -360,63 +398,7 @@
         },
       });
 
-      // --- 5. LOGIC CHÍNH ---
-      function showInspector(d) {
-        const p = document.getElementById("inspector");
-        p.classList.add("active");
-
-        let icon = "📍";
-        if (d.type.includes("EARTHQUAKE")) icon = "📉";
-        else if (d.type.includes("TSUNAMI")) icon = "🌊";
-        else if (d.type.includes("VOLCANO")) icon = "🌋";
-        else if (d.type.includes("STORM")) icon = "🌀";
-        else if (d.type.includes("SOLAR")) icon = "☀️";
-
-        document.getElementById("inspector-content").innerHTML = `
-                <div class="row"><span class="lbl">TYPE</span> <span class="val" style="color:var(--primary); font-size:1.2rem">${icon} ${
-          d.type
-        }</span></div>
-                <div class="row"><span class="lbl">LOCATION</span> <span class="val">${
-                  d.place
-                }</span></div>
-                <div class="row"><span class="lbl">ENERGY (E)</span> <span class="val" style="color:var(--warn)">${d.energy_level.toFixed(
-                  3
-                )}</span></div>
-                <div style="margin-top:20px; border:1px solid #444; padding:15px; text-align:center; background:rgba(0,0,0,0.5)">
-                    <strong style="font-size:1.5rem; color:${
-                      d.energy_level > 0.6 ? "var(--danger)" : "var(--primary)"
-                    }">
-                        ${d.energy_level > 0.6 ? "CRITICAL" : "STABLE"}
-                    </strong>
-                </div>
-            `;
-      }
-
-      function closeInspector() {
-        document.getElementById("inspector").classList.remove("active");
-        globe.pointOfView({ altitude: 2.5 }, 2000);
-      }
-
-      async function toggleSystem() {
-        isLive = !isLive;
-        const btn = document.getElementById("btn-link");
-
-        if (isLive) {
-          btn.classList.add("active");
-          btn.innerText = "ABORT UPLINK";
-          if (globe) globe.controls().autoRotate = false;
-          log("System Initialized.");
-          fetchData();
-          timer = setInterval(fetchData, 3000);
-        } else {
-          btn.classList.remove("active");
-          btn.innerText = "INITIALIZE [3s]";
-          clearInterval(timer);
-          if (globe) globe.controls().autoRotate = true;
-          log("System Standby.");
-        }
-      }
-
+      // --- 6. LOGIC & FETCH ---
       async function fetchData() {
         const start = Date.now();
         try {
@@ -426,8 +408,7 @@
             Date.now() - start + "ms";
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          console.error(e);
-          log("Signal weak...");
+          log("Signal Lost...");
         }
       }
 
@@ -473,9 +454,9 @@
           };
         });
 
-        if (globe) {
-          globe.pointsData(globeData);
-          globe.ringsData(globeData.filter((d) => d.maxR > 0));
+        if (world) {
+          world.pointsData(globeData);
+          world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
 
         radarChart.data.datasets[0].data = [
@@ -486,9 +467,30 @@
           counts["TSUNAMI"],
         ];
         radarChart.update();
-
         log(`Synced ${data.raw_sensors.length} nodes.`);
       }
+
+      // --- 7. BUTTON HANDLER ---
+      // Gắn sự kiện click cho nút Initialize bằng JS thuần
+      document.getElementById("btn-link").addEventListener("click", () => {
+        isLive = !isLive;
+        const btn = document.getElementById("btn-link");
+
+        if (isLive) {
+          btn.classList.add("active");
+          btn.innerText = "ABORT UPLINK";
+          if (world) world.controls().autoRotate = false;
+          log("System Initialized.");
+          fetchData();
+          timer = setInterval(fetchData, 3000);
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = "INITIALIZE [3s]";
+          clearInterval(timer);
+          if (world) world.controls().autoRotate = true;
+          log("System Standby.");
+        }
+      });
     </script>
   </body>
 </html>
