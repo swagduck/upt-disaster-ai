@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT JARVIS V15.0 (VOICE + TECTONIC)</title>
+    <title>UPT JARVIS V15.1 (STABLE FIX)</title>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -140,7 +140,7 @@
       .term-line.voice {
         color: var(--neon-gold);
         font-style: italic;
-      } /* Màu cho giọng nói */
+      }
 
       #term-input-line {
         display: flex;
@@ -159,8 +159,6 @@
         margin-left: 5px;
         text-transform: lowercase;
       }
-
-      /* --- MIC BUTTON --- */
       #mic-btn {
         background: transparent;
         border: none;
@@ -339,7 +337,6 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Tectonic layers loaded.</div>
         <div class="term-line sys">Voice module ready.</div>
         <div class="term-line">Type 'help' or click MIC to speak.</div>
       </div>
@@ -504,7 +501,7 @@
       }
       const sfx = new AudioSynth();
 
-      // --- B. TERMINAL & VOICE LOGIC ---
+      // --- B. TERMINAL & VOICE ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -518,29 +515,25 @@
         termOut.scrollTop = termOut.scrollHeight;
       }
 
-      // --- VOICE RECOGNITION SETUP ---
       if ("webkitSpeechRecognition" in window) {
         recognition = new webkitSpeechRecognition();
         recognition.continuous = false;
-        recognition.lang = "en-US"; // Hoặc 'vi-VN' nếu muốn tiếng Việt chuẩn
+        recognition.lang = "en-US";
         recognition.interimResults = false;
-
         recognition.onstart = function () {
           micBtn.classList.add("listening");
           printTerm("Listening...", "voice");
         };
-
         recognition.onend = function () {
           micBtn.classList.remove("listening");
         };
-
         recognition.onresult = function (event) {
           const transcript = event.results[0][0].transcript.toLowerCase();
           printTerm(`"${transcript}"`, "voice");
           processCommand(transcript);
         };
       } else {
-        micBtn.style.display = "none"; // Ẩn nút nếu trình duyệt không hỗ trợ
+        micBtn.style.display = "none";
         printTerm("Voice API not supported.", "err");
       }
 
@@ -559,10 +552,7 @@
       });
 
       function processCommand(cmd) {
-        // Xử lý lệnh (gõ tay hoặc giọng nói)
         const parts = cmd.split(" ");
-
-        // MAP CÁC TỪ KHÓA
         if (cmd.includes("scan") || cmd.includes("quét")) {
           printTerm("Manual scan initiated...", "sys");
           fetchData();
@@ -575,10 +565,7 @@
         } else if (cmd.includes("unmute") || cmd.includes("bật tiếng")) {
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
-        }
-
-        // CAMERA MOVEMENT
-        else if (cmd.includes("vietnam") || cmd.includes("việt nam")) {
+        } else if (cmd.includes("vietnam") || cmd.includes("việt nam")) {
           world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
           printTerm("Moving to VIETNAM...");
         } else if (cmd.includes("japan") || cmd.includes("nhật bản")) {
@@ -636,7 +623,7 @@
         }
       }
 
-      // --- D. INIT GLOBE (WITH TECTONIC PLATES) ---
+      // --- D. INIT GLOBE (FIXED PATHS) ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -662,7 +649,7 @@
             showInspector(d);
           });
 
-        // --- LOAD TECTONIC PLATES (KHOA HỌC) ---
+        // --- LOAD TECTONIC PLATES (FIXED: RGBA COLOR INSTEAD OF OPACITY FUNCTION) ---
         fetch(
           "//raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
         )
@@ -670,11 +657,10 @@
           .then((plates) => {
             world
               .pathsData(plates.features)
-              .pathColor(() => "#ff4400") // Màu cam đỏ cho ranh giới mảng
+              .pathColor(() => "rgba(255, 68, 0, 0.4)") // Dùng RGBA để chỉnh độ mờ
               .pathDashLength(0.01)
               .pathDashGap(0.004)
-              .pathDashAnimateTime(100000) // Hiệu ứng chạy nhẹ
-              .pathOpacity(0.3); // Mờ mờ để không rối mắt
+              .pathDashAnimateTime(100000);
 
             printTerm("Tectonic Plates loaded.", "sys");
           });
