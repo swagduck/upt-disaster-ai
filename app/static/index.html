@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HOLOGRAPHIC V10.5 STABLE</title>
+    <title>UPT HOLOGRAPHIC V10.6 (FIXED)</title>
 
-    <script src="//unpkg.com/globe.gl"></script>
+    <script src="//unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
@@ -96,7 +96,7 @@
         right: 0;
       }
 
-      /* TEXT & UI */
+      /* UI ELEMENTS */
       h3 {
         margin: 0 0 5px 0;
         font-family: "Orbitron";
@@ -241,12 +241,12 @@
     </div>
 
     <script>
-      // --- 1. KHAI BÁO BIẾN TOÀN CỤC ---
+      // --- 1. KHAI BÁO BIẾN ---
       let isLive = false;
       let timer = null;
       let globe;
 
-      // --- 2. HÀM LOGGING ---
+      // --- 2. LOGGING ---
       function log(msg) {
         const box = document.getElementById("log-box");
         const t = new Date().toLocaleTimeString("en-US", { hour12: false });
@@ -254,7 +254,8 @@
           `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
       }
 
-      // --- 3. KHỞI TẠO GLOBE (ĐÃ XÓA THREE.JS ĐỂ TRÁNH XUNG ĐỘT) ---
+      // --- 3. KHỞI TẠO GLOBE ---
+      // Chúng ta đặt trong try-catch để nếu lỗi thì vẫn hiện thông báo
       try {
         globe = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -272,9 +273,12 @@
           .pointColor("color")
           .pointRadius(0.6)
           .pointsMerge(false)
+
+          // --- CHỖ NÀY ĐÃ ĐƯỢC FIX NHỜ VERSION 2.32.0 ---
           .pointAltitudeTransition(1500)
           .pointColorTransition(1500)
           .pointRadiusTransition(1500)
+          // ----------------------------------------------
 
           // Vòng sóng
           .ringColor("color")
@@ -292,11 +296,11 @@
         globe.controls().autoRotate = true;
         globe.controls().autoRotateSpeed = 0.5;
       } catch (e) {
-        console.error("Lỗi khởi tạo Globe:", e);
-        log("Lỗi thư viện 3D. Hãy F5 lại trang.");
+        console.error("Lỗi khởi tạo:", e);
+        log("Critical Error: WebGL failed.");
       }
 
-      // --- 4. CONFIG CHARTS ---
+      // --- 4. CHARTS ---
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
