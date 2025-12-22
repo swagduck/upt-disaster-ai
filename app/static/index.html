@@ -3,40 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V12.0 (ANTI-JITTER)</title>
+    <title>UPT CINEMATIC V13.0</title>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap"
       rel="stylesheet"
     />
 
     <style>
       :root {
-        --primary: #00f3ff;
-        --danger: #ff003c;
-        --warn: #ffd700;
-        --storm: #bd00ff;
-        --fire: #ff6600;
-        --solar: #ffffff;
-        --tsunami: #0044ff;
-        --bg: #000;
-        --glass: rgba(0, 15, 30, 0.9);
+        --neon-blue: #00f3ff;
+        --neon-red: #ff003c;
+        --neon-gold: #ffd700;
+        --glass-bg: rgba(10, 20, 35, 0.65);
+        --glass-border: rgba(0, 243, 255, 0.2);
+        --tech-font: "Orbitron", sans-serif;
+        --data-font: "Rajdhani", sans-serif;
       }
+
       body {
         margin: 0;
-        background: var(--bg);
-        color: var(--primary);
-        font-family: "Share Tech Mono";
+        background-color: #000;
+        background-image: radial-gradient(circle at 50% 50%, #112 0%, #000 80%);
+        color: var(--neon-blue);
+        font-family: var(--data-font);
         overflow: hidden;
         height: 100vh;
       }
 
-      .grid-container {
-        display: grid;
-        grid-template-rows: 100vh;
+      /* --- BACKGROUND FX --- */
+      .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 999;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0) 50%,
+          rgba(0, 0, 0, 0.2) 50%,
+          rgba(0, 0, 0, 0.2)
+        );
+        background-size: 100% 4px;
+        opacity: 0.15;
       }
+
+      /* --- LAYOUT --- */
       #globe-viz {
         position: absolute;
         top: 0;
@@ -48,242 +65,356 @@
 
       .hud-overlay {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 35vh;
-        display: flex;
-        gap: 10px;
-        padding: 10px;
-        box-sizing: border-box;
-        background: linear-gradient(to top, #000 90%, transparent 100%);
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        height: 32vh;
+        display: grid;
+        grid-template-columns: 0.8fr 1.5fr 1fr 1fr;
+        gap: 15px;
         z-index: 10;
         pointer-events: none;
       }
 
+      /* --- CINEMATIC PANELS --- */
       .panel {
-        border: 1px solid rgba(0, 243, 255, 0.2);
-        background: var(--glass);
-        padding: 10px;
-        flex: 1;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        padding: 15px;
         display: flex;
         flex-direction: column;
-        backdrop-filter: blur(5px);
-        border-radius: 5px;
+        position: relative;
         pointer-events: auto;
+        clip-path: polygon(
+          0 0,
+          100% 0,
+          100% 85%,
+          92% 100%,
+          0 100%
+        ); /* Vát góc dưới bên phải */
+        box-shadow: 0 0 20px rgba(0, 243, 255, 0.05);
+        transition: all 0.3s ease;
       }
 
-      #inspector {
+      .panel:hover {
+        background: rgba(10, 30, 50, 0.8);
+        border-color: rgba(0, 243, 255, 0.6);
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+      }
+
+      /* Decoration Lines */
+      .panel::before {
+        content: "";
         position: absolute;
         top: 0;
-        right: -350px;
-        width: 320px;
-        height: 60vh;
-        background: rgba(0, 10, 20, 0.95);
-        border-left: 2px solid var(--primary);
-        border-bottom: 2px solid var(--primary);
-        z-index: 20;
-        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        padding: 20px;
-        box-sizing: border-box;
-        clip-path: polygon(0 0, 100% 0, 100% 100%, 20% 100%, 0 95%);
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--neon-blue),
+          transparent
+        );
+        opacity: 0.5;
       }
-      #inspector.active {
+      .deco-corner {
+        position: absolute;
+        bottom: 0;
         right: 0;
+        width: 20px;
+        height: 20px;
+        border-bottom: 2px solid var(--neon-blue);
+        border-right: 2px solid var(--neon-blue);
+        opacity: 0.8;
       }
 
+      /* --- TYPOGRAPHY --- */
       h3 {
-        margin: 0 0 5px 0;
-        font-family: "Orbitron";
-        font-size: 0.8rem;
-        border-bottom: 1px dashed rgba(0, 243, 255, 0.5);
-        color: var(--primary);
+        margin: 0 0 10px 0;
+        font-family: var(--tech-font);
+        font-size: 0.75rem;
         letter-spacing: 2px;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
+      h3::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        background: var(--neon-blue);
+        box-shadow: 0 0 8px var(--neon-blue);
+        transform: rotate(45deg);
+      }
+
+      .big-stat {
+        font-family: var(--tech-font);
+        font-size: 3rem;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 0 20px var(--neon-blue);
+        line-height: 1;
+        margin-bottom: 5px;
+      }
+      .sub-stat {
+        font-size: 0.8rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
       .row {
         display: flex;
         justify-content: space-between;
-        border-bottom: 1px solid #333;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding: 8px 0;
-      }
-      .lbl {
-        color: #888;
-        font-size: 0.8rem;
+        font-size: 0.95rem;
       }
       .val {
-        font-weight: bold;
+        font-weight: 700;
         color: #fff;
-        text-align: right;
       }
 
+      /* --- BUTTONS --- */
+      .btn-link {
+        background: rgba(0, 243, 255, 0.1);
+        border: 1px solid var(--neon-blue);
+        color: var(--neon-blue);
+        padding: 12px;
+        font-family: var(--tech-font);
+        font-weight: bold;
+        letter-spacing: 2px;
+        cursor: pointer;
+        margin-top: auto;
+        transition: 0.3s;
+        text-transform: uppercase;
+        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+      }
+      .btn-link:hover {
+        background: var(--neon-blue);
+        color: #000;
+        box-shadow: 0 0 25px var(--neon-blue);
+      }
+      .btn-link.active {
+        background: var(--neon-red);
+        border-color: var(--neon-red);
+        color: #fff;
+        box-shadow: 0 0 20px var(--neon-red);
+      }
+
+      /* --- INSPECTOR --- */
+      #inspector {
+        position: absolute;
+        top: 20px;
+        right: -400px;
+        width: 350px;
+        background: rgba(5, 10, 15, 0.95);
+        border: 1px solid var(--neon-blue);
+        border-left: 4px solid var(--neon-blue);
+        padding: 25px;
+        z-index: 20;
+        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Hiệu ứng nảy */
+        clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
+        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
+      }
+      #inspector.active {
+        right: 20px;
+      }
+
+      /* --- LOGS --- */
       #log-box {
-        font-size: 0.7rem;
+        font-size: 0.85rem;
         overflow-y: auto;
-        font-family: "Courier New";
         flex: 1;
-        margin-top: 5px;
+        margin-top: 10px;
         scrollbar-width: none;
       }
       .log-item {
-        margin-bottom: 2px;
-        border-left: 3px solid #333;
-        padding-left: 5px;
+        margin-bottom: 4px;
+        padding-left: 8px;
+        border-left: 2px solid #333;
+        color: rgba(255, 255, 255, 0.8);
+        font-family: "Courier New", monospace;
       }
-
-      .btn-link {
-        background: rgba(0, 243, 255, 0.1);
-        border: 1px solid var(--primary);
-        color: var(--primary);
-        padding: 10px;
-        font-family: "Orbitron";
-        cursor: pointer;
-        margin-top: auto;
-        font-weight: bold;
-        transition: 0.3s;
-        pointer-events: auto;
-      }
-      .btn-link.active {
-        background: var(--danger);
-        border-color: var(--danger);
-        color: white;
-        animation: pulse 1s infinite;
-      }
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 5px var(--danger);
-        }
-        100% {
-          box-shadow: 0 0 20px var(--danger);
-        }
+      .log-item span {
+        color: #666;
+        font-size: 0.7em;
+        margin-right: 5px;
       }
     </style>
   </head>
   <body>
+    <div class="scanlines"></div>
+
     <div id="globe-viz"></div>
 
     <div id="inspector">
-      <h2 style="font-family: 'Orbitron'; color: var(--primary); margin-top: 0">
+      <h2
+        style="
+          font-family: var(--tech-font);
+          color: var(--neon-blue);
+          margin: 0 0 5px 0;
+          font-size: 1.2rem;
+        "
+      >
         TARGET LOCKED
       </h2>
-      <div id="inspector-content">Waiting for selection...</div>
+      <div
+        style="
+          width: 100%;
+          height: 1px;
+          background: var(--neon-blue);
+          margin-bottom: 20px;
+          opacity: 0.5;
+        "
+      ></div>
+
+      <div id="inspector-content" style="font-size: 1rem; line-height: 1.6">
+        Awaiting Selection...
+      </div>
+
       <button
         id="btn-dismiss"
         style="
           width: 100%;
-          margin-top: 20px;
+          margin-top: 25px;
           background: transparent;
           border: 1px solid #555;
           color: #888;
-          cursor: pointer;
           padding: 10px;
+          cursor: pointer;
+          font-family: var(--tech-font);
+          transition: 0.3s;
         "
       >
-        DISMISS TARGET
+        // DISMISS
       </button>
     </div>
 
     <div class="hud-overlay">
-      <div class="panel" style="flex: 0.8; border-color: var(--warn)">
-        <h3 style="color: var(--warn)">// GLOBAL STATUS</h3>
-        <div style="text-align: center; margin-top: 10px">
-          <div
-            id="val-prob"
-            style="
-              font-family: 'Orbitron';
-              font-size: 2.5rem;
-              color: #fff;
-              text-shadow: 0 0 10px var(--primary);
-            "
-          >
-            --%
-          </div>
-          <div style="font-size: 0.6rem; color: #aaa">COLLAPSE PROBABILITY</div>
+      <div class="panel">
+        <h3>Global Stability</h3>
+        <div
+          style="
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+          "
+        >
+          <div id="val-prob" class="big-stat">--%</div>
+          <div class="sub-stat">COLLAPSE PROBABILITY</div>
         </div>
-        <div style="margin-top: auto; font-size: 0.8rem">
-          <div style="display: flex; justify-content: space-between">
-            <span>RESONANCE:</span>
-            <span id="val-res" style="color: var(--warn)">0.00</span>
-          </div>
-          <div style="display: flex; justify-content: space-between">
-            <span>PING:</span> <span id="val-ping">--ms</span>
-          </div>
+        <div class="deco-corner"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Resonance Frequency</h3>
+        <div style="flex: 1; width: 100%; position: relative">
+          <canvas id="waveChart"></canvas>
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: #666;
+          "
+        >
+          <span>E: <span id="val-res" style="color: #fff">0.00</span></span>
+          <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
 
-      <div class="panel" style="flex: 1.5; position: relative">
-        <h3>// RESONANCE WAVE</h3>
-        <div style="flex: 1; width: 100%"><canvas id="waveChart"></canvas></div>
-      </div>
-      <div class="panel" style="flex: 1; position: relative">
-        <h3>// THREAT RADAR</h3>
-        <div style="flex: 1; width: 100%">
+      <div class="panel">
+        <h3>Threat Analysis</h3>
+        <div style="flex: 1; width: 100%; position: relative">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
-      <div class="panel" style="flex: 1; border-color: var(--danger)">
-        <h3 style="color: var(--danger)">// COMMAND LINK</h3>
+      <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
+        <h3 style="color: var(--neon-red)">Command Link</h3>
         <div id="log-box"></div>
-        <button id="btn-link">INITIALIZE [3s]</button>
+        <button id="btn-link" class="btn-link">Initialize Uplink</button>
+        <div class="deco-corner" style="border-color: var(--neon-red)"></div>
       </div>
     </div>
 
     <script>
-      // --- 1. GLOBALS ---
+      // --- 1. CONFIG & GLOBALS ---
+      const colorConfig = {
+        earthquake: "#00f3ff", // Cyan
+        volcano: "#ffd700", // Gold
+        storm: "#bd00ff", // Purple
+        fire: "#ff6600", // Orange
+        tsunami: "#0044ff", // Deep Blue
+        solar: "#ffffff", // White
+      };
+
       let isLive = false;
       let timer = null;
       let world;
-
-      // BIẾN QUAN TRỌNG ĐỂ CHỐNG GIẬT
       let previousDataHash = "";
 
       // --- 2. HELPERS ---
       function log(msg) {
         const box = document.getElementById("log-box");
         if (!box) return;
-        const t = new Date().toLocaleTimeString("en-US", { hour12: false });
+        const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
         box.innerHTML =
-          `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
+          `<div class="log-item"><span>${t}</span>${msg}</div>` + box.innerHTML;
       }
 
-      // --- 3. UI FUNCTIONS ---
+      // --- 3. UI INTERACTIONS ---
       window.showInspector = (d) => {
         const p = document.getElementById("inspector");
         p.classList.add("active");
-        let icon = "📍";
-        if (d.type.includes("EARTHQUAKE")) icon = "📉";
-        else if (d.type.includes("TSUNAMI")) icon = "🌊";
-        else if (d.type.includes("VOLCANO")) icon = "🌋";
-        else if (d.type.includes("STORM")) icon = "🌀";
-        else if (d.type.includes("SOLAR")) icon = "☀️";
+
+        let color = colorConfig.earthquake;
+        if (d.type.includes("VOLCANO")) color = colorConfig.volcano;
+        if (d.type.includes("STORM")) color = colorConfig.storm;
+        if (d.type.includes("FIRE")) color = colorConfig.fire;
+        if (d.type.includes("TSUNAMI")) color = colorConfig.tsunami;
 
         document.getElementById("inspector-content").innerHTML = `
-                <div class="row"><span class="lbl">TYPE</span> <span class="val" style="color:var(--primary); font-size:1.2rem">${icon} ${
+                <div class="row"><span style="color:#888">TYPE</span> <strong style="color:${color}">${
           d.type
-        }</span></div>
-                <div class="row"><span class="lbl">LOCATION</span> <span class="val">${
+        }</strong></div>
+                <div class="row"><span style="color:#888">LOCATION</span> <span>${
                   d.place
                 }</span></div>
-                <div class="row"><span class="lbl">ENERGY (E)</span> <span class="val" style="color:var(--warn)">${d.energy_level.toFixed(
-                  3
-                )}</span></div>
-                <div style="margin-top:20px; border:1px solid #444; padding:15px; text-align:center; background:rgba(0,0,0,0.5)">
-                    <strong style="font-size:1.5rem; color:${
-                      d.energy_level > 0.6 ? "var(--danger)" : "var(--primary)"
-                    }">
-                        ${d.energy_level > 0.6 ? "CRITICAL" : "STABLE"}
-                    </strong>
+                <div class="row"><span style="color:#888">ENERGY</span> <span style="color:${color}">${d.energy_level.toFixed(
+          3
+        )}</span></div>
+                <div class="row"><span style="color:#888">COORDS</span> <span>${d.lat.toFixed(
+                  2
+                )}, ${d.lng.toFixed(2)}</span></div>
+                
+                <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-left:3px solid ${
+                  d.energy_level > 0.6 ? "red" : "green"
+                };">
+                    STATUS: ${
+                      d.energy_level > 0.6 ? "CRITICAL DANGER" : "MONITORING"
+                    }
                 </div>
             `;
       };
 
       window.closeInspector = () => {
         document.getElementById("inspector").classList.remove("active");
-        if (world) world.pointOfView({ altitude: 2.5 }, 2000);
+        if (world) world.pointOfView({ altitude: 2.5 }, 1500);
       };
       document.getElementById("btn-dismiss").onclick = window.closeInspector;
 
-      // --- 4. INIT GLOBE ---
+      // --- 4. 3D GLOBE INITIALIZATION ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -294,35 +425,41 @@
             "//unpkg.com/three-globe/example/img/night-sky.png"
           )
           .atmosphereColor("#00f3ff")
-          .atmosphereAltitude(0.15)
+          .atmosphereAltitude(0.2)
 
-          // CẤU HÌNH CỘT (Cố định, không animation để tránh lỗi)
+          // Cột năng lượng (Giữ nguyên logic Stable V12)
           .pointAltitude("alt")
           .pointColor("color")
-          .pointRadius(0.6)
+          .pointRadius(0.5)
           .pointsMerge(false)
-          .pointResolution(32) // Cột tròn đẹp hơn
+          .pointResolution(32)
 
-          // CẤU HÌNH SÓNG (Vẫn chạy nền để đẹp)
+          // Vòng sóng xung kích
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed(4)
-          .ringRepeatPeriod(1000)
+          .ringPropagationSpeed(5)
+          .ringRepeatPeriod(800)
 
-          .pointLabel((d) => `Target: ${d.place}`)
+          // Tương tác
+          .pointLabel(
+            (d) =>
+              `<div style="background:rgba(0,0,0,0.8); padding:5px 10px; border:1px solid cyan; font-family:'Rajdhani'">${d.place}</div>`
+          )
           .onPointClick((d) => {
-            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
+            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             window.showInspector(d);
           });
 
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.5;
+        world.controls().autoRotateSpeed = 0.6;
       } catch (e) {
         console.error(e);
-        log("Critical 3D Error.");
       }
 
-      // --- 5. CHARTS ---
+      // --- 5. CHART JS SETUP ---
+      Chart.defaults.color = "#666";
+      Chart.defaults.font.family = "Rajdhani";
+
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
@@ -333,9 +470,19 @@
               borderColor: "#00f3ff",
               borderWidth: 2,
               pointRadius: 0,
-              tension: 0.4,
+              tension: 0.5,
               fill: true,
-              backgroundColor: "rgba(0,243,255,0.1)",
+              backgroundColor: (ctx) => {
+                const gradient = ctx.chart.ctx.createLinearGradient(
+                  0,
+                  0,
+                  0,
+                  200
+                );
+                gradient.addColorStop(0, "rgba(0, 243, 255, 0.4)");
+                gradient.addColorStop(1, "rgba(0, 243, 255, 0)");
+                return gradient;
+              },
             },
           ],
         },
@@ -345,7 +492,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { display: false },
-            y: { display: true, min: 0, max: 1, grid: { color: "#222" } },
+            y: { display: false, min: 0, max: 1 },
           },
           animation: { duration: 0 },
         },
@@ -359,13 +506,14 @@
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
-                "rgba(0,243,255,0.6)",
-                "rgba(255,215,0,0.6)",
-                "rgba(189,0,255,0.6)",
-                "rgba(255,255,255,0.6)",
-                "rgba(0,68,255,0.6)",
+                "rgba(0, 243, 255, 0.6)",
+                "rgba(255, 215, 0, 0.6)",
+                "rgba(189, 0, 255, 0.6)",
+                "rgba(255, 255, 255, 0.6)",
+                "rgba(0, 68, 255, 0.6)",
               ],
-              borderWidth: 0,
+              borderWidth: 1,
+              borderColor: "#111",
             },
           ],
         },
@@ -375,14 +523,19 @@
           plugins: {
             legend: {
               position: "right",
-              labels: { color: "#fff", font: { size: 9 } },
+              labels: { color: "#ccc", boxWidth: 10, font: { size: 10 } },
             },
           },
-          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
+          scales: {
+            r: {
+              grid: { color: "rgba(255,255,255,0.1)" },
+              ticks: { display: false },
+            },
+          },
         },
       });
 
-      // --- 6. LOGIC & FETCH ---
+      // --- 6. DATA FETCHING (SMART DIFF LOGIC V12) ---
       async function fetchData() {
         const start = Date.now();
         try {
@@ -390,43 +543,45 @@
           const data = await res.json();
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
-
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          log("Signal Lost...");
+          log("Connection unstable...");
         }
       }
 
       function updateUI(data) {
-        // Cập nhật chỉ số Text & Biểu đồ (Luôn chạy để thấy live)
+        // Stats
         const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
-        document.getElementById("val-prob").innerText = prob + "%";
+        const probEl = document.getElementById("val-prob");
+        probEl.innerText = prob + "%";
+
+        // Color Logic for Text
+        if (prob > 60) {
+          probEl.style.color = "var(--neon-red)";
+          probEl.style.textShadow = "0 0 30px red";
+        } else {
+          probEl.style.color = "#fff";
+          probEl.style.textShadow = "0 0 20px var(--neon-blue)";
+        }
+
         document.getElementById("val-res").innerText =
           data.upt_metrics.network_resonance.toFixed(3);
 
+        // Update Wave Chart
         waveChart.data.datasets[0].data.push(
           data.upt_metrics.network_resonance
         );
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // --- KỸ THUẬT CHỐNG GIẬT (SMART DIFF) ---
-        // 1. Tạo "Vân tay" (Hash) của dữ liệu mới
-        // Chỉ quan tâm đến ID và Năng lượng. Nếu 2 cái này không đổi -> Không vẽ lại.
+        // Anti-Jitter Logic
         const currentHash = JSON.stringify(
           data.raw_sensors.map((s) => s.place + s.energy_level)
         );
-
-        // 2. So sánh với Vân tay cũ
-        if (currentHash === previousDataHash) {
-          // log("Data unchanged. Skipping 3D render."); // Debug
-          return; // DỪNG LẠI NGAY, KHÔNG ĐỤNG VÀO GLOBE
-        }
-
-        // 3. Nếu khác nhau -> Lưu vân tay mới và Vẽ lại
+        if (currentHash === previousDataHash) return;
         previousDataHash = currentHash;
-        // ------------------------------------------
 
+        // Process 3D Data
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
@@ -436,14 +591,21 @@
         };
 
         const globeData = data.raw_sensors.map((s) => {
-          counts[s.type] = (counts[s.type] || 0) + 1;
-          let color = "#00f3ff";
-          if (s.type === "EARTHQUAKE")
-            color = s.energy_level > 0.6 ? "#ff003c" : "#00f3ff";
-          else if (s.type === "TSUNAMI") color = "var(--tsunami)";
-          else if (s.type === "VOLCANO") color = "var(--warn)";
-          else if (s.type === "STORM") color = "var(--storm)";
-          else if (s.type === "SOLAR_FLARE") color = "var(--solar)";
+          let typeKey = "EARTHQUAKE";
+          if (s.type.includes("VOLCANO")) typeKey = "VOLCANO";
+          if (s.type.includes("STORM")) typeKey = "STORM";
+          if (s.type.includes("SOLAR")) typeKey = "SOLAR_FLARE";
+          if (s.type.includes("TSUNAMI")) typeKey = "TSUNAMI";
+
+          counts[typeKey] = (counts[typeKey] || 0) + 1;
+
+          let color = colorConfig.earthquake;
+          if (typeKey === "VOLCANO") color = colorConfig.volcano;
+          if (typeKey === "STORM") color = colorConfig.storm;
+          if (typeKey === "SOLAR_FLARE") color = colorConfig.solar;
+          if (typeKey === "TSUNAMI") color = colorConfig.tsunami;
+          if (typeKey === "EARTHQUAKE" && s.energy_level > 0.6)
+            color = colorConfig.fire; // High energy quake
 
           return {
             lat: s.lat,
@@ -462,6 +624,7 @@
           world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
 
+        // Update Radar
         radarChart.data.datasets[0].data = [
           counts["EARTHQUAKE"],
           counts["VOLCANO"],
@@ -470,10 +633,11 @@
           counts["TSUNAMI"],
         ];
         radarChart.update();
-        log(`Synced ${data.raw_sensors.length} nodes (Updated).`);
+
+        log(`Synced ${data.raw_sensors.length} nodes successfully.`);
       }
 
-      // --- 7. BUTTON HANDLER ---
+      // --- 7. BUTTON LOGIC ---
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
@@ -482,15 +646,15 @@
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
           if (world) world.controls().autoRotate = false;
-          log("System Initialized.");
+          log("Uplink Established. Scanning...");
           fetchData();
           timer = setInterval(fetchData, 3000);
         } else {
           btn.classList.remove("active");
-          btn.innerText = "INITIALIZE [3s]";
+          btn.innerText = "INITIALIZE UPLINK";
           clearInterval(timer);
           if (world) world.controls().autoRotate = true;
-          log("System Standby.");
+          log("Uplink Terminated.");
         }
       });
     </script>
