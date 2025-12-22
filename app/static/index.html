@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V26.0 (ATOMIC WATCH)</title>
+    <title>UPT COMMANDER V26.1 (STABLE GUARDIAN)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -54,9 +54,6 @@
       }
       body.alert-mode {
         box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
-      }
-      body.nuclear-mode {
-        box-shadow: inset 0 0 150px rgba(204, 255, 0, 0.2);
       }
 
       .scanlines {
@@ -187,11 +184,6 @@
       .term-line.ai {
         color: var(--neon-purple);
         font-weight: bold;
-      }
-      .term-line.nuke {
-        color: var(--neon-toxic);
-        font-weight: bold;
-        text-shadow: 0 0 5px var(--neon-toxic);
       }
       .term-line.tf {
         color: var(--neon-orange);
@@ -521,8 +513,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v26.0 loaded.</div>
-        <div class="term-line sys">Module: ATOMIC WATCH [ACTIVE]</div>
+        <div class="term-line sys">Guardian Kernel v26.1 loaded.</div>
+        <div class="term-line sys">Module: STABILITY FIX [APPLIED]</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -705,6 +697,20 @@
             onclick="toggleFilter('STORM', this)"
           >
             [x] STORMS
+          </button>
+          <button
+            id="btn-fire"
+            class="filter-btn active"
+            onclick="toggleFilter('FIRE', this)"
+          >
+            [x] FIRES
+          </button>
+          <button
+            id="btn-other"
+            class="filter-btn active"
+            onclick="toggleFilter('OTHER', this)"
+          >
+            [x] OTHERS
           </button>
           <button
             id="btn-nuke"
@@ -1010,7 +1016,6 @@
       let showSats = true;
       let allEventsCache = [];
       let statsCache = null;
-      // ADDED 'NUKE'
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
@@ -1024,12 +1029,21 @@
       let model = null;
       let trainingData = [];
       let isTraining = false;
-
       let userLat = null;
       let userLng = null;
       let userEventMarker = null;
 
-      // NUCLEAR POWER PLANTS (Major locations)
+      // SAFE: SATELLITES NOW HAVE A TYPE
+      const satData = [...Array(150).keys()].map(() => ({
+        lat: (Math.random() - 0.5) * 180,
+        lng: (Math.random() - 0.5) * 360,
+        alt: 0.6 + Math.random() * 0.3,
+        velocity: Math.random() * 0.4 + 0.1,
+        color: "#ffd700",
+        type: "SATELLITE",
+      }));
+
+      // NUCLEAR PLANTS
       const nuclearPlants = [
         {
           name: "Fukushima Daiichi",
@@ -1070,14 +1084,6 @@
         },
         { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China - Coastal" },
       ];
-
-      const satData = [...Array(150).keys()].map(() => ({
-        lat: (Math.random() - 0.5) * 180,
-        lng: (Math.random() - 0.5) * 360,
-        alt: 0.6 + Math.random() * 0.3,
-        velocity: Math.random() * 0.4 + 0.1,
-        color: "#ffd700",
-      }));
 
       window.toggleFilter = (type, btn) => {
         activeFilters[type] = !activeFilters[type];
@@ -1151,7 +1157,7 @@
       };
 
       function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; // km
+        const R = 6371;
         const dLat = ((lat2 - lat1) * Math.PI) / 180;
         const dLon = ((lon2 - lon1) * Math.PI) / 180;
         const a =
@@ -1360,26 +1366,6 @@
         if (world) {
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
-
-          // Nuclear Plants need special 3D Objects
-          world.customThreeObject((d) => {
-            if (d.type.includes("NUCLEAR")) {
-              // Octahedron for Nukes
-              const geometry = new THREE.OctahedronGeometry(1.5);
-              const material = new THREE.MeshBasicMaterial({
-                color: d.color,
-                wireframe: true,
-              });
-              return new THREE.Mesh(geometry, material);
-            } else {
-              // Default Tetrahedron
-              const geometry = new THREE.TetrahedronGeometry(1.2);
-              const material = new THREE.MeshLambertMaterial({
-                color: d.color,
-              });
-              return new THREE.Mesh(geometry, material);
-            }
-          });
         }
       }
 
@@ -1473,13 +1459,21 @@
             if (d.lng) {
               d.lng += d.velocity || 0;
               if (d.lng > 180) d.lng = -180;
-            } // Only Sats move
+            }
           })
           .onPointClick((d) => {
             sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
           });
+
+        // CUSTOM OBJECTS RENDERER
+        world.customThreeObject((d) => {
+          const geometry = new THREE.TetrahedronGeometry(1.2);
+          const material = new THREE.MeshLambertMaterial({ color: d.color });
+          return new THREE.Mesh(geometry, material);
+        });
+
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
@@ -1678,7 +1672,7 @@
             desc: n.desc,
             maxR: 20,
             propagationSpeed: 1,
-            repeatPeriod: 3000, // Slow danger pulse
+            repeatPeriod: 3000,
           });
         });
 
