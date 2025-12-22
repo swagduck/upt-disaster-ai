@@ -3,14 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HYPER-MONITOR V9.0</title>
+    <title>UPT HOLOGRAPHIC V10.0</title>
 
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="//unpkg.com/three"></script>
+    <script src="//unpkg.com/globe.gl"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
@@ -27,68 +23,58 @@
         --solar: #ffffff;
         --tsunami: #0044ff;
         --bg: #020408;
-        --panel-bg: rgba(0, 20, 40, 0.7);
+        --panel-bg: rgba(0, 15, 30, 0.85);
       }
       body {
         margin: 0;
-        background: var(--bg);
+        background: #000;
         color: var(--primary);
         font-family: "Share Tech Mono";
         overflow: hidden;
         height: 100vh;
       }
+
+      /* LAYOUT GRID */
       .grid-container {
         display: grid;
-        grid-template-rows: 60vh 40vh;
+        grid-template-rows: 65vh 35vh;
         height: 100vh;
       }
 
-      #map-wrapper {
-        position: relative;
-        border-bottom: 2px solid var(--primary);
-      }
-      #map {
+      /* 3D CONTAINER */
+      #globe-viz {
         height: 100%;
         width: 100%;
-        filter: grayscale(90%) contrast(1.2) invert(10%);
-      }
-      .grid-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 400;
-        background: linear-gradient(
-            rgba(0, 243, 255, 0.03) 1px,
-            transparent 1px
-          ),
-          linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-        background-size: 40px 40px;
+        background: #000;
+        cursor: move;
       }
 
+      /* HUD STYLES */
       .hud {
         display: flex;
         gap: 10px;
         padding: 10px;
-        background: radial-gradient(circle, #0a1520 0%, #000 100%);
+        background: linear-gradient(to top, #0a1520 0%, rgba(0, 0, 0, 0) 100%);
+        position: relative;
+        z-index: 10;
       }
       .panel {
-        border: 1px solid rgba(0, 243, 255, 0.3);
+        border: 1px solid rgba(0, 243, 255, 0.2);
         background: var(--panel-bg);
         padding: 10px;
         flex: 1;
         display: flex;
         flex-direction: column;
-        backdrop-filter: blur(5px);
+        backdrop-filter: blur(10px);
+        border-radius: 5px;
       }
       h3 {
         margin: 0 0 5px 0;
         font-family: "Orbitron";
         font-size: 0.8rem;
-        border-bottom: 1px dashed #333;
+        border-bottom: 1px solid rgba(0, 243, 255, 0.3);
         color: var(--primary);
+        letter-spacing: 2px;
       }
 
       .chart-box {
@@ -103,15 +89,24 @@
         font-family: "Courier New";
         flex: 1;
         margin-top: 5px;
+        scrollbar-width: none;
       }
       .log-item {
         margin-bottom: 2px;
-        border-left: 2px solid #333;
+        border-left: 3px solid #333;
         padding-left: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .log-crit {
+        border-color: var(--danger);
+        color: var(--danger);
+        text-shadow: 0 0 5px var(--danger);
       }
 
       .btn-link {
-        background: transparent;
+        background: rgba(0, 243, 255, 0.1);
         border: 1px solid var(--primary);
         color: var(--primary);
         padding: 10px;
@@ -119,138 +114,131 @@
         cursor: pointer;
         margin-top: auto;
         font-weight: bold;
-        transition: 0.2s;
+        transition: 0.3s;
+        letter-spacing: 2px;
+      }
+      .btn-link:hover {
+        background: var(--primary);
+        color: #000;
+        box-shadow: 0 0 20px var(--primary);
       }
       .btn-link.active {
         background: var(--danger);
         border-color: var(--danger);
         color: white;
-        animation: flash 0.5s infinite alternate;
+        animation: pulseRed 1s infinite alternate;
       }
-      @keyframes flash {
+      @keyframes pulseRed {
         from {
           box-shadow: 0 0 10px var(--danger);
         }
         to {
-          box-shadow: 0 0 20px var(--danger);
+          box-shadow: 0 0 25px var(--danger);
         }
-      }
-
-      /* Inspector */
-      #inspector {
-        position: absolute;
-        top: 0;
-        right: -320px;
-        width: 300px;
-        height: 100%;
-        background: rgba(0, 10, 20, 0.95);
-        border-left: 2px solid var(--primary);
-        z-index: 999;
-        transition: 0.3s;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      #inspector.active {
-        right: 0;
-      }
-      .row {
-        display: flex;
-        justify-content: space-between;
-        padding: 5px 0;
-        border-bottom: 1px solid #333;
       }
     </style>
   </head>
   <body>
     <div class="grid-container">
-      <div id="map-wrapper">
-        <div class="grid-overlay"></div>
-        <div id="map"></div>
-        <div id="inspector">
-          <h2 style="font-family: 'Orbitron'; color: var(--primary)">
-            DATA ANALYSIS
-          </h2>
-          <div id="inspector-content">Select target...</div>
-          <button
-            onclick="document.getElementById('inspector').classList.remove('active')"
-            style="
-              width: 100%;
-              margin-top: 20px;
-              background: transparent;
-              border: 1px solid #555;
-              color: #fff;
-              cursor: pointer;
-              padding: 10px;
-            "
-          >
-            CLOSE
-          </button>
-        </div>
-      </div>
+      <div id="globe-viz"></div>
 
       <div class="hud">
-        <div class="panel" style="flex: 0.7">
-          <h3>// STATUS</h3>
+        <div class="panel" style="flex: 0.8; border-color: var(--warn)">
+          <h3 style="color: var(--warn)">// GLOBAL STATUS</h3>
           <div style="text-align: center; margin-top: 10px">
             <div
               id="val-prob"
-              style="font-family: 'Orbitron'; font-size: 2.2rem; color: #fff"
+              style="
+                font-family: 'Orbitron';
+                font-size: 2.5rem;
+                color: #fff;
+                text-shadow: 0 0 10px var(--primary);
+              "
             >
               --%
             </div>
-            <div style="font-size: 0.6rem; color: #aaa">
+            <div style="font-size: 0.6rem; color: #aaa; letter-spacing: 1px">
               COLLAPSE PROBABILITY
             </div>
           </div>
-          <div style="margin-top: 15px; font-size: 0.8rem">
+          <div style="margin-top: auto; font-size: 0.8rem">
             <div style="display: flex; justify-content: space-between">
               <span>RESONANCE:</span>
-              <span id="val-res" style="color: var(--warn)">0.00</span>
+              <span id="val-res" style="color: var(--warn)">0.000</span>
             </div>
             <div style="display: flex; justify-content: space-between">
               <span>LATENCY:</span>
               <span id="val-ping" style="color: var(--primary)">--ms</span>
             </div>
           </div>
-          <button id="btn-link" class="btn-link" onclick="toggleSystem()">
-            CONNECT [3s]
-          </button>
         </div>
 
         <div class="panel" style="flex: 1.5">
-          <h3>// RESONANCE WAVEFORM</h3>
+          <h3>// UPT RESONANCE WAVE</h3>
           <div class="chart-box"><canvas id="waveChart"></canvas></div>
         </div>
 
         <div class="panel" style="flex: 1">
-          <h3>// THREAT RADAR</h3>
+          <h3>// THREAT DISTRIBUTION</h3>
           <div class="chart-box"><canvas id="radarChart"></canvas></div>
         </div>
 
-        <div class="panel" style="flex: 1">
-          <h3>// LIVE FEED</h3>
+        <div class="panel" style="flex: 1.2; border-color: var(--danger)">
+          <h3 style="color: var(--danger)">// COMMAND LINK</h3>
           <div id="log-box"></div>
+          <button id="btn-link" class="btn-link" onclick="toggleSystem()">
+            INITIALIZE [3s]
+          </button>
         </div>
       </div>
     </div>
 
     <script>
-      const map = L.map("map", { zoomControl: false }).setView([20, 0], 2);
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      ).addTo(map);
-      let markersGroup = L.layerGroup().addTo(map);
+      // --- 1. SETUP 3D GLOBE ---
+      const globe = Globe()(document.getElementById("globe-viz"))
+        .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg") // Texture tối
+        .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png") // Tạo độ lồi lõm 3D
+        .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png") // Nền trời sao
+        .atmosphereColor("#00f3ff") // Khí quyển màu Cyan
+        .atmosphereAltitude(0.15)
+        .pointAltitude("alt") // Chiều cao cột dựa trên năng lượng
+        .pointColor("color") // Màu sắc cột
+        .pointRadius(0.5) // Độ dày cột
+        .pointsMerge(true) // Tối ưu hiệu năng
+        .ringColor("color") // Màu vòng sóng
+        .ringMaxRadius("maxR") // Độ rộng vòng sóng
+        .ringPropagationSpeed(2) // Tốc độ lan truyền
+        .ringRepeatPeriod(1000) // Lặp lại mỗi 1s
+        .pointLabel(
+          (d) => `
+                <div style="background:rgba(0,0,0,0.8); padding:10px; border:1px solid ${
+                  d.color
+                }; border-radius:5px; font-family:'Share Tech Mono'">
+                    <strong style="color:${d.color}">${d.icon} ${
+            d.type
+          }</strong><br>
+                    ${d.place}<br>
+                    Energy UPT: <span style="color:#fff">${d.energy_level.toFixed(
+                      2
+                    )}</span>
+                </div>
+            `
+        ); // Tooltip khi di chuột vào
 
-      // Chart Config
+      // Tự động xoay nhẹ
+      globe.controls().autoRotate = true;
+      globe.controls().autoRotateSpeed = 0.5;
+
+      // --- 2. SETUP CHARTS ---
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
-          labels: Array(30).fill(""),
+          labels: Array(40).fill(""),
           datasets: [
             {
-              data: Array(30).fill(0),
+              data: Array(40).fill(0),
               borderColor: "#00f3ff",
-              borderWidth: 1.5,
+              borderWidth: 2,
               pointRadius: 0,
               tension: 0.4,
               fill: true,
@@ -278,13 +266,14 @@
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
-                "#00f3ff",
-                "#ffd700",
-                "#bd00ff",
-                "#ffffff",
-                "#0044ff",
+                "rgba(0,243,255,0.7)",
+                "rgba(255,215,0,0.7)",
+                "rgba(189,0,255,0.7)",
+                "rgba(255,255,255,0.7)",
+                "rgba(0,68,255,0.7)",
               ],
-              borderWidth: 0,
+              borderWidth: 1,
+              borderColor: "#000",
             },
           ],
         },
@@ -294,13 +283,23 @@
           plugins: {
             legend: {
               position: "right",
-              labels: { color: "#fff", font: { size: 9 } },
+              labels: {
+                color: "#fff",
+                font: { size: 10, family: "Share Tech Mono" },
+              },
             },
           },
-          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
+          scales: {
+            r: {
+              grid: { color: "#333" },
+              ticks: { display: false },
+              angleLines: { color: "#333" },
+            },
+          },
         },
       });
 
+      // --- 3. SYSTEM LOGIC ---
       let isLive = false,
         timer = null;
 
@@ -309,15 +308,17 @@
         const btn = document.getElementById("btn-link");
         if (isLive) {
           btn.classList.add("active");
-          btn.innerText = "ABORT [3s SCAN]";
-          log("Hyper-speed uplink initialized.");
+          btn.innerText = "TERMINATE UPLINK";
+          log("Holographic interface initialized.", "sys");
+          globe.controls().autoRotate = false; // Dừng xoay tự động khi bắt đầu quét
           fetchData();
-          timer = setInterval(fetchData, 3000); // 3 GIÂY QUÉT 1 LẦN
+          timer = setInterval(fetchData, 3000);
         } else {
           btn.classList.remove("active");
-          btn.innerText = "CONNECT [3s]";
+          btn.innerText = "INITIALIZE [3s]";
           clearInterval(timer);
-          log("Uplink terminated.");
+          log("Hologram standby.", "crit");
+          globe.controls().autoRotate = true;
         }
       }
 
@@ -326,33 +327,33 @@
         try {
           const res = await fetch("/api/v1/disaster/realtime/usgs");
           const data = await res.json();
-          const latency = Date.now() - start;
-          document.getElementById("val-ping").innerText = latency + "ms";
-
+          document.getElementById("val-ping").innerText =
+            Date.now() - start + "ms";
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          log("Connection dropped.");
+          log("Data stream interrupted.", "crit");
         }
       }
 
       function updateUI(data) {
-        // Stats
+        // Update Stats & Charts (Giữ nguyên logic cũ)
         const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
         const probEl = document.getElementById("val-prob");
         probEl.innerText = prob + "%";
-        probEl.style.color = prob > 60 ? "var(--danger)" : "#fff";
+        probEl.style.color =
+          prob > 65 ? "var(--danger)" : prob > 40 ? "var(--warn)" : "#fff";
+        probEl.style.textShadow =
+          prob > 65 ? "0 0 20px var(--danger)" : "0 0 10px var(--primary)";
         document.getElementById("val-res").innerText =
           data.upt_metrics.network_resonance.toFixed(3);
 
-        // Chart Wave
         waveChart.data.datasets[0].data.push(
           data.upt_metrics.network_resonance
         );
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // Map & Radar
-        markersGroup.clearLayers();
+        // --- NEW: UPDATE 3D GLOBE ---
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
@@ -360,18 +361,16 @@
           SOLAR_FLARE: 0,
           TSUNAMI: 0,
         };
-
-        data.raw_sensors.forEach((s) => {
+        const globeData = data.raw_sensors.map((s) => {
+          counts[s.type] = (counts[s.type] || 0) + 1;
           let color = "#00f3ff",
-            icon = "📍",
-            radius = s.energy_level * 15;
+            icon = "📍";
           if (s.type === "EARTHQUAKE") {
-            color = "#00f3ff";
+            color = s.energy_level > 0.6 ? "#ff003c" : "#00f3ff";
             icon = "📉";
           } else if (s.type === "TSUNAMI") {
             color = "var(--tsunami)";
             icon = "🌊";
-            radius = 50;
           } else if (s.type === "WILDFIRE") {
             color = "var(--fire)";
             icon = "🔥";
@@ -381,27 +380,28 @@
           } else if (s.type === "STORM") {
             color = "var(--storm)";
             icon = "🌀";
-            radius = 30;
           } else if (s.type === "SOLAR_FLARE") {
             color = "var(--solar)";
             icon = "☀️";
-            radius = 100;
           }
 
-          if (counts[s.type] !== undefined) counts[s.type]++;
-          else counts["EARTHQUAKE"]++; // Fallback
-
-          L.circleMarker([s.lat, s.lon], {
-            radius: radius,
+          return {
+            lat: s.lat,
+            lng: s.lon, // Globe.gl dùng lat/lng
+            alt: s.energy_level * 0.5, // Chiều cao cột (max 0.5 bán kính trái đất)
             color: color,
-            fillColor: color,
-            fillOpacity: 0.5,
-            weight: 1,
-          })
-            .addTo(markersGroup)
-            .on("click", () => showInspector(s, icon));
+            icon: icon,
+            type: s.type,
+            place: s.place,
+            energy_level: s.energy_level, // Data cho tooltip
+            maxR: s.energy_level > 0.5 ? s.energy_level * 10 : 0, // Chỉ tạo vòng sóng cho sự kiện lớn
+          };
         });
 
+        globe.pointsData(globeData); // Vẽ cột
+        globe.ringsData(globeData.filter((d) => d.maxR > 0)); // Vẽ vòng sóng
+
+        // Update Radar Chart
         radarChart.data.datasets[0].data = [
           counts["EARTHQUAKE"],
           counts["VOLCANO"],
@@ -411,29 +411,16 @@
         ];
         radarChart.update();
 
-        log(`Synced ${data.raw_sensors.length} events.`);
+        log(`Synced ${data.raw_sensors.length} nodes.`, "sys");
       }
 
-      function log(msg) {
+      function log(msg, type = "sys") {
         const box = document.getElementById("log-box");
         const t = new Date().toLocaleTimeString("en-US", { hour12: false });
         box.innerHTML =
-          `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
-      }
-
-      function showInspector(d, icon) {
-        document.getElementById("inspector").classList.add("active");
-        document.getElementById("inspector-content").innerHTML = `
-                <div class="row"><span style="color:#888">TYPE</span> <strong style="color:var(--primary)">${icon} ${
-          d.type
-        }</strong></div>
-                <div class="row"><span style="color:#888">PLACE</span> <span>${
-                  d.place
-                }</span></div>
-                <div class="row"><span style="color:#888">ENERGY</span> <span style="color:var(--warn)">${d.energy_level.toFixed(
-                  2
-                )}</span></div>
-            `;
+          `<div class="log-item ${
+            type === "crit" ? "log-crit" : ""
+          }">[${t}] ${msg}</div>` + box.innerHTML;
       }
     </script>
   </body>
