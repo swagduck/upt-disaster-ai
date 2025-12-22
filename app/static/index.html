@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V11.1 (STABLE RIPPLE)</title>
+    <title>UPT COMMANDER V12.0 (ANTI-JITTER)</title>
 
+    <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
@@ -21,7 +22,7 @@
         --solar: #ffffff;
         --tsunami: #0044ff;
         --bg: #000;
-        --glass: rgba(0, 15, 30, 0.85);
+        --glass: rgba(0, 15, 30, 0.9);
       }
       body {
         margin: 0;
@@ -141,11 +142,6 @@
         transition: 0.3s;
         pointer-events: auto;
       }
-      .btn-link:hover {
-        background: var(--primary);
-        color: #000;
-        box-shadow: 0 0 20px var(--primary);
-      }
       .btn-link.active {
         background: var(--danger);
         border-color: var(--danger);
@@ -161,12 +157,6 @@
         }
       }
     </style>
-
-    <script type="importmap">
-      {
-        "imports": { "three": "https://unpkg.com/three/build/three.module.js" }
-      }
-    </script>
   </head>
   <body>
     <div id="globe-viz"></div>
@@ -234,17 +224,18 @@
       <div class="panel" style="flex: 1; border-color: var(--danger)">
         <h3 style="color: var(--danger)">// COMMAND LINK</h3>
         <div id="log-box"></div>
-        <button id="btn-link" class="btn-link">INITIALIZE [3s]</button>
+        <button id="btn-link">INITIALIZE [3s]</button>
       </div>
     </div>
 
-    <script type="module">
-      import Globe from "https://esm.sh/globe.gl";
-
+    <script>
       // --- 1. GLOBALS ---
       let isLive = false;
       let timer = null;
       let world;
+
+      // BIẾN QUAN TRỌNG ĐỂ CHỐNG GIẬT
+      let previousDataHash = "";
 
       // --- 2. HELPERS ---
       function log(msg) {
@@ -259,7 +250,6 @@
       window.showInspector = (d) => {
         const p = document.getElementById("inspector");
         p.classList.add("active");
-
         let icon = "📍";
         if (d.type.includes("EARTHQUAKE")) icon = "📉";
         else if (d.type.includes("TSUNAMI")) icon = "🌊";
@@ -291,10 +281,9 @@
         document.getElementById("inspector").classList.remove("active");
         if (world) world.pointOfView({ altitude: 2.5 }, 2000);
       };
-
       document.getElementById("btn-dismiss").onclick = window.closeInspector;
 
-      // --- 4. INIT GLOBE (CẤU HÌNH AN TOÀN - KHÔNG ANIMATION TAY) ---
+      // --- 4. INIT GLOBE ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -307,19 +296,19 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.15)
 
-          // Config Cột (Tĩnh - Không lỗi)
+          // CẤU HÌNH CỘT (Cố định, không animation để tránh lỗi)
           .pointAltitude("alt")
           .pointColor("color")
-          .pointRadius(0.5)
+          .pointRadius(0.6)
           .pointsMerge(false)
+          .pointResolution(32) // Cột tròn đẹp hơn
 
-          // Config Vòng sóng (Rings) - ĐỘNG (Dùng cái này để tạo hiệu ứng)
+          // CẤU HÌNH SÓNG (Vẫn chạy nền để đẹp)
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed(5) // Tăng tốc độ lan tỏa lên để nhìn sôi động hơn
-          .ringRepeatPeriod(800) // Lặp lại nhanh hơn (0.8s)
+          .ringPropagationSpeed(4)
+          .ringRepeatPeriod(1000)
 
-          // Interactions
           .pointLabel((d) => `Target: ${d.place}`)
           .onPointClick((d) => {
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
@@ -329,8 +318,8 @@
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
-        console.error("Globe init error:", e);
-        log("Critical 3D Engine Error.");
+        console.error(e);
+        log("Critical 3D Error.");
       }
 
       // --- 5. CHARTS ---
@@ -401,6 +390,7 @@
           const data = await res.json();
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
+
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
           log("Signal Lost...");
@@ -408,6 +398,7 @@
       }
 
       function updateUI(data) {
+        // Cập nhật chỉ số Text & Biểu đồ (Luôn chạy để thấy live)
         const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
         document.getElementById("val-prob").innerText = prob + "%";
         document.getElementById("val-res").innerText =
@@ -419,6 +410,23 @@
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
+        // --- KỸ THUẬT CHỐNG GIẬT (SMART DIFF) ---
+        // 1. Tạo "Vân tay" (Hash) của dữ liệu mới
+        // Chỉ quan tâm đến ID và Năng lượng. Nếu 2 cái này không đổi -> Không vẽ lại.
+        const currentHash = JSON.stringify(
+          data.raw_sensors.map((s) => s.place + s.energy_level)
+        );
+
+        // 2. So sánh với Vân tay cũ
+        if (currentHash === previousDataHash) {
+          // log("Data unchanged. Skipping 3D render."); // Debug
+          return; // DỪNG LẠI NGAY, KHÔNG ĐỤNG VÀO GLOBE
+        }
+
+        // 3. Nếu khác nhau -> Lưu vân tay mới và Vẽ lại
+        previousDataHash = currentHash;
+        // ------------------------------------------
+
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
@@ -427,7 +435,6 @@
           TSUNAMI: 0,
         };
 
-        // XỬ LÝ DỮ LIỆU CƠ BẢN (KHÔNG ANIMATION TAY)
         const globeData = data.raw_sensors.map((s) => {
           counts[s.type] = (counts[s.type] || 0) + 1;
           let color = "#00f3ff";
@@ -441,19 +448,17 @@
           return {
             lat: s.lat,
             lng: s.lon,
-            alt: s.energy_level * 0.4, // Cột cố định
+            alt: s.energy_level * 0.4,
             color: color,
             type: s.type,
             place: s.place,
             energy_level: s.energy_level,
-            // VÒNG SÓNG CHỈ HIỆN VỚI SỰ KIỆN LỚN HOẶC QUAN TRỌNG
-            maxR: s.energy_level > 0.4 ? s.energy_level * 12 : 0,
+            maxR: s.energy_level > 0.4 ? s.energy_level * 15 : 0,
           };
         });
 
         if (world) {
           world.pointsData(globeData);
-          // Vòng sóng tự động chạy bằng GPU của thư viện -> Mượt và không lỗi
           world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
 
@@ -465,7 +470,7 @@
           counts["TSUNAMI"],
         ];
         radarChart.update();
-        log(`Synced ${data.raw_sensors.length} nodes.`);
+        log(`Synced ${data.raw_sensors.length} nodes (Updated).`);
       }
 
       // --- 7. BUTTON HANDLER ---
