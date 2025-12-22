@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V21.2 (CALIBRATED)</title>
+    <title>UPT COMMANDER V22.0 (FINAL HUD)</title>
 
     <link
       rel="icon"
@@ -338,6 +338,7 @@
         color: #fff;
       }
 
+      /* FILTERS */
       .filter-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -364,6 +365,7 @@
         background: rgba(0, 255, 100, 0.1);
       }
 
+      /* COUNTDOWN */
       .countdown-ring {
         position: absolute;
         top: 10px;
@@ -380,6 +382,55 @@
         color: #fff;
         font-size: 0.9rem;
       }
+
+      /* NEW: HELP OVERLAY */
+      #help-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        background: rgba(0, 5, 10, 0.9);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .help-box {
+        width: 70%;
+        max-width: 900px;
+        background: rgba(10, 20, 30, 0.9);
+        border: 2px solid var(--neon-blue);
+        padding: 30px;
+        font-family: var(--code-font);
+        color: #ccc;
+        box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+      }
+      .help-col h4 {
+        color: var(--neon-gold);
+        border-bottom: 1px solid #444;
+        padding-bottom: 5px;
+        margin-top: 0;
+        font-family: var(--tech-font);
+      }
+      .help-col ul {
+        list-style: none;
+        padding: 0;
+      }
+      .help-col li {
+        margin-bottom: 8px;
+        font-size: 1rem;
+      }
+      .cmd-key {
+        color: #fff;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 5px;
+      }
     </style>
   </head>
   <body>
@@ -391,6 +442,55 @@
     <div id="ai-ticker">
       <div id="ai-ticker-text">
         INITIALIZING SENTINEL PRIME AI... WAITING FOR DATA UPLINK...
+      </div>
+    </div>
+
+    <div id="help-overlay">
+      <div class="help-box">
+        <div class="help-col">
+          <h4>SYSTEM CONTROL</h4>
+          <ul>
+            <li><span class="cmd-key">scan</span> - Force data refresh</li>
+            <li><span class="cmd-key">status</span> - Situation report</li>
+            <li><span class="cmd-key">sats</span> - Toggle satellites</li>
+            <li><span class="cmd-key">mute</span> - Disable audio</li>
+            <li><span class="cmd-key">unmute</span> - Enable audio</li>
+          </ul>
+        </div>
+        <div class="help-col">
+          <h4>NAVIGATION</h4>
+          <ul>
+            <li><span class="cmd-key">vietnam</span> - Focus VN</li>
+            <li><span class="cmd-key">usa</span> - Focus USA</li>
+            <li><span class="cmd-key">japan</span> - Focus Japan</li>
+            <li><span class="cmd-key">europe</span> - Focus Europe</li>
+            <li><span class="cmd-key">asia / africa</span> - Continents</li>
+          </ul>
+        </div>
+        <div class="help-col">
+          <h4>TACTICAL FILTERS</h4>
+          <ul>
+            <li><span class="cmd-key">show all</span> - Show everything</li>
+            <li><span class="cmd-key">hide all</span> - Stealth mode</li>
+            <li><span class="cmd-key">show quakes</span> - Toggle Quakes</li>
+            <li><span class="cmd-key">show fires</span> - Toggle Fires</li>
+            <li><span class="cmd-key">show storms</span> - Toggle Storms</li>
+          </ul>
+        </div>
+        <div
+          style="
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 20px;
+            color: var(--neon-blue);
+            border-top: 1px solid #333;
+            padding-top: 10px;
+          "
+        >
+          PRESS
+          <span class="cmd-key" style="border-color: var(--neon-blue)">H</span>
+          TO CLOSE
+        </div>
       </div>
     </div>
 
@@ -407,8 +507,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v21.2 loaded.</div>
-        <div class="term-line sys">Threat Sensitivity: Calibrated.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v22.0 loaded.</div>
+        <div class="term-line sys">Press 'H' for Command List.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -699,12 +799,26 @@
         if (recognition) recognition.start();
       }
 
-      termIn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          const cmd = termIn.value.trim().toLowerCase();
-          printTerm(cmd, "cmd");
-          processCommand(cmd);
-          termIn.value = "";
+      // --- GLOBAL KEY LISTENER FOR HELP (H) ---
+      document.addEventListener("keydown", (e) => {
+        // Nếu đang gõ trong input thì không bật help
+        if (document.activeElement === termIn) {
+          if (e.key === "Enter") {
+            const cmd = termIn.value.trim().toLowerCase();
+            printTerm(cmd, "cmd");
+            processCommand(cmd);
+            termIn.value = "";
+            sfx.playBeep();
+          }
+          return;
+        }
+
+        // Phím H để toggle Help Overlay
+        if (e.key.toLowerCase() === "h") {
+          const help = document.getElementById("help-overlay");
+          const isHidden =
+            help.style.display === "none" || help.style.display === "";
+          help.style.display = isHidden ? "flex" : "none";
           sfx.playBeep();
         }
       });
@@ -802,7 +916,7 @@
         }
 
         if (cmd === "help")
-          printTerm("TRY: scan, status, mute, vietnam, show fires, sats");
+          printTerm("Press 'H' for full command list.", "sys");
         else printTerm("Command not recognized.", "err");
       }
 
@@ -897,7 +1011,6 @@
         }, 1000);
       }
 
-      // --- FIX: CALIBRATED THRESHOLDS ---
       function updateDefcon(score) {
         const el = document.getElementById("defcon-level");
         const bar = document.getElementById("defcon-bar");
@@ -905,23 +1018,22 @@
         let level = 5;
         let color = "var(--defcon-5)";
 
-        // New Calibrated Thresholds:
         if (score > 15) {
           level = 4;
           color = "var(--defcon-4)";
-        } // Normal active day
+        }
         if (score > 30) {
           level = 3;
           color = "var(--defcon-3)";
-        } // Heightened
+        }
         if (score > 50) {
           level = 2;
           color = "var(--defcon-2)";
-        } // High
+        }
         if (score > 80) {
           level = 1;
           color = "var(--defcon-1)";
-        } // Severe
+        }
 
         if (level !== currentDefcon) {
           currentDefcon = level;
@@ -1148,19 +1260,16 @@
         }
 
         allEventsCache = combinedEvents;
-        currentNodeCount = combinedEvents.length;
+        currentNodeCount = combinedEvents.length; // FIX COUNT
         statsCache = counts;
 
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
-
-        // --- CALIBRATED DANGER SCORE ---
         const dangerScore =
           maxIntensity * 2 +
           counts.VOLCANO * 1 +
           counts.STORM * 2 +
           counts.FIRE * 0.1;
-
         updateDefcon(dangerScore);
         updateTicker(maxIntensity, combinedEvents.length);
         sfx.playScan();
