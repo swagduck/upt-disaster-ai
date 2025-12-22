@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.2 (STABLE AI)</title>
+    <title>UPT COMMANDER V24.3 (DISTINCT VISUALS)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -975,7 +975,7 @@
       let predictionEvents = [];
       let model = null;
       let trainingData = [];
-      let isTraining = false; // LOCK FLAG
+      let isTraining = false;
 
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
@@ -998,11 +998,10 @@
         applyFilters();
       };
 
-      // --- TENSORFLOW AI LOGIC (FIXED & LOCKED) ---
+      // --- TENSORFLOW AI LOGIC ---
       async function initModel() {
         model = tf.sequential();
         model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        // Switch to Adam with a smaller learning rate to prevent exploding gradients
         model.compile({
           loss: "meanSquaredError",
           optimizer: tf.train.adam(0.1),
@@ -1012,33 +1011,28 @@
 
       async function trainModel() {
         if (isTraining) {
-          printTerm("Training in progress... Please wait.", "err");
+          printTerm("Training in progress...", "err");
           return;
         }
         if (trainingData.length < 5) return;
 
-        isTraining = true; // LOCK
+        isTraining = true;
         document.getElementById("status-model").innerText = "LEARNING...";
         document.getElementById("status-model").style.color =
           "var(--neon-orange)";
 
-        // PREPROCESS DATA (SIMPLE NORMALIZATION to avoid exploding loss)
-        // Just map everything to small tensors
-        const inputs = trainingData.map((d) => d.x * 0.01); // Scale input down
+        const inputs = trainingData.map((d) => d.x * 0.01);
         const labels = trainingData.map((d) => d.y);
-
         const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
         const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
 
         try {
           await model.fit(inputTensor, labelTensor, {
-            epochs: 20, // Train longer
+            epochs: 20,
             callbacks: {
               onEpochEnd: (epoch, logs) => {
-                // Only log last epoch to save space
                 if (epoch === 19) {
                   printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
-                  // Chart update
                   waveChart.data.datasets[0].data.push(logs.loss);
                   waveChart.data.datasets[0].data.shift();
                   waveChart.update();
@@ -1048,7 +1042,6 @@
               },
             },
           });
-
           document.getElementById("status-model").innerText = "STABLE";
           document.getElementById("status-model").style.color =
             "var(--neon-green)";
@@ -1057,7 +1050,7 @@
           console.error(e);
           printTerm("Training Error.", "err");
         } finally {
-          isTraining = false; // UNLOCK
+          isTraining = false;
           inputTensor.dispose();
           labelTensor.dispose();
         }
@@ -1088,7 +1081,6 @@
           return;
         }
 
-        // Predict based on next time step (scaled)
         const nextStep = (trainingData.length + 1) * 0.01;
         const predictionTensor = model.predict(tf.tensor2d([nextStep], [1, 1]));
         const predictedMag = predictionTensor.dataSync()[0];
@@ -1099,7 +1091,6 @@
           "ai"
         );
 
-        // Visualize predictions
         let highRiskZones = [];
         for (let i = 0; i < allEventsCache.length; i++) {
           let neighbors = 0;
@@ -1130,16 +1121,16 @@
                 lat: centerLat,
                 lng: centerLng,
                 alt: 0.05,
-                color: "#ffffff",
+                color: "#ffffff", // AI IS ALWAYS WHITE
                 type: "NEURAL PREDICTION",
                 place: `High Probability Zone`,
-                value: predictedMag, // Use TF.js predicted value
+                value: predictedMag,
                 desc: `AI Model Confidence: ${(Math.random() * 10 + 85).toFixed(
                   1
                 )}%`,
-                maxR: 10,
-                propagationSpeed: 3,
-                repeatPeriod: 600,
+                maxR: 12, // Bigger Ring
+                propagationSpeed: 2, // Slower pulse
+                repeatPeriod: 1200,
               });
             }
           }
@@ -1365,7 +1356,6 @@
         let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
         let maxIntensity = 0;
 
-        // RESET Training Data
         trainingData = [];
 
         if (quakeData.features) {
@@ -1392,7 +1382,6 @@
               repeatPeriod: 800,
             });
 
-            // Collect data for AI
             if (index < 50) trainingData.push({ x: index, y: mag });
           });
         }
@@ -1467,7 +1456,6 @@
         ];
         radarChart.update();
 
-        // AUTO TRAIN
         if (model) trainModel();
 
         if (activeFilters["PREDICT"]) runNeuralPrediction();
@@ -1483,7 +1471,7 @@
         else if (d.type.includes("VOLCANO")) icon = "🌋";
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
-        else if (d.type.includes("NEURAL")) icon = "🧠";
+        else if (d.type.includes("NEURAL")) icon = "👁️"; // AI EYE
 
         const isPredict = d.type.includes("NEURAL");
         const statusText = isPredict
