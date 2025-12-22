@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V19.1 (COLOR FIX)</title>
+    <title>UPT SENTINEL PRIME V20.0</title>
 
     <link
       rel="icon"
@@ -108,13 +108,45 @@
         text-shadow: 0 0 15px currentColor;
       }
 
+      /* NEW: AI TICKER (Dòng chữ chạy) */
+      #ai-ticker {
+        position: absolute;
+        top: 65px;
+        left: 0;
+        width: 100%;
+        height: 30px;
+        z-index: 15;
+        background: rgba(0, 20, 40, 0.9);
+        border-top: 1px solid var(--neon-blue);
+        border-bottom: 1px solid var(--neon-blue);
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      #ai-ticker-text {
+        font-family: var(--code-font);
+        font-size: 1.2rem;
+        color: var(--neon-gold);
+        padding-left: 100%;
+        animation: ticker 20s linear infinite;
+      }
+      @keyframes ticker {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(-100%);
+        }
+      }
+
       /* TERMINAL */
       #terminal {
         position: absolute;
-        top: 100px;
+        top: 110px;
         left: 20px;
         width: 350px;
-        height: 40vh;
+        height: 35vh;
         background: rgba(0, 10, 10, 0.9);
         border: 1px solid #333;
         border-left: 3px solid var(--neon-green);
@@ -186,7 +218,7 @@
       /* INSPECTOR */
       #inspector {
         position: absolute;
-        top: 20px;
+        top: 110px;
         right: -400px;
         width: 350px;
         background: rgba(5, 10, 15, 0.95);
@@ -218,11 +250,6 @@
         font-weight: 700;
         text-align: right;
       }
-      .insp-code {
-        font-family: var(--code-font);
-        color: var(--neon-gold);
-        font-size: 1rem;
-      }
       .status-box {
         margin-top: 10px;
         padding: 8px;
@@ -241,8 +268,8 @@
         right: 15px;
         height: 28vh;
         display: grid;
-        grid-template-columns: 0.8fr 1.5fr 1fr 1fr;
-        gap: 10px;
+        grid-template-columns: 0.8fr 1.5fr 1fr 1.2fr;
+        gap: 10px; /* Cột cuối to hơn cho Filter */
         z-index: 10;
         pointer-events: none;
       }
@@ -286,6 +313,7 @@
         letter-spacing: 1px;
         margin-top: 5px;
       }
+
       .btn-link {
         background: rgba(0, 243, 255, 0.1);
         border: 1px solid var(--neon-blue);
@@ -299,27 +327,55 @@
         transition: 0.3s;
         clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
       }
-      .btn-link:hover {
-        background: var(--neon-blue);
-        color: #000;
-        box-shadow: 0 0 25px var(--neon-blue);
-      }
       .btn-link.active {
         background: var(--neon-red);
         border-color: var(--neon-red);
         color: #fff;
-        animation: pulseRed 1s infinite;
       }
-      @keyframes pulseRed {
-        0% {
-          box-shadow: 0 0 10px red;
-        }
-        50% {
-          box-shadow: 0 0 30px red;
-        }
-        100% {
-          box-shadow: 0 0 10px red;
-        }
+
+      /* NEW: FILTER BUTTONS */
+      .filter-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin-top: 5px;
+      }
+      .filter-btn {
+        background: transparent;
+        border: 1px solid #444;
+        color: #666;
+        cursor: pointer;
+        padding: 5px;
+        font-family: var(--code-font);
+        font-size: 0.8rem;
+        transition: 0.2s;
+      }
+      .filter-btn:hover {
+        border-color: #fff;
+        color: #fff;
+      }
+      .filter-btn.active {
+        border-color: var(--neon-green);
+        color: var(--neon-green);
+        background: rgba(0, 255, 100, 0.1);
+      }
+
+      /* NEW: COUNTDOWN RING */
+      .countdown-ring {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+      }
+      .countdown-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: var(--code-font);
+        color: #fff;
+        font-size: 0.9rem;
       }
     </style>
   </head>
@@ -328,6 +384,12 @@
     <div id="globe-viz"></div>
 
     <div id="defcon-bar"><div id="defcon-level">DEFCON 5</div></div>
+
+    <div id="ai-ticker">
+      <div id="ai-ticker-text">
+        INITIALIZING SENTINEL PRIME AI... WAITING FOR DATA UPLINK...
+      </div>
+    </div>
 
     <div id="terminal">
       <div
@@ -342,10 +404,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">
-          Modules: USGS (Quakes) + NASA (Wildfires/Storms)
-        </div>
+        <div class="term-line sys">Sentinel Prime Kernel v20.0 loaded.</div>
+        <div class="term-line sys">Tactical Filters: Online.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -414,11 +474,11 @@
           "
         >
           <div id="val-prob" class="big-stat">--</div>
-          <div class="sub-stat">COMBINED EVENTS</div>
+          <div class="sub-stat">ACTIVE EVENTS</div>
         </div>
       </div>
       <div class="panel">
-        <h3>Seismic / Heat Energy</h3>
+        <h3>Seismic Energy</h3>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="waveChart"></canvas>
         </div>
@@ -432,8 +492,7 @@
           "
         >
           <span
-            >PEAK INTENSITY:
-            <span id="val-res" style="color: #fff">0.0</span></span
+            >MAX MAG: <span id="val-res" style="color: #fff">0.0</span></span
           >
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
@@ -445,23 +504,91 @@
         </div>
       </div>
       <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
-        <h3 style="color: var(--neon-red)">Main Control</h3>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h3 style="color: var(--neon-red); margin: 0">Tactical Ops</h3>
+          <div style="position: relative; width: 30px; height: 30px">
+            <svg
+              viewBox="0 0 36 36"
+              style="width: 100%; height: 100%; transform: rotate(-90deg)"
+            >
+              <path
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke="#333"
+                stroke-width="4"
+              />
+              <path
+                id="scan-circle"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke="var(--neon-green)"
+                stroke-width="4"
+                stroke-dasharray="100, 100"
+              />
+            </svg>
+            <div
+              id="scan-text"
+              style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-family: 'VT323';
+                color: #fff;
+                font-size: 0.8rem;
+              "
+            >
+              60
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-grid">
+          <button
+            class="filter-btn active"
+            onclick="toggleFilter('QUAKE', this)"
+          >
+            [x] QUAKES
+          </button>
+          <button
+            class="filter-btn active"
+            onclick="toggleFilter('VOLCANO', this)"
+          >
+            [x] VOLCANO
+          </button>
+          <button
+            class="filter-btn active"
+            onclick="toggleFilter('STORM', this)"
+          >
+            [x] STORMS
+          </button>
+          <button
+            class="filter-btn active"
+            onclick="toggleFilter('FIRE', this)"
+          >
+            [x] FIRES
+          </button>
+        </div>
+
         <div
           style="
             font-family: var(--code-font);
             color: #888;
             flex: 1;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             padding: 5px;
             overflow: hidden;
           "
         >
-          > SOURCES:
-          <span style="color: var(--neon-gold)">USGS + NASA EONET</span><br />
-          > STATUS: <span id="status-auto">READY</span><br />
-          > SAT_LINK: <span id="status-sat">ACTIVE</span>
+          > AUTO_PILOT: <span id="status-auto">READY</span>
         </div>
-        <button id="btn-link" class="btn-link">ESTABLISH MULTI-LINK</button>
+        <button id="btn-link" class="btn-link">ACTIVATE SENTINEL</button>
       </div>
     </div>
 
@@ -578,15 +705,15 @@
       function processCommand(cmd) {
         const parts = cmd.split(" ");
         if (cmd.includes("scan") || cmd.includes("quét")) {
-          printTerm("Scanning global feeds...", "sys");
+          printTerm("Manual scan...", "sys");
           fetchAllData();
-        } else if (cmd.includes("status") || cmd.includes("báo cáo")) {
+        } else if (cmd.includes("status")) {
           printTerm(`DEFCON: ${currentDefcon}`, "sys");
           printTerm(`EVENTS: ${currentNodeCount}`, "sys");
-        } else if (cmd.includes("mute") || cmd.includes("im lặng")) {
+        } else if (cmd.includes("mute")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
-        } else if (cmd.includes("unmute") || cmd.includes("bật tiếng")) {
+        } else if (cmd.includes("unmute")) {
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
         } else if (cmd.includes("vietnam")) {
@@ -611,7 +738,16 @@
       let currentDefcon = 5;
       let currentNodeCount = 0;
       let showSats = true;
+      let allEventsCache = []; // Lưu trữ toàn bộ sự kiện để lọc
+      let activeFilters = {
+        QUAKE: true,
+        VOLCANO: true,
+        STORM: true,
+        FIRE: true,
+        ICE: true,
+      };
 
+      // Satellite Data
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
@@ -620,14 +756,70 @@
         color: "#ffd700",
       }));
 
+      // --- NEW: FILTER LOGIC ---
+      window.toggleFilter = (type, btn) => {
+        activeFilters[type] = !activeFilters[type]; // Toggle status
+        if (activeFilters[type]) {
+          btn.classList.add("active");
+          btn.innerText = `[x] ${type}S`;
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = `[ ] ${type}S`;
+        }
+        sfx.playBeep();
+        applyFilters(); // Re-draw map
+      };
+
+      function applyFilters() {
+        // Lọc dữ liệu dựa trên activeFilters
+        const filteredData = allEventsCache.filter((d) => {
+          if (d.type.includes("QUAKE") && !activeFilters["QUAKE"]) return false;
+          if (d.type.includes("VOLCANO") && !activeFilters["VOLCANO"])
+            return false;
+          if (d.type.includes("STORM") && !activeFilters["STORM"]) return false;
+          if (d.type.includes("WILDFIRE") && !activeFilters["FIRE"])
+            return false;
+          if (d.type.includes("ICE") && !activeFilters["ICE"]) return false;
+          return true;
+        });
+
+        if (world) {
+          world.pointsData(filteredData);
+          world.ringsData(filteredData.filter((d) => d.maxR > 0));
+        }
+        printTerm(
+          `Filter applied. Showing ${filteredData.length} events.`,
+          "sys"
+        );
+      }
+
+      // --- NEW: COUNTDOWN LOGIC ---
+      let countdownVal = 60;
+      let countdownTimer = null;
+      function startCountdown() {
+        countdownVal = 60;
+        const circle = document.getElementById("scan-circle");
+        const text = document.getElementById("scan-text");
+
+        if (countdownTimer) clearInterval(countdownTimer);
+
+        countdownTimer = setInterval(() => {
+          countdownVal--;
+          text.innerText = countdownVal;
+          // Update circle stroke (100 is full dasharray)
+          const offset = 100 - (countdownVal / 60) * 100;
+          circle.style.strokeDashoffset = offset;
+
+          if (countdownVal <= 0) countdownVal = 60; // Reset visual loop
+        }, 1000);
+      }
+
       function updateDefcon(score) {
         const el = document.getElementById("defcon-level");
         const bar = document.getElementById("defcon-bar");
         const body = document.body;
         let level = 5;
         let color = "var(--defcon-5)";
-
-        // Logic Defcon tổng hợp
         if (score > 5) {
           level = 4;
           color = "var(--defcon-4)";
@@ -644,7 +836,6 @@
           level = 1;
           color = "var(--defcon-1)";
         }
-
         if (level !== currentDefcon) {
           currentDefcon = level;
           el.innerText = `DEFCON ${level}`;
@@ -657,6 +848,19 @@
             printTerm("!!! HIGH THREAT LEVEL !!!", "err");
           } else body.classList.remove("alert-mode");
         }
+      }
+
+      // --- NEW: AI TICKER UPDATE ---
+      function updateTicker(maxMag, count) {
+        const ticker = document.getElementById("ai-ticker-text");
+        const msgs = [
+          `GLOBAL THREAT MONITOR ACTIVE...`,
+          `DETECTED ${count} EVENTS IN LAST 24H...`,
+          `MAX SEISMIC INTENSITY: M${maxMag.toFixed(1)}...`,
+          `SATELLITE UPLINK STABLE...`,
+          `SENTINEL AI ANALYZING PATTERNS...`,
+        ];
+        ticker.innerText = msgs.join(" /// ");
       }
 
       // --- D. INIT GLOBE ---
@@ -769,7 +973,7 @@
         },
       });
 
-      // --- F. MULTI-SOURCE FETCH (USGS + NASA) ---
+      // --- F. DATA FETCH ---
       async function fetchAllData() {
         const start = Date.now();
         try {
@@ -786,7 +990,11 @@
           ]);
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
+
           processMultiData(quakeData, nasaData);
+
+          // Restart countdown on new data
+          startCountdown();
         } catch (e) {
           console.error(e);
           printTerm("Data link unstable (API Error).", "err");
@@ -798,14 +1006,13 @@
         let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
         let maxIntensity = 0;
 
-        // --- 1. Process Quakes (USGS) ---
+        // 1. Quakes
         if (quakeData.features) {
           quakeData.features.forEach((f) => {
             const mag = f.properties.mag;
             if (mag > maxIntensity) maxIntensity = mag;
             counts.QUAKE++;
-
-            let color = "#00f3ff"; // Minor
+            let color = "#00f3ff";
             if (mag > 5) color = "#00ff66";
             if (mag > 6) color = "#ffd700";
             if (mag > 7) color = "#ff003c";
@@ -824,15 +1031,13 @@
           });
         }
 
-        // --- 2. Process NASA EONET (FIXED COLORS) ---
+        // 2. NASA
         if (nasaData.events) {
           nasaData.events.forEach((e) => {
             const catId = e.categories[0].id;
             const coords = e.geometry[0].coordinates;
             let lat = coords[1];
             let lng = coords[0];
-
-            // DÙNG MÃ HEX TRỰC TIẾP THAY VÌ BIẾN CSS
             let color = "#ffffff";
             let type = e.title;
             let alt = 0.2;
@@ -873,12 +1078,16 @@
           });
         }
 
-        // --- Update UI ---
+        // Store for filtering
+        allEventsCache = combinedEvents;
+
+        // UI Update
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
         const dangerScore =
           maxIntensity + counts.VOLCANO * 2 + counts.STORM * 1.5;
         updateDefcon(dangerScore);
+        updateTicker(maxIntensity, combinedEvents.length);
         sfx.playScan();
 
         waveChart.data.datasets[0].data.push(maxIntensity);
@@ -893,10 +1102,9 @@
         ];
         radarChart.update();
 
-        if (world) {
-          world.pointsData(combinedEvents);
-          world.ringsData(combinedEvents.filter((d) => d.maxR > 0));
-        }
+        // Apply Filters (draws the map)
+        applyFilters();
+
         printTerm(`Synced ${combinedEvents.length} global events.`);
       }
 
@@ -945,21 +1153,23 @@
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
           if (world) world.controls().autoRotate = false;
-          printTerm("Initializing Multi-Source Link...");
+          printTerm("Initializing Sentinel AI...");
           sfx.playBeep();
           fetchAllData();
           timer = setInterval(fetchAllData, 60000);
+
           statusAuto.innerText = "ENGAGED";
           statusAuto.style.color = "var(--neon-green)";
           statusSat.innerText = "LOCKED";
           statusSat.style.color = "var(--neon-green)";
         } else {
           btn.classList.remove("active");
-          btn.innerText = "ESTABLISH MULTI-LINK";
+          btn.innerText = "ACTIVATE SENTINEL";
           clearInterval(timer);
+          if (countdownTimer) clearInterval(countdownTimer);
           if (world) world.controls().autoRotate = true;
           printTerm("Uplink Terminated.");
-          statusAuto.innerText = "STANDBY";
+          statusAuto.innerText = "READY";
           statusAuto.style.color = "#888";
           statusSat.innerText = "IDLE";
           statusSat.style.color = "#888";
