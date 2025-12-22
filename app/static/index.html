@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT SENTINEL PRIME V20.1 (FIXED)</title>
+    <title>UPT COMMANDER V21.0 (GLOBAL COMMAND)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -409,8 +409,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v20.1 loaded.</div>
-        <div class="term-line sys">UI Elements fixed.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v21.0 loaded.</div>
+        <div class="term-line sys">Global Command Module: Online.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -557,24 +557,28 @@
 
         <div class="filter-grid">
           <button
+            id="btn-quake"
             class="filter-btn active"
             onclick="toggleFilter('QUAKE', this)"
           >
             [x] QUAKES
           </button>
           <button
+            id="btn-volcano"
             class="filter-btn active"
             onclick="toggleFilter('VOLCANO', this)"
           >
             [x] VOLCANO
           </button>
           <button
+            id="btn-storm"
             class="filter-btn active"
             onclick="toggleFilter('STORM', this)"
           >
             [x] STORMS
           </button>
           <button
+            id="btn-fire"
             class="filter-btn active"
             onclick="toggleFilter('FIRE', this)"
           >
@@ -613,7 +617,7 @@
         originalError.apply(console, args);
       };
 
-      // --- AUDIO ---
+      // --- A. AUDIO SYNTH ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -660,7 +664,7 @@
       }
       const sfx = new AudioSynth();
 
-      // --- TERMINAL ---
+      // --- B. TERMINAL & VOICE ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -710,36 +714,153 @@
         }
       });
 
+      // --- EXPANDED COMMAND PROCESSOR ---
       function processCommand(cmd) {
-        const parts = cmd.split(" ");
-        if (cmd.includes("scan")) {
+        // Standard Commands
+        if (cmd.includes("scan") || cmd.includes("quét")) {
           printTerm("Manual scan...", "sys");
           fetchAllData();
-        } else if (cmd.includes("status")) {
+          return;
+        }
+        if (cmd.includes("status")) {
           printTerm(`DEFCON: ${currentDefcon}`, "sys");
           printTerm(`EVENTS: ${currentNodeCount}`, "sys");
-        } else if (cmd.includes("mute")) {
+          return;
+        }
+        if (cmd.includes("mute")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
-        } else if (cmd.includes("unmute")) {
+          return;
+        }
+        if (cmd.includes("unmute")) {
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
-        } else if (cmd.includes("vietnam")) {
-          world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
-          printTerm("Focus: VIETNAM");
-        } else if (cmd.includes("usa")) {
-          world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
-          printTerm("Focus: USA");
-        } else if (cmd === "sats") {
+          return;
+        }
+
+        // Satellite
+        if (cmd === "sats" || cmd.includes("vệ tinh")) {
           showSats = !showSats;
           world.customLayerData(showSats ? satData : []);
           printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
-        } else if (cmd === "help")
-          printTerm("TRY: scan, status, mute, vietnam, usa, sats");
+          return;
+        }
+
+        // --- LOCATION COMMANDS (Mở rộng) ---
+        const locs = {
+          vietnam: { lat: 14.0, lng: 108.0, alt: 0.8, name: "VIETNAM" },
+          usa: { lat: 37.0, lng: -95.0, alt: 1.0, name: "USA" },
+          japan: { lat: 36.0, lng: 138.0, alt: 0.8, name: "JAPAN" },
+          europe: { lat: 54.0, lng: 15.0, alt: 1.2, name: "EUROPE" },
+          asia: { lat: 34.0, lng: 100.0, alt: 1.5, name: "ASIA" },
+          africa: { lat: 0.0, lng: 20.0, alt: 1.5, name: "AFRICA" },
+          "south america": {
+            lat: -15.0,
+            lng: -60.0,
+            alt: 1.5,
+            name: "SOUTH AMERICA",
+          },
+          australia: { lat: -25.0, lng: 133.0, alt: 1.0, name: "AUSTRALIA" },
+          china: { lat: 35.0, lng: 105.0, alt: 1.0, name: "CHINA" },
+          russia: { lat: 60.0, lng: 100.0, alt: 1.2, name: "RUSSIA" },
+          india: { lat: 20.0, lng: 77.0, alt: 1.0, name: "INDIA" },
+          indonesia: { lat: -5.0, lng: 120.0, alt: 0.8, name: "INDONESIA" },
+        };
+
+        for (const [key, val] of Object.entries(locs)) {
+          if (cmd.includes(key)) {
+            world.pointOfView(
+              { lat: val.lat, lng: val.lng, altitude: val.alt },
+              2000
+            );
+            printTerm(`Moving to sector: ${val.name}`, "sys");
+            return;
+          }
+        }
+
+        // --- FILTER COMMANDS (Mở rộng) ---
+        if (cmd.includes("show all") || cmd.includes("tất cả")) {
+          setAllFilters(true);
+          printTerm("All filters ENGAGED.", "sys");
+          return;
+        }
+        if (cmd.includes("hide all") || cmd.includes("ẩn hết")) {
+          setAllFilters(false);
+          printTerm("All filters DISENGAGED.", "sys");
+          return;
+        }
+
+        // Map command words to filter keys
+        const filterMap = {
+          quake: "QUAKE",
+          fire: "FIRE",
+          storm: "STORM",
+          volcano: "VOLCANO",
+        };
+        for (const [key, type] of Object.entries(filterMap)) {
+          if (cmd.includes(key)) {
+            // Logic bật tắt thông minh
+            if (
+              cmd.includes("show") ||
+              cmd.includes("hiện") ||
+              cmd.includes("on")
+            ) {
+              activeFilters[type] = true;
+              updateFilterBtnUI(type, true);
+              printTerm(`Filter ${type}: ON`, "sys");
+            } else if (
+              cmd.includes("hide") ||
+              cmd.includes("ẩn") ||
+              cmd.includes("off")
+            ) {
+              activeFilters[type] = false;
+              updateFilterBtnUI(type, false);
+              printTerm(`Filter ${type}: OFF`, "sys");
+            } else {
+              // Toggle nếu không nói rõ on/off
+              activeFilters[type] = !activeFilters[type];
+              updateFilterBtnUI(type, activeFilters[type]);
+              printTerm(
+                `Filter ${type}: ${activeFilters[type] ? "ON" : "OFF"}`,
+                "sys"
+              );
+            }
+            applyFilters();
+            return;
+          }
+        }
+
+        // Default
+        if (cmd === "help")
+          printTerm(
+            "TRY: vietnam, europe, africa, show fires, hide quakes, sats, scan"
+          );
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- MAIN LOGIC ---
+      function setAllFilters(state) {
+        ["QUAKE", "VOLCANO", "STORM", "FIRE"].forEach((type) => {
+          activeFilters[type] = state;
+          updateFilterBtnUI(type, state);
+        });
+        applyFilters();
+      }
+
+      function updateFilterBtnUI(type, isActive) {
+        const btnId = `btn-${type.toLowerCase()}`; // ID mapping: btn-quake, btn-fire...
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          if (isActive) {
+            btn.classList.add("active");
+            btn.innerText = `[x] ${type}S`;
+          } else {
+            btn.classList.remove("active");
+            btn.innerText = `[ ] ${type}S`;
+          }
+        }
+      }
+
+      // --- C. MAIN LOGIC ---
       let isLive = false;
       let timer = null;
       let world;
@@ -763,8 +884,10 @@
         color: "#ffd700",
       }));
 
+      // Hàm click từ nút HTML
       window.toggleFilter = (type, btn) => {
         activeFilters[type] = !activeFilters[type];
+        // UI update handled inside logic via class check, or simple toggle here
         if (activeFilters[type]) {
           btn.classList.add("active");
           btn.innerText = `[x] ${type}S`;
@@ -791,10 +914,6 @@
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
         }
-        printTerm(
-          `Filter applied. Showing ${filteredData.length} events.`,
-          "sys"
-        );
       }
 
       let countdownVal = 60;
