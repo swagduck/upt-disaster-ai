@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.0 (TENSORFLOW AI)</title>
+    <title>UPT COMMANDER V24.1 (STABLE AI)</title>
 
     <link
       rel="icon"
@@ -186,7 +186,7 @@
       }
       .term-line.tf {
         color: var(--neon-orange);
-      } /* TensorFlow Logs */
+      }
       .term-line.voice {
         color: var(--neon-gold);
         font-style: italic;
@@ -460,7 +460,7 @@
           <ul>
             <li><span class="cmd-key">scan</span> - Refresh Data</li>
             <li><span class="cmd-key">status</span> - Situation Report</li>
-            <li><span class="cmd-key">train</span> - Retrain AI Model</li>
+            <li><span class="cmd-key">train</span> - Force Retrain</li>
             <li><span class="cmd-key">sats</span> - Toggle Satellites</li>
           </ul>
         </div>
@@ -514,9 +514,9 @@
       <div id="term-output">
         <div class="term-line sys">TensorFlow.js Backend: WebGL</div>
         <div class="term-line sys">
-          Neural Network: Initialized (Linear Regressor)
+          Neural Network: Initialized (Adam Optimizer)
         </div>
-        <div class="term-line">Ready. Waiting for data to train.</div>
+        <div class="term-line">Ready. Waiting for data...</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -602,8 +602,7 @@
           "
         >
           <span
-            >MODEL ACCURACY:
-            <span id="val-res" style="color: #fff">--</span></span
+            >MODEL LOSS: <span id="val-res" style="color: #fff">--</span></span
           >
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
@@ -723,7 +722,6 @@
         originalError.apply(console, args);
       };
 
-      // --- AUDIO ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -840,7 +838,7 @@
           return;
         }
         if (cmd.includes("train")) {
-          printTerm("Manual Retraining initiated...", "tf");
+          printTerm("Force Retraining...", "tf");
           trainModel();
           return;
         }
@@ -975,7 +973,7 @@
         PREDICT: false,
       };
       let predictionEvents = [];
-      let model = null; // TensorFlow Model
+      let model = null;
       let trainingData = [];
 
       const satData = [...Array(150).keys()].map(() => ({
@@ -999,49 +997,58 @@
         applyFilters();
       };
 
-      // --- TENSORFLOW AI LOGIC ---
+      // --- TENSORFLOW AI LOGIC (FIXED) ---
       async function initModel() {
-        // Create a simple linear regression model
         model = tf.sequential();
         model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        model.compile({ loss: "meanSquaredError", optimizer: "sgd" });
-        printTerm("AI Model Constructed.", "tf");
+        // Switch to Adam with a smaller learning rate to prevent exploding gradients
+        model.compile({
+          loss: "meanSquaredError",
+          optimizer: tf.train.adam(0.1),
+        });
+        printTerm("Neural Network: ADAM Optimized.", "tf");
       }
 
       async function trainModel() {
         if (trainingData.length < 5) return;
-        document.getElementById("status-model").innerText = "TRAINING...";
+        document.getElementById("status-model").innerText = "LEARNING...";
         document.getElementById("status-model").style.color =
           "var(--neon-orange)";
 
-        // Convert data to Tensors
-        const inputs = trainingData.map((d) => d.x);
+        // PREPROCESS DATA (SIMPLE NORMALIZATION to avoid exploding loss)
+        // Just map everything to small tensors
+        const inputs = trainingData.map((d) => d.x * 0.01); // Scale input down
         const labels = trainingData.map((d) => d.y);
+
         const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
         const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
 
-        // Train
         await model.fit(inputTensor, labelTensor, {
-          epochs: 10,
+          epochs: 20, // Train longer
           callbacks: {
             onEpochEnd: (epoch, logs) => {
-              if (epoch % 5 === 0)
-                printTerm(`Training Loss: ${logs.loss.toFixed(4)}`, "tf");
+              // Only log last epoch to save space
+              if (epoch === 19) {
+                printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
+                // Chart update
+                waveChart.data.datasets[0].data.push(logs.loss);
+                waveChart.data.datasets[0].data.shift();
+                waveChart.update();
+                document.getElementById("val-res").innerText =
+                  logs.loss.toFixed(4);
+              }
             },
           },
         });
 
-        document.getElementById("status-model").innerText = "ONLINE";
+        document.getElementById("status-model").innerText = "STABLE";
         document.getElementById("status-model").style.color =
           "var(--neon-green)";
 
-        // Clean up
         inputTensor.dispose();
         labelTensor.dispose();
 
-        // Update Loss Chart
-        // (Mocking loss visualization on the wave chart for simplicity)
-        printTerm("Neural Network Updated.", "tf");
+        printTerm("Neural Weights Updated.", "tf");
       }
 
       window.togglePrediction = () => {
@@ -1069,18 +1076,18 @@
           return;
         }
 
-        // Predict trending magnitude
-        const nextStep = trainingData.length + 1;
+        // Predict based on next time step (scaled)
+        const nextStep = (trainingData.length + 1) * 0.01;
         const predictionTensor = model.predict(tf.tensor2d([nextStep], [1, 1]));
         const predictedMag = predictionTensor.dataSync()[0];
         predictionTensor.dispose();
 
         printTerm(
-          `AI Forecast: Next Event Magnitude ~${predictedMag.toFixed(1)}`,
+          `AI Forecast: Trending Magnitude ~${predictedMag.toFixed(1)}`,
           "ai"
         );
 
-        // Visualize predictions based on heuristic clusters but using ML value
+        // Visualize predictions
         let highRiskZones = [];
         for (let i = 0; i < allEventsCache.length; i++) {
           let neighbors = 0;
@@ -1346,7 +1353,7 @@
         let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
         let maxIntensity = 0;
 
-        // Reset Training Data for new batch
+        // RESET Training Data
         trainingData = [];
 
         if (quakeData.features) {
@@ -1373,7 +1380,7 @@
               repeatPeriod: 800,
             });
 
-            // Prepare Data for TensorFlow (Time Index vs Magnitude)
+            // Collect data for AI
             if (index < 50) trainingData.push({ x: index, y: mag });
           });
         }
@@ -1438,9 +1445,7 @@
         updateDefcon(dangerScore);
         updateTicker(maxIntensity, combinedEvents.length);
         sfx.playScan();
-        waveChart.data.datasets[0].data.push(maxIntensity);
-        waveChart.data.datasets[0].data.shift();
-        waveChart.update();
+
         radarChart.data.datasets[0].data = [
           counts.QUAKE,
           counts.FIRE,
@@ -1450,13 +1455,13 @@
         ];
         radarChart.update();
 
-        // AUTO TRAIN AI IF ENABLED
+        // AUTO TRAIN
         if (model) trainModel();
 
         if (activeFilters["PREDICT"]) runNeuralPrediction();
         else applyFilters();
 
-        printTerm(`Synced ${combinedEvents.length} events. AI Training...`);
+        printTerm(`Synced ${combinedEvents.length} events. Learning...`);
       }
 
       window.showInspector = (d) => {
