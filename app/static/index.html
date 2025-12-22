@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT ULTIMATE COMMANDER V14.0</title>
+    <title>UPT ULTIMATE COMMANDER V14.1 (FIXED INFO)</title>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -18,7 +18,7 @@
         --neon-red: #ff003c;
         --neon-gold: #ffd700;
         --neon-green: #00ff66;
-        --glass-bg: rgba(8, 15, 25, 0.75);
+        --glass-bg: rgba(8, 15, 25, 0.85);
         --glass-border: rgba(0, 243, 255, 0.3);
         --tech-font: "Orbitron", sans-serif;
         --data-font: "Rajdhani", sans-serif;
@@ -38,7 +38,7 @@
         overflow: hidden;
         height: 100vh;
         user-select: none;
-        transition: box-shadow 1s ease; /* Hiệu ứng chớp đỏ khi DEFCON 1 */
+        transition: box-shadow 1s ease;
       }
       body.alert-mode {
         box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
@@ -72,7 +72,7 @@
         z-index: 0;
       }
 
-      /* --- DEFCON BAR (TOP) --- */
+      /* --- DEFCON BAR --- */
       #defcon-bar {
         position: absolute;
         top: 0;
@@ -100,7 +100,7 @@
         text-shadow: 0 0 15px currentColor;
       }
 
-      /* --- TERMINAL (LEFT) --- */
+      /* --- TERMINAL --- */
       #terminal {
         position: absolute;
         top: 100px;
@@ -155,7 +155,58 @@
         text-transform: lowercase;
       }
 
-      /* --- HUD (BOTTOM) --- */
+      /* --- INSPECTOR (UPDATED STYLE) --- */
+      #inspector {
+        position: absolute;
+        top: 20px;
+        right: -400px;
+        width: 350px;
+        background: rgba(5, 10, 15, 0.95);
+        border: 1px solid var(--neon-blue);
+        border-left: 4px solid var(--neon-blue);
+        padding: 25px;
+        z-index: 20;
+        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
+        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
+      }
+      #inspector.active {
+        right: 20px;
+      }
+
+      .insp-row {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 8px 0;
+        font-size: 0.9rem;
+      }
+      .insp-lbl {
+        color: #888;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+      }
+      .insp-val {
+        color: #fff;
+        font-weight: 700;
+        text-align: right;
+      }
+      .insp-code {
+        font-family: var(--code-font);
+        color: var(--neon-gold);
+        font-size: 1.1rem;
+      }
+
+      .status-box {
+        margin-top: 15px;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        letter-spacing: 1px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      /* --- HUD --- */
       .hud-overlay {
         position: absolute;
         bottom: 20px;
@@ -237,48 +288,21 @@
           box-shadow: 0 0 10px red;
         }
       }
-
-      /* --- INSPECTOR --- */
-      #inspector {
-        position: absolute;
-        top: 20px;
-        right: -400px;
-        width: 350px;
-        background: rgba(5, 10, 15, 0.95);
-        border: 1px solid var(--neon-blue);
-        border-left: 4px solid var(--neon-blue);
-        padding: 25px;
-        z-index: 20;
-        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-        clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
-      }
-      #inspector.active {
-        right: 20px;
-      }
-      .row {
-        display: flex;
-        justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 8px 0;
-      }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
     <div id="globe-viz"></div>
 
-    <div id="defcon-bar">
-      <div id="defcon-level">DEFCON 5</div>
-    </div>
+    <div id="defcon-bar"><div id="defcon-level">DEFCON 5</div></div>
 
     <div id="terminal">
       <div
         style="
-          background: rgba(0, 255, 100, 0.1);
+          background: var(--neon-green);
           padding: 5px;
           font-size: 0.9rem;
           color: #000;
-          background: var(--neon-green);
           font-weight: bold;
         "
       >
@@ -286,13 +310,17 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Audio synth loaded.</div>
-        <div class="term-line sys">Waiting for uplink...</div>
-        <div class="term-line">Type 'help' for commands.</div>
+        <div class="term-line sys">Modules loaded.</div>
+        <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
-        <span>></span>
-        <input type="text" id="term-input" autocomplete="off" placeholder="_" />
+        <span>></span
+        ><input
+          type="text"
+          id="term-input"
+          autocomplete="off"
+          placeholder="_"
+        />
       </div>
     </div>
 
@@ -304,7 +332,7 @@
           margin: 0 0 5px 0;
         "
       >
-        TARGET LOCKED
+        TARGET ANALYSIS
       </h2>
       <div
         style="
@@ -391,7 +419,7 @@
     </div>
 
     <script>
-      // --- A. AUDIO SYNTHESIZER (KHÔNG CẦN FILE MP3) ---
+      // --- A. AUDIO SYNTH ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -415,12 +443,11 @@
         }
         playBeep() {
           this.playTone(800, "sine", 0.1, 0.05);
-        } // Tiếng click
+        }
         playScan() {
           this.playTone(1200, "square", 0.05, 0.02);
-        } // Tiếng quét
+        }
         playAlarm() {
-          // Tiếng báo động
           if (this.muted) return;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
@@ -429,7 +456,7 @@
           osc.frequency.linearRampToValueAtTime(
             600,
             this.ctx.currentTime + 0.3
-          ); // Oa-oa
+          );
           gain.gain.value = 0.1;
           osc.connect(gain);
           gain.connect(this.ctx.destination);
@@ -439,10 +466,9 @@
       }
       const sfx = new AudioSynth();
 
-      // --- B. TERMINAL LOGIC ---
+      // --- B. TERMINAL ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
-
       function printTerm(msg, type = "") {
         const div = document.createElement("div");
         div.className = `term-line ${type}`;
@@ -450,7 +476,6 @@
         termOut.appendChild(div);
         termOut.scrollTop = termOut.scrollHeight;
       }
-
       termIn.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           const cmd = termIn.value.trim().toLowerCase();
@@ -460,12 +485,11 @@
           sfx.playBeep();
         }
       });
-
       function processCommand(cmd) {
         const parts = cmd.split(" ");
-        if (cmd === "help") {
+        if (cmd === "help")
           printTerm("COMMANDS: scan, status, mute, unmute, focus [vn/jp/us]");
-        } else if (cmd === "scan") {
+        else if (cmd === "scan") {
           printTerm("Forcing manual scan...", "sys");
           fetchData();
         } else if (cmd === "status") {
@@ -478,22 +502,17 @@
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
         } else if (parts[0] === "focus") {
-          const target = parts[1];
-          if (target === "vn" || target === "vietnam") {
+          if (parts[1] === "vn") {
             world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
             printTerm("Moving camera to VIETNAM...");
-          } else if (target === "jp" || target === "japan") {
+          } else if (parts[1] === "jp") {
             world.pointOfView({ lat: 36.0, lng: 138.0, altitude: 0.8 }, 2000);
             printTerm("Moving camera to JAPAN...");
-          } else if (target === "us" || target === "usa") {
+          } else if (parts[1] === "us") {
             world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
             printTerm("Moving camera to USA...");
-          } else {
-            printTerm("Unknown target. Try: vn, jp, us", "err");
           }
-        } else {
-          printTerm("Unknown command.", "err");
-        }
+        } else printTerm("Unknown command.", "err");
       }
 
       // --- C. MAIN LOGIC ---
@@ -504,15 +523,12 @@
       let currentDefcon = 5;
       let currentNodeCount = 0;
 
-      // Config Defcon Colors
       function updateDefcon(prob) {
         const el = document.getElementById("defcon-level");
         const bar = document.getElementById("defcon-bar");
         const body = document.body;
-
         let level = 5;
         let color = "var(--defcon-5)";
-
         if (prob > 20) {
           level = 4;
           color = "var(--defcon-4)";
@@ -529,21 +545,17 @@
           level = 1;
           color = "var(--defcon-1)";
         }
-
         if (level !== currentDefcon) {
           currentDefcon = level;
           el.innerText = `DEFCON ${level}`;
           el.style.color = color;
           bar.style.borderColor = color;
           bar.style.boxShadow = `0 0 30px ${color}`;
-
           if (level === 1) {
             body.classList.add("alert-mode");
             sfx.playAlarm();
             printTerm("!!! DEFCON 1 ALERT !!!", "err");
-          } else {
-            body.classList.remove("alert-mode");
-          }
+          } else body.classList.remove("alert-mode");
         }
       }
 
@@ -652,26 +664,18 @@
       }
 
       function updateUI(data) {
-        // Stats
         const prob = data.upt_metrics.probability_index * 100;
         document.getElementById("val-prob").innerText = prob.toFixed(1) + "%";
         document.getElementById("val-res").innerText =
           data.upt_metrics.network_resonance.toFixed(3);
-
-        // Defcon Logic
         updateDefcon(prob);
-
-        // Audio Feedback
         sfx.playScan();
-
-        // Charts
         waveChart.data.datasets[0].data.push(
           data.upt_metrics.network_resonance
         );
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // Check new data
         const currentHash = JSON.stringify(
           data.raw_sensors.map((s) => s.place + s.energy_level)
         );
@@ -680,7 +684,6 @@
         currentNodeCount = data.raw_sensors.length;
         printTerm(`Synced ${currentNodeCount} events.`);
 
-        // Globe Data
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
@@ -689,7 +692,6 @@
           TSUNAMI: 0,
         };
         const globeData = data.raw_sensors.map((s) => {
-          // Simplified Mapping
           let c = "#00f3ff";
           let t = s.type;
           if (t.includes("VOLCANO")) {
@@ -708,7 +710,6 @@
             c = s.energy_level > 0.6 ? "#ff003c" : "#00f3ff";
             counts.EARTHQUAKE++;
           }
-
           return {
             lat: s.lat,
             lng: s.lon,
@@ -720,12 +721,10 @@
             maxR: s.energy_level > 0.4 ? s.energy_level * 15 : 0,
           };
         });
-
         if (world) {
           world.pointsData(globeData);
           world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
-
         radarChart.data.datasets[0].data = [
           counts.EARTHQUAKE,
           counts.VOLCANO,
@@ -736,13 +735,58 @@
         radarChart.update();
       }
 
-      // --- G. CONTROLS ---
+      // --- G. CONTROLS & INSPECTOR LOGIC (ĐÃ CẬP NHẬT CHI TIẾT) ---
+
       window.showInspector = (d) => {
         document.getElementById("inspector").classList.add("active");
-        document.getElementById(
-          "inspector-content"
-        ).innerHTML = `<div class="row"><span>TYPE</span> <strong style="color:${d.color}">${d.type}</strong></div><div class="row"><span>PLACE</span> <span>${d.place}</span></div>`;
+
+        // Icon mapping
+        let icon = "📍";
+        if (d.type.includes("EARTHQUAKE")) icon = "📉";
+        else if (d.type.includes("VOLCANO")) icon = "🌋";
+        else if (d.type.includes("STORM")) icon = "🌀";
+        else if (d.type.includes("SOLAR")) icon = "☀️";
+        else if (d.type.includes("TSUNAMI")) icon = "🌊";
+
+        // Status Logic
+        const isCritical = d.energy_level > 0.6;
+        const statusText = isCritical ? "CRITICAL FAILURE" : "MONITORING";
+        const statusColor = isCritical
+          ? "var(--neon-red)"
+          : "var(--neon-green)";
+
+        document.getElementById("inspector-content").innerHTML = `
+                <div class="insp-row">
+                    <span class="insp-lbl">CLASS</span> 
+                    <strong style="color:${d.color}">${icon} ${d.type}</strong>
+                </div>
+                <div class="insp-row">
+                    <span class="insp-lbl">LOC</span> 
+                    <span class="insp-val" style="font-size:0.9rem">${
+                      d.place
+                    }</span>
+                </div>
+                <div class="insp-row">
+                    <span class="insp-lbl">GEO-DATA</span> 
+                    <span class="insp-code">${d.lat.toFixed(
+                      4
+                    )}, ${d.lng.toFixed(4)}</span>
+                </div>
+                <div class="insp-row">
+                    <span class="insp-lbl">KINETIC</span> 
+                    <span class="insp-val">${d.energy_level.toFixed(4)}</span>
+                </div>
+                
+                <div class="status-box" style="border: 1px solid ${statusColor}; color:${statusColor}">
+                    ${statusText}
+                </div>
+            `;
+
+        printTerm(
+          `Analysis: ${d.type} at ${d.lat.toFixed(2)},${d.lng.toFixed(2)}`
+        );
       };
+
       window.closeInspector = () => {
         document.getElementById("inspector").classList.remove("active");
         if (world) world.pointOfView({ altitude: 2.5 }, 1500);
@@ -752,7 +796,7 @@
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
         if (isLive) {
-          sfx.ctx.resume(); // Bật Audio Context
+          sfx.ctx.resume();
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
           if (world) world.controls().autoRotate = false;
