@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V17.3 (BIGGER SATS)</title>
+    <title>UPT COMMANDER V17.4 (DYNAMIC HUD)</title>
 
     <link
       rel="icon"
@@ -11,7 +11,6 @@
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
-
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -343,8 +342,8 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Engine: Three.js r124</div>
-        <div class="term-line">Satellites: Tracking (150)</div>
+        <div class="term-line sys">Engine: Three.js r124 (Legacy Stable)</div>
+        <div class="term-line">Satellites: Online (Big Mode)</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -451,16 +450,16 @@
             overflow: hidden;
           "
         >
-          > AUTO_PILOT: OFF<br />
+          > AUTO_PILOT: <span id="status-auto">OFF</span><br />
           > TACTICAL_GRID: ON<br />
-          > SAT_LINK: ACTIVE
+          > SAT_LINK: <span id="status-sat">STANDBY</span>
         </div>
         <button id="btn-link" class="btn-link">Initialize Uplink</button>
       </div>
     </div>
 
     <script>
-      // --- 0. ERROR SUPPRESSION ---
+      // --- ERROR SUPPRESSION ---
       const originalError = console.error;
       console.error = function (...args) {
         if (
@@ -676,7 +675,7 @@
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
 
-          // SATELLITES (BIG SIZE 1.2)
+          // SATELLITES (BIG 1.2)
           .customLayerData(satData)
           .customThreeObject((d) => {
             const geometry = new THREE.TetrahedronGeometry(1.2);
@@ -889,6 +888,10 @@
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
+        // --- CẬP NHẬT TRẠNG THÁI HUD ---
+        const statusAuto = document.getElementById("status-auto");
+        const statusSat = document.getElementById("status-sat");
+
         if (isLive) {
           sfx.ctx.resume();
           btn.classList.add("active");
@@ -898,12 +901,24 @@
           sfx.playBeep();
           fetchData();
           timer = setInterval(fetchData, 3000);
+
+          // Đổi chữ thành màu xanh và ON
+          statusAuto.innerText = "ENGAGED";
+          statusAuto.style.color = "var(--neon-green)";
+          statusSat.innerText = "ACTIVE";
+          statusSat.style.color = "var(--neon-green)";
         } else {
           btn.classList.remove("active");
           btn.innerText = "INITIALIZE UPLINK";
           clearInterval(timer);
           if (world) world.controls().autoRotate = true;
           printTerm("Uplink Terminated.");
+
+          // Đổi về OFF
+          statusAuto.innerText = "OFF";
+          statusAuto.style.color = "#888";
+          statusSat.innerText = "STANDBY";
+          statusSat.style.color = "#888";
         }
       });
     </script>
