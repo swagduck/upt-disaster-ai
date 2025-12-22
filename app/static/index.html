@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT SENTINEL PRIME V20.0</title>
+    <title>UPT SENTINEL PRIME V20.1 (FIXED)</title>
 
     <link
       rel="icon"
@@ -108,7 +108,7 @@
         text-shadow: 0 0 15px currentColor;
       }
 
-      /* NEW: AI TICKER (Dòng chữ chạy) */
+      /* AI TICKER */
       #ai-ticker {
         position: absolute;
         top: 65px;
@@ -250,6 +250,11 @@
         font-weight: 700;
         text-align: right;
       }
+      .insp-code {
+        font-family: var(--code-font);
+        color: var(--neon-gold);
+        font-size: 1rem;
+      }
       .status-box {
         margin-top: 10px;
         padding: 8px;
@@ -269,7 +274,7 @@
         height: 28vh;
         display: grid;
         grid-template-columns: 0.8fr 1.5fr 1fr 1.2fr;
-        gap: 10px; /* Cột cuối to hơn cho Filter */
+        gap: 10px;
         z-index: 10;
         pointer-events: none;
       }
@@ -333,7 +338,7 @@
         color: #fff;
       }
 
-      /* NEW: FILTER BUTTONS */
+      /* FILTERS */
       .filter-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -360,7 +365,7 @@
         background: rgba(0, 255, 100, 0.1);
       }
 
-      /* NEW: COUNTDOWN RING */
+      /* COUNTDOWN */
       .countdown-ring {
         position: absolute;
         top: 10px;
@@ -404,8 +409,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v20.0 loaded.</div>
-        <div class="term-line sys">Tactical Filters: Online.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v20.1 loaded.</div>
+        <div class="term-line sys">UI Elements fixed.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -503,6 +508,7 @@
           <canvas id="radarChart"></canvas>
         </div>
       </div>
+
       <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
         <div
           style="
@@ -586,8 +592,10 @@
             overflow: hidden;
           "
         >
-          > AUTO_PILOT: <span id="status-auto">READY</span>
+          > AUTO_PILOT: <span id="status-auto">READY</span><br />
+          > SAT_LINK: <span id="status-sat">STANDBY</span>
         </div>
+
         <button id="btn-link" class="btn-link">ACTIVATE SENTINEL</button>
       </div>
     </div>
@@ -605,7 +613,7 @@
         originalError.apply(console, args);
       };
 
-      // --- A. AUDIO SYNTH ---
+      // --- AUDIO ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -652,7 +660,7 @@
       }
       const sfx = new AudioSynth();
 
-      // --- B. TERMINAL & VOICE ---
+      // --- TERMINAL ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -704,7 +712,7 @@
 
       function processCommand(cmd) {
         const parts = cmd.split(" ");
-        if (cmd.includes("scan") || cmd.includes("quét")) {
+        if (cmd.includes("scan")) {
           printTerm("Manual scan...", "sys");
           fetchAllData();
         } else if (cmd.includes("status")) {
@@ -731,14 +739,14 @@
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- C. MAIN LOGIC ---
+      // --- MAIN LOGIC ---
       let isLive = false;
       let timer = null;
       let world;
       let currentDefcon = 5;
       let currentNodeCount = 0;
       let showSats = true;
-      let allEventsCache = []; // Lưu trữ toàn bộ sự kiện để lọc
+      let allEventsCache = [];
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
@@ -747,7 +755,6 @@
         ICE: true,
       };
 
-      // Satellite Data
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
@@ -756,9 +763,8 @@
         color: "#ffd700",
       }));
 
-      // --- NEW: FILTER LOGIC ---
       window.toggleFilter = (type, btn) => {
-        activeFilters[type] = !activeFilters[type]; // Toggle status
+        activeFilters[type] = !activeFilters[type];
         if (activeFilters[type]) {
           btn.classList.add("active");
           btn.innerText = `[x] ${type}S`;
@@ -767,11 +773,10 @@
           btn.innerText = `[ ] ${type}S`;
         }
         sfx.playBeep();
-        applyFilters(); // Re-draw map
+        applyFilters();
       };
 
       function applyFilters() {
-        // Lọc dữ liệu dựa trên activeFilters
         const filteredData = allEventsCache.filter((d) => {
           if (d.type.includes("QUAKE") && !activeFilters["QUAKE"]) return false;
           if (d.type.includes("VOLCANO") && !activeFilters["VOLCANO"])
@@ -782,7 +787,6 @@
           if (d.type.includes("ICE") && !activeFilters["ICE"]) return false;
           return true;
         });
-
         if (world) {
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
@@ -793,24 +797,19 @@
         );
       }
 
-      // --- NEW: COUNTDOWN LOGIC ---
       let countdownVal = 60;
       let countdownTimer = null;
       function startCountdown() {
         countdownVal = 60;
         const circle = document.getElementById("scan-circle");
         const text = document.getElementById("scan-text");
-
         if (countdownTimer) clearInterval(countdownTimer);
-
         countdownTimer = setInterval(() => {
           countdownVal--;
           text.innerText = countdownVal;
-          // Update circle stroke (100 is full dasharray)
           const offset = 100 - (countdownVal / 60) * 100;
           circle.style.strokeDashoffset = offset;
-
-          if (countdownVal <= 0) countdownVal = 60; // Reset visual loop
+          if (countdownVal <= 0) countdownVal = 60;
         }, 1000);
       }
 
@@ -850,20 +849,17 @@
         }
       }
 
-      // --- NEW: AI TICKER UPDATE ---
       function updateTicker(maxMag, count) {
         const ticker = document.getElementById("ai-ticker-text");
         const msgs = [
           `GLOBAL THREAT MONITOR ACTIVE...`,
           `DETECTED ${count} EVENTS IN LAST 24H...`,
           `MAX SEISMIC INTENSITY: M${maxMag.toFixed(1)}...`,
-          `SATELLITE UPLINK STABLE...`,
           `SENTINEL AI ANALYZING PATTERNS...`,
         ];
         ticker.innerText = msgs.join(" /// ");
       }
 
-      // --- D. INIT GLOBE ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -884,8 +880,6 @@
           .ringMaxRadius("maxR")
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
-
-          // SATELLITES
           .customLayerData(satData)
           .customThreeObject((d) => {
             const geometry = new THREE.TetrahedronGeometry(1.2);
@@ -898,20 +892,17 @@
             d.lng += d.velocity;
             if (d.lng > 180) d.lng = -180;
           })
-
           .onPointClick((d) => {
             sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
           });
-
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
         console.error(e);
       }
 
-      // --- E. CHARTS ---
       Chart.defaults.color = "#666";
       Chart.defaults.font.family = "Rajdhani";
       const waveChart = new Chart(document.getElementById("waveChart"), {
@@ -973,7 +964,6 @@
         },
       });
 
-      // --- F. DATA FETCH ---
       async function fetchAllData() {
         const start = Date.now();
         try {
@@ -983,17 +973,13 @@
           const nasaPromise = fetch(
             "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
           ).then((r) => r.json());
-
           const [quakeData, nasaData] = await Promise.all([
             quakePromise,
             nasaPromise,
           ]);
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
-
           processMultiData(quakeData, nasaData);
-
-          // Restart countdown on new data
           startCountdown();
         } catch (e) {
           console.error(e);
@@ -1006,7 +992,6 @@
         let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
         let maxIntensity = 0;
 
-        // 1. Quakes
         if (quakeData.features) {
           quakeData.features.forEach((f) => {
             const mag = f.properties.mag;
@@ -1016,7 +1001,6 @@
             if (mag > 5) color = "#00ff66";
             if (mag > 6) color = "#ffd700";
             if (mag > 7) color = "#ff003c";
-
             combinedEvents.push({
               lat: f.geometry.coordinates[1],
               lng: f.geometry.coordinates[0],
@@ -1031,7 +1015,6 @@
           });
         }
 
-        // 2. NASA
         if (nasaData.events) {
           nasaData.events.forEach((e) => {
             const catId = e.categories[0].id;
@@ -1041,7 +1024,6 @@
             let color = "#ffffff";
             let type = e.title;
             let alt = 0.2;
-
             if (catId === "wildfires") {
               counts.FIRE++;
               color = "#ff6600";
@@ -1063,7 +1045,6 @@
               type = "ICEBERG";
               alt = 0.2;
             }
-
             combinedEvents.push({
               lat: lat,
               lng: lng,
@@ -1078,10 +1059,7 @@
           });
         }
 
-        // Store for filtering
         allEventsCache = combinedEvents;
-
-        // UI Update
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
         const dangerScore =
@@ -1089,7 +1067,6 @@
         updateDefcon(dangerScore);
         updateTicker(maxIntensity, combinedEvents.length);
         sfx.playScan();
-
         waveChart.data.datasets[0].data.push(maxIntensity);
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
@@ -1101,14 +1078,10 @@
           counts.ICE,
         ];
         radarChart.update();
-
-        // Apply Filters (draws the map)
         applyFilters();
-
         printTerm(`Synced ${combinedEvents.length} global events.`);
       }
 
-      // --- G. CONTROLS ---
       window.showInspector = (d) => {
         document.getElementById("inspector").classList.add("active");
         let icon = "📍";
@@ -1117,7 +1090,6 @@
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
         else if (d.type.includes("ICE")) icon = "🧊";
-
         document.getElementById("inspector-content").innerHTML = `
                 <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
                   d.color
@@ -1147,7 +1119,6 @@
         const btn = document.getElementById("btn-link");
         const statusAuto = document.getElementById("status-auto");
         const statusSat = document.getElementById("status-sat");
-
         if (isLive) {
           sfx.ctx.resume();
           btn.classList.add("active");
@@ -1157,7 +1128,6 @@
           sfx.playBeep();
           fetchAllData();
           timer = setInterval(fetchAllData, 60000);
-
           statusAuto.innerText = "ENGAGED";
           statusAuto.style.color = "var(--neon-green)";
           statusSat.innerText = "LOCKED";
