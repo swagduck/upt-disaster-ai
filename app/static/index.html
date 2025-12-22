@@ -3,19 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT V11.0: LIVING BREATH</title>
+    <title>UPT COMMANDER V11.1 (STABLE RIPPLE)</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
-
-    <script type="importmap">
-      {
-        "imports": { "three": "https://unpkg.com/three/build/three.module.js" }
-      }
-    </script>
 
     <style>
       :root {
@@ -167,6 +161,12 @@
         }
       }
     </style>
+
+    <script type="importmap">
+      {
+        "imports": { "three": "https://unpkg.com/three/build/three.module.js" }
+      }
+    </script>
   </head>
   <body>
     <div id="globe-viz"></div>
@@ -245,10 +245,8 @@
       let isLive = false;
       let timer = null;
       let world;
-      let globalData = []; // Lưu trữ dữ liệu gốc để animation
-      let animationFrameId;
 
-      // --- 2. LOGGING ---
+      // --- 2. HELPERS ---
       function log(msg) {
         const box = document.getElementById("log-box");
         if (!box) return;
@@ -261,6 +259,7 @@
       window.showInspector = (d) => {
         const p = document.getElementById("inspector");
         p.classList.add("active");
+
         let icon = "📍";
         if (d.type.includes("EARTHQUAKE")) icon = "📉";
         else if (d.type.includes("TSUNAMI")) icon = "🌊";
@@ -292,37 +291,10 @@
         document.getElementById("inspector").classList.remove("active");
         if (world) world.pointOfView({ altitude: 2.5 }, 2000);
       };
+
       document.getElementById("btn-dismiss").onclick = window.closeInspector;
 
-      // --- 4. ANIMATION ENGINE (THỦ CÔNG) ---
-      // Hàm này sẽ chạy 60 lần/giây để tạo hiệu ứng "thở"
-      function animateBreathing() {
-        if (!world || globalData.length === 0) return;
-
-        // Lấy thời gian hiện tại để tính Sin
-        const time = Date.now();
-
-        // Cập nhật độ cao (alt) cho từng điểm dữ liệu
-        const animatedData = globalData.map((d) => {
-          // Công thức: Độ cao gốc * (Biến thiên Sin từ 0.8 đến 1.2)
-          // Mỗi loại thiên tai sẽ thở theo nhịp khác nhau một chút dựa trên lat/lon
-          const offset = (d.lat + d.lng) * 100;
-          const breathe = 1 + Math.sin((time + offset) * 0.003) * 0.2;
-
-          return {
-            ...d,
-            alt: d.baseAlt * breathe, // Cập nhật độ cao mới
-          };
-        });
-
-        // Nạp lại dữ liệu đã biến đổi vào Globe
-        world.pointsData(animatedData);
-
-        // Tiếp tục vòng lặp
-        animationFrameId = requestAnimationFrame(animateBreathing);
-      }
-
-      // --- 5. INIT GLOBE ---
+      // --- 4. INIT GLOBE (CẤU HÌNH AN TOÀN - KHÔNG ANIMATION TAY) ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -335,18 +307,19 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.15)
 
-          // Cấu hình Cột (Lấy alt từ dữ liệu đã animation)
+          // Config Cột (Tĩnh - Không lỗi)
           .pointAltitude("alt")
           .pointColor("color")
-          .pointRadius(0.6)
+          .pointRadius(0.5)
           .pointsMerge(false)
-          // KHÔNG DÙNG TRANSITION CỦA THƯ VIỆN NỮA
 
+          // Config Vòng sóng (Rings) - ĐỘNG (Dùng cái này để tạo hiệu ứng)
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed(3)
-          .ringRepeatPeriod(1000)
+          .ringPropagationSpeed(5) // Tăng tốc độ lan tỏa lên để nhìn sôi động hơn
+          .ringRepeatPeriod(800) // Lặp lại nhanh hơn (0.8s)
 
+          // Interactions
           .pointLabel((d) => `Target: ${d.place}`)
           .onPointClick((d) => {
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
@@ -355,15 +328,12 @@
 
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
-
-        // Bắt đầu vòng lặp animation
-        animateBreathing();
       } catch (e) {
         console.error("Globe init error:", e);
         log("Critical 3D Engine Error.");
       }
 
-      // --- 6. CHARTS ---
+      // --- 5. CHARTS ---
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
@@ -423,7 +393,7 @@
         },
       });
 
-      // --- 7. FETCH LOGIC ---
+      // --- 6. LOGIC & FETCH ---
       async function fetchData() {
         const start = Date.now();
         try {
@@ -457,8 +427,8 @@
           TSUNAMI: 0,
         };
 
-        // LƯU DỮ LIỆU VÀO BIẾN TOÀN CỤC ĐỂ ANIMATION ENGINE XỬ LÝ
-        globalData = data.raw_sensors.map((s) => {
+        // XỬ LÝ DỮ LIỆU CƠ BẢN (KHÔNG ANIMATION TAY)
+        const globeData = data.raw_sensors.map((s) => {
           counts[s.type] = (counts[s.type] || 0) + 1;
           let color = "#00f3ff";
           if (s.type === "EARTHQUAKE")
@@ -471,19 +441,20 @@
           return {
             lat: s.lat,
             lng: s.lon,
-            baseAlt: s.energy_level * 0.5, // Lưu độ cao gốc (base)
-            alt: 0, // Độ cao hiện tại (sẽ do animate tính toán)
+            alt: s.energy_level * 0.4, // Cột cố định
             color: color,
             type: s.type,
             place: s.place,
             energy_level: s.energy_level,
-            maxR: s.energy_level > 0.5 ? s.energy_level * 15 : 0,
+            // VÒNG SÓNG CHỈ HIỆN VỚI SỰ KIỆN LỚN HOẶC QUAN TRỌNG
+            maxR: s.energy_level > 0.4 ? s.energy_level * 12 : 0,
           };
         });
 
-        // Cập nhật vòng sóng (Rings không cần animation tay vì nó tự động)
         if (world) {
-          world.ringsData(globalData.filter((d) => d.maxR > 0));
+          world.pointsData(globeData);
+          // Vòng sóng tự động chạy bằng GPU của thư viện -> Mượt và không lỗi
+          world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
 
         radarChart.data.datasets[0].data = [
@@ -497,7 +468,7 @@
         log(`Synced ${data.raw_sensors.length} nodes.`);
       }
 
-      // --- 8. CONTROLS ---
+      // --- 7. BUTTON HANDLER ---
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
