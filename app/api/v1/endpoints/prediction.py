@@ -1,13 +1,14 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List, Optional
-# Import Class mới từ file service
-from app.services.earthquake_service import DisasterService 
+
+# Import Service và Engine
+from app.services.earthquake_service import DisasterService
 from app.upt_engine.formulas import UPTMath
 
 router = APIRouter()
 
-# Mô hình dữ liệu đầu vào (cho chế độ Manual)
+# --- 1. DEFINITIONS (Mô hình dữ liệu) ---
 class SensorData(BaseModel):
     station_id: str
     energy_level: float 
@@ -21,22 +22,27 @@ class PredictionRequest(BaseModel):
     environmental_noise: float = 0.1
     active_dampening: float = 0.0
 
-# API 1: Dự báo thủ công (Manual)
+# --- 2. API ENDPOINTS ---
+
+# API 1: Dự báo thủ công (Dành cho Simulation Mode trên Web)
 @router.post("/predict")
 async def predict_disaster(request: PredictionRequest):
-    # Tính trung bình các chỉ số từ sensors gửi lên
+    # Tính trung bình các chỉ số đầu vào
+    if not request.sensors:
+        return {"error": "No sensor data provided"}
+        
     avg_energy = sum(s.energy_level for s in request.sensors) / len(request.sensors)
     avg_anomaly = sum(s.anomaly_score for s in request.sensors) / len(request.sensors)
     
-    # 1. Tính xác suất sụp đổ (UPT Probability)
+    # BƯỚC 1: Tính xác suất sụp đổ (P)
     prob_index = UPTMath.calculate_collapse_probability(
         avg_anomaly, avg_energy, request.geo_vulnerability
     )
     
-    # 2. Tính cộng hưởng (Resonance)
+    # BƯỚC 2: Tính cộng hưởng (R)
     resonance = UPTMath.calculate_resonance(request.sensors)
     
-    # 3. Tính độ ổn định (Stability)
+    # BƯỚC 3: Tính độ ổn định (S) - Truyền đủ 3 tham số: resonance, noise, dampening
     stability = UPTMath.calculate_stability(
         resonance, request.environmental_noise, request.active_dampening
     )
@@ -62,28 +68,34 @@ async def predict_disaster(request: PredictionRequest):
         "action_recommendation": recommendation
     }
 
-# API 2: Dự báo Thời gian thực (Real-time Satellite)
+# API 2: Dự báo Thời gian thực (Kết nối USGS + NASA + Telegram)
 @router.get("/realtime/usgs")
 async def get_realtime_prediction():
-    # 1. Lấy dữ liệu đa nguồn (USGS + NASA)
-    real_sensors = DisasterService.fetch_all_realtime()
+    # 1. Gọi Service lấy dữ liệu thật (Sử dụng await vì hàm fetch giờ là async)
+    real_sensors = await DisasterService.fetch_all_realtime()
     
     if not real_sensors:
-        return {"message": "Không có dữ liệu vệ tinh hoặc lỗi kết nối."}
+        return {
+            "message": "Không có dữ liệu vệ tinh hoặc lỗi kết nối.",
+            "upt_metrics": None,
+            "raw_sensors": []
+        }
 
-    # 2. Tính toán UPT trên dữ liệu thật
-    # (Lấy trung bình nhanh để đưa ra chỉ số toàn cầu)
+    # 2. Tính toán chỉ số UPT trung bình toàn cầu
     avg_energy = sum(s['energy_level'] for s in real_sensors) / len(real_sensors)
     avg_anomaly = sum(s['anomaly_score'] for s in real_sensors) / len(real_sensors)
     
-    # Giả định Geo Vulnerability trung bình là 0.5 cho toàn cầu
+    # Giả định Geo Vulnerability trung bình là 0.5
     prob_index = UPTMath.calculate_collapse_probability(avg_anomaly, avg_energy, 0.5)
     
-    # Mock object resonance (vì hàm resonance cần object có thuộc tính)
-    resonance = avg_anomaly * 1.5 # Ước lượng nhanh cộng hưởng
+    # Ước lượng cộng hưởng (vì real_sensors là dict, không phải object SensorData)
+    # Ta dùng công thức đơn giản hóa cho realtime: R = Anomaly * Energy * Factor
+    resonance = avg_anomaly * avg_energy * 1.5 
     
+    # Tính độ ổn định (S) với noise mặc định 0.1 và dampening 0.0
     stability = UPTMath.calculate_stability(resonance, 0.1, 0.0)
     
+    # Logic Alert
     alert = "NORMAL"
     if prob_index > 0.45: alert = "WARNING"
     if prob_index > 0.75: alert = "CRITICAL"
