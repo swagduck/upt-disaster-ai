@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT JARVIS V15.1 (STABLE FIX)</title>
+    <title>UPT JARVIS V15.2 (FINAL ROBUST)</title>
 
-    <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
+    <script src="//unpkg.com/globe.gl@2.27.0/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
@@ -623,7 +623,7 @@
         }
       }
 
-      // --- D. INIT GLOBE (FIXED PATHS) ---
+      // --- D. INIT GLOBE ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -649,20 +649,25 @@
             showInspector(d);
           });
 
-        // --- LOAD TECTONIC PLATES (FIXED: RGBA COLOR INSTEAD OF OPACITY FUNCTION) ---
+        // --- LOAD TECTONIC PLATES (SAFE MODE: NO OPACITY FUNC, USE RGBA) ---
         fetch(
           "//raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
         )
           .then((res) => res.json())
           .then((plates) => {
-            world
-              .pathsData(plates.features)
-              .pathColor(() => "rgba(255, 68, 0, 0.4)") // Dùng RGBA để chỉnh độ mờ
-              .pathDashLength(0.01)
-              .pathDashGap(0.004)
-              .pathDashAnimateTime(100000);
-
-            printTerm("Tectonic Plates loaded.", "sys");
+            if (plates && plates.features) {
+              world
+                .pathsData(plates.features)
+                .pathColor(() => "rgba(255, 68, 0, 0.4)") // RGBA màu cam có độ mờ 0.4
+                .pathDashLength(0.01)
+                .pathDashGap(0.004)
+                .pathDashAnimateTime(100000);
+              printTerm("Tectonic Plates loaded.", "sys");
+            }
+          })
+          .catch((err) => {
+            console.error("Tectonic load error:", err);
+            printTerm("Tectonic load failed.", "err");
           });
 
         world.controls().autoRotate = true;
