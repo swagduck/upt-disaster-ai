@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT SENTINEL V27.0 (AETHER UI)</title>
+    <title>UPT SENTINEL V27.1 (BIG BANG)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💠</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -27,29 +27,24 @@
         --warning: #ffd700;
         --success: #00ff66;
         --toxic: #ccff00;
-        --glass: rgba(10, 15, 20, 0.65);
-        --border: rgba(0, 243, 255, 0.2);
-        --glow: 0 0 10px rgba(0, 243, 255, 0.5);
+        --glass: rgba(10, 15, 20, 0.75);
+        --border: rgba(0, 243, 255, 0.3);
         --font-head: "Orbitron", sans-serif;
         --font-body: "Rajdhani", sans-serif;
         --font-code: "JetBrains Mono", monospace;
       }
-
       * {
         box-sizing: border-box;
       }
-
       body {
         margin: 0;
-        background-color: #050505;
+        background: #000;
         color: var(--primary);
         font-family: var(--font-body);
         overflow: hidden;
         height: 100vh;
-        user-select: none;
       }
 
-      /* --- VISUAL FX --- */
       .scanlines {
         position: fixed;
         top: 0;
@@ -60,29 +55,12 @@
         z-index: 1;
         background: linear-gradient(
           to bottom,
-          rgba(255, 255, 255, 0),
           rgba(255, 255, 255, 0) 50%,
-          rgba(0, 0, 0, 0.2) 50%,
-          rgba(0, 0, 0, 0.2)
+          rgba(0, 0, 0, 0.2) 50%
         );
-        background-size: 100% 3px;
+        background-size: 100% 4px;
         opacity: 0.3;
       }
-      .vignette {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 2;
-        background: radial-gradient(
-          circle,
-          rgba(0, 0, 0, 0) 60%,
-          rgba(0, 0, 0, 0.8) 100%
-        );
-      }
-
       #globe-viz {
         position: absolute;
         top: 0;
@@ -92,55 +70,95 @@
         z-index: 0;
       }
 
-      /* --- TOP BAR --- */
+      /* START OVERLAY */
+      #start-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        background: rgba(0, 5, 10, 0.95);
+        backdrop-filter: blur(20px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s;
+      }
+      #start-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .start-btn {
+        background: transparent;
+        border: 2px solid var(--primary);
+        color: var(--primary);
+        padding: 20px 50px;
+        font-family: var(--font-head);
+        font-size: 1.5rem;
+        font-weight: 900;
+        letter-spacing: 5px;
+        cursor: pointer;
+        text-transform: uppercase;
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+        transition: 0.3s;
+        clip-path: polygon(
+          20px 0,
+          100% 0,
+          100% calc(100% - 20px),
+          calc(100% - 20px) 100%,
+          0 100%,
+          0 20px
+        );
+      }
+      .start-btn:hover {
+        background: var(--primary);
+        color: #000;
+        box-shadow: 0 0 60px var(--primary);
+        transform: scale(1.05);
+      }
+
+      /* UI ELEMENTS */
       #top-bar {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 80px;
+        padding: 15px 25px;
         z-index: 20;
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        padding: 10px 20px;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+        pointer-events: none;
       }
-
       #defcon-widget {
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--border);
+        padding: 5px 20px;
+        border-radius: 0 0 15px 15px;
+        border-top: none;
+        backdrop-filter: blur(5px);
         display: flex;
         flex-direction: column;
         align-items: center;
-        border: 1px solid var(--border);
-        padding: 5px 20px;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
-        border-radius: 0 0 15px 15px;
-        border-top: none;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        pointer-events: auto;
       }
       #defcon-lvl {
         font-family: var(--font-head);
         font-size: 2rem;
         font-weight: 900;
-        letter-spacing: 3px;
         color: #0088ff;
         text-shadow: 0 0 15px currentColor;
       }
-      .label-tiny {
-        font-size: 0.7rem;
-        letter-spacing: 2px;
-        color: #666;
-        font-weight: 700;
-      }
 
-      /* --- TICKER --- */
-      #ticker-wrap {
+      #ai-ticker {
         position: absolute;
-        top: 85px;
+        top: 90px;
         left: 0;
         width: 100%;
-        height: 24px;
+        height: 25px;
         z-index: 10;
         background: rgba(0, 10, 20, 0.8);
         border-top: 1px solid var(--border);
@@ -148,26 +166,96 @@
         display: flex;
         align-items: center;
         overflow: hidden;
-        backdrop-filter: blur(2px);
       }
-      #ticker-text {
+      #ai-ticker-text {
         font-family: var(--font-code);
-        font-size: 0.9rem;
         color: var(--warning);
         white-space: nowrap;
         padding-left: 100%;
         animation: ticker 30s linear infinite;
+        font-size: 0.85rem;
       }
       @keyframes ticker {
-        0% {
-          transform: translateX(0);
-        }
         100% {
           transform: translateX(-100%);
         }
       }
 
-      /* --- TERMINAL --- */
+      /* PANELS */
+      .hud-bottom {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        display: grid;
+        grid-template-columns: 220px 1fr 1fr 300px;
+        gap: 15px;
+        z-index: 20;
+        pointer-events: none;
+        height: 250px; /* Reset height */
+      }
+      .panel {
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        pointer-events: auto;
+        transition: 0.3s;
+        position: relative;
+      }
+      .panel:hover {
+        border-color: var(--primary);
+        box-shadow: 0 5px 30px rgba(0, 243, 255, 0.1);
+      }
+      .panel h3 {
+        margin: 0 0 10px 0;
+        font-family: var(--font-head);
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 2px;
+      }
+
+      /* BUTTONS */
+      .btn-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin-top: auto;
+      }
+      .cyber-btn {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid #444;
+        color: #888;
+        padding: 8px 5px;
+        font-family: var(--font-code);
+        font-size: 0.7rem;
+        cursor: pointer;
+        text-align: center;
+        transition: 0.2s;
+      }
+      .cyber-btn:hover {
+        color: #fff;
+        border-color: #fff;
+      }
+      .cyber-btn.active {
+        background: rgba(0, 243, 255, 0.15);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .cyber-btn.toxic.active {
+        border-color: var(--toxic);
+        color: var(--toxic);
+        background: rgba(204, 255, 0, 0.15);
+      }
+      .cyber-btn.ai.active {
+        border-color: #bd00ff;
+        color: #bd00ff;
+        background: rgba(189, 0, 255, 0.15);
+      }
+
+      /* TERMINAL */
       #terminal {
         position: absolute;
         top: 130px;
@@ -176,57 +264,22 @@
         height: 35vh;
         background: var(--glass);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        backdrop-filter: blur(15px);
+        border-radius: 8px;
         display: flex;
         flex-direction: column;
         z-index: 20;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        transition: 0.3s;
+        backdrop-filter: blur(10px);
       }
-      #terminal:hover {
-        border-color: var(--primary);
-        box-shadow: var(--glow);
-      }
-
-      .term-header {
-        padding: 8px 12px;
-        background: rgba(0, 243, 255, 0.1);
-        border-bottom: 1px solid var(--border);
-        font-family: var(--font-head);
-        font-size: 0.7rem;
-        letter-spacing: 1px;
-        color: var(--primary);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .dots span {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 4px;
-        background: #444;
-      }
-      .dots span:nth-child(1) {
-        background: var(--accent);
-      }
-      .dots span:nth-child(2) {
-        background: var(--warning);
-      }
-
-      #term-output {
+      #term-out {
         flex: 1;
         padding: 10px;
         overflow-y: auto;
         font-family: var(--font-code);
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         scrollbar-width: none;
       }
-      .term-line {
-        margin-bottom: 4px;
-        line-height: 1.3;
+      .ln {
+        margin-bottom: 3px;
       }
       .sys {
         color: #889;
@@ -234,362 +287,132 @@
       .err {
         color: var(--accent);
       }
-      .cmd {
-        color: #fff;
-        font-weight: bold;
-      }
       .ai {
         color: #bd00ff;
       }
-      .nuke {
-        color: var(--toxic);
-      }
-      .voice {
-        color: var(--warning);
-        font-style: italic;
-      }
 
-      #term-input-line {
-        display: flex;
-        padding: 8px;
-        border-top: 1px solid var(--border);
-        background: rgba(0, 0, 0, 0.3);
-      }
-      #term-input {
-        background: transparent;
-        border: none;
-        color: #fff;
-        font-family: var(--font-code);
-        flex: 1;
-        outline: none;
-        margin-left: 8px;
-      }
-      #mic-btn {
-        background: none;
-        border: none;
-        color: #666;
-        cursor: pointer;
-        transition: 0.3s;
-      }
-      #mic-btn:hover {
-        color: #fff;
-      }
-      #mic-btn.listening {
-        color: var(--accent);
-        animation: pulse 1s infinite;
-      }
-
-      /* --- INSPECTOR (Right Side) --- */
+      /* INSPECTOR */
       #inspector {
         position: absolute;
         top: 130px;
         right: 20px;
-        width: 300px;
+        width: 280px;
         background: var(--glass);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 20px;
+        padding: 15px;
         z-index: 20;
-        backdrop-filter: blur(15px);
         transform: translateX(120%);
-        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: 0.4s;
       }
       #inspector.active {
         transform: translateX(0);
       }
-
       .insp-row {
         display: flex;
         justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 8px 0;
-        font-size: 0.9rem;
-      }
-      .insp-lbl {
-        color: #888;
-        font-size: 0.7rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-      }
-      .insp-val {
-        color: #fff;
-        font-weight: 600;
-        text-align: right;
-      }
-
-      /* --- CONTROL DECK (Bottom) --- */
-      .control-deck {
-        position: absolute;
-        bottom: 20px;
-        left: 20px;
-        right: 20px;
-        height: 260px;
-        display: grid;
-        grid-template-columns: 200px 1fr 1fr 300px;
-        gap: 15px;
-        z-index: 20;
-        pointer-events: none;
-      }
-      .deck-panel {
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 15px;
-        display: flex;
-        flex-direction: column;
-        pointer-events: auto;
-        backdrop-filter: blur(20px);
-        transition: 0.3s;
-        position: relative;
-        overflow: hidden;
-      }
-      .deck-panel:hover {
-        border-color: var(--primary);
-        box-shadow: 0 5px 30px rgba(0, 243, 255, 0.15);
-      }
-
-      .panel-head {
-        font-family: var(--font-head);
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.5);
-        letter-spacing: 2px;
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .big-num {
-        font-family: var(--font-head);
-        font-size: 2.8rem;
-        color: #fff;
-        line-height: 1;
-        text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-      }
-      .sub-text {
-        font-size: 0.75rem;
-        color: var(--primary);
-        letter-spacing: 1px;
-        margin-top: 5px;
-      }
-
-      /* BUTTONS */
-      .btn-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        margin-top: auto;
-      }
-      .cyber-btn {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid #444;
-        color: #888;
-        padding: 8px;
-        font-family: var(--font-code);
-        font-size: 0.75rem;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: 0.2s;
-        text-align: left;
-      }
-      .cyber-btn:hover {
-        border-color: #fff;
-        color: #fff;
-        background: rgba(255, 255, 255, 0.1);
-      }
-      .cyber-btn.active {
-        border-color: var(--primary);
-        color: var(--primary);
-        background: rgba(0, 243, 255, 0.1);
-        box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
-      }
-      .cyber-btn.danger.active {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(255, 0, 60, 0.1);
-      }
-      .cyber-btn.toxic.active {
-        border-color: var(--toxic);
-        color: var(--toxic);
-        background: rgba(204, 255, 0, 0.1);
-      }
-      .cyber-btn.ai-mode.active {
-        border-color: #bd00ff;
-        color: #bd00ff;
-        background: rgba(189, 0, 255, 0.1);
-      }
-
-      .main-action {
-        width: 100%;
-        padding: 12px;
-        margin-top: 10px;
-        background: linear-gradient(
-          90deg,
-          rgba(0, 243, 255, 0.1),
-          rgba(0, 243, 255, 0.2)
-        );
-        border: 1px solid var(--primary);
-        color: var(--primary);
-        font-family: var(--font-head);
-        font-weight: bold;
-        cursor: pointer;
-        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
-        transition: 0.3s;
-        text-align: center;
-      }
-      .main-action:hover {
-        background: var(--primary);
-        color: #000;
-        box-shadow: 0 0 20px var(--primary);
-      }
-      .main-action.active {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: #fff;
-      }
-
-      /* UTILS */
-      .blink {
-        animation: blink 1s infinite;
-      }
-      @keyframes blink {
-        50% {
-          opacity: 0.5;
-        }
-      }
-      @keyframes pulse {
-        0% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: scale(1.2);
-          opacity: 0.7;
-        }
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
+        border-bottom: 1px solid #333;
+        padding: 5px 0;
+        font-size: 0.85rem;
       }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
-    <div class="vignette"></div>
+
+    <div id="start-overlay">
+      <h1
+        style="
+          font-family: var(--font-head);
+          font-size: 3rem;
+          margin-bottom: 10px;
+          text-shadow: 0 0 20px var(--primary);
+        "
+      >
+        UPT SENTINEL
+      </h1>
+      <div
+        style="font-family: var(--font-code); color: #888; margin-bottom: 40px"
+      >
+        V27.1 // GLOBAL MONITORING SYSTEM
+      </div>
+      <button class="start-btn" onclick="startSystem()">
+        INITIALIZE SYSTEM
+      </button>
+    </div>
+
     <div id="globe-viz"></div>
 
     <div id="top-bar">
       <div style="display: flex; align-items: center">
         <div
           style="
-            width: 40px;
-            height: 40px;
-            border: 2px solid var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            box-shadow: var(--glow);
+            font-family: var(--font-head);
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: #fff;
           "
         >
-          <span style="font-size: 1.5rem">🛡️</span>
-        </div>
-        <div>
-          <div
-            style="
-              font-family: var(--font-head);
-              font-weight: 900;
-              font-size: 1.2rem;
-              letter-spacing: 2px;
-            "
-          >
-            UPT SENTINEL
-          </div>
-          <div
-            style="
-              font-family: var(--font-code);
-              font-size: 0.8rem;
-              color: #666;
-            "
-          >
-            V27.0 // AETHER BUILD
-          </div>
+          🛡️ SENTINEL
         </div>
       </div>
-
       <div id="defcon-widget">
-        <div class="label-tiny">THREAT LEVEL</div>
-        <div id="defcon-level">DEFCON 5</div>
+        <div
+          style="
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            color: #666;
+            margin-bottom: 2px;
+          "
+        >
+          THREAT LEVEL
+        </div>
+        <div id="defcon-level">STANDBY</div>
       </div>
     </div>
 
-    <div id="ticker-wrap">
+    <div id="ai-ticker">
       <div id="ai-ticker-text">
-        INITIALIZING SYSTEM... CONNECTING TO SATELLITE NETWORK... WAITING FOR
-        DATA STREAM...
+        SYSTEM STANDBY... WAITING FOR USER AUTHORIZATION...
       </div>
     </div>
 
     <div id="terminal">
-      <div class="term-header">
-        <span>>_ COMMAND.EXE</span>
-        <div class="dots"><span></span><span></span></div>
+      <div
+        style="
+          padding: 8px;
+          border-bottom: 1px solid #333;
+          font-size: 0.7rem;
+          font-weight: bold;
+        "
+      >
+        >_ TERMINAL
       </div>
-      <div id="term-output">
-        <div class="term-line sys">Kernel loaded successfully.</div>
-        <div class="term-line sys">
-          TensorFlow.js GPU Acceleration: ENABLED.
-        </div>
-        <div class="term-line">System Ready.</div>
-      </div>
-      <div id="term-input-line">
-        <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
-          🎤
-        </button>
-        <span>></span
-        ><input
-          type="text"
-          id="term-input"
-          autocomplete="off"
-          placeholder="Enter command..."
-        />
+      <div id="term-out">
+        <div class="ln sys">Kernel loaded. Waiting for start...</div>
       </div>
     </div>
 
     <div id="inspector">
-      <div
-        style="
-          border-bottom: 1px solid var(--border);
-          padding-bottom: 10px;
-          margin-bottom: 10px;
-        "
-      >
-        <h3 style="color: var(--primary); margin: 0">TARGET DATA</h3>
-      </div>
-      <div id="inspector-content">Selecting...</div>
+      <h4 style="margin: 0 0 10px 0; color: var(--primary)">OBJECT DATA</h4>
+      <div id="insp-content"></div>
       <button
-        onclick="window.closeInspector()"
+        onclick="document.getElementById('inspector').classList.remove('active')"
         style="
           width: 100%;
-          margin-top: 20px;
-          background: transparent;
-          border: 1px solid #444;
+          margin-top: 10px;
+          background: none;
+          border: 1px solid #555;
           color: #888;
-          padding: 8px;
           cursor: pointer;
-          font-family: var(--font-code);
-          font-size: 0.8rem;
         "
       >
-        [ CLOSE PANEL ]
+        CLOSE
       </button>
     </div>
 
-    <div class="control-deck">
-      <div class="deck-panel" style="border-color: rgba(255, 0, 60, 0.3)">
-        <div class="panel-head">
-          <span>PROXIMITY</span><span class="blink">●</span>
-        </div>
+    <div class="hud-bottom">
+      <div class="panel" style="border-color: rgba(255, 0, 60, 0.4)">
+        <h3>PROXIMITY ALERT</h3>
         <div
           style="
             flex: 1;
@@ -599,306 +422,180 @@
             text-align: center;
           "
         >
-          <div id="val-prob" class="big-num" style="font-size: 2.2rem">--</div>
-          <div class="sub-text" id="lbl-prob">DISTANCE (KM)</div>
           <div
-            id="nearest-name"
+            id="val-dist"
             style="
-              font-size: 0.7rem;
-              color: #888;
-              margin-top: 10px;
-              border-top: 1px solid #333;
-              padding-top: 5px;
+              font-family: var(--font-head);
+              font-size: 2.5rem;
+              color: #fff;
             "
           >
-            WAITING FOR GPS
+            --
+          </div>
+          <div style="font-size: 0.7rem; color: var(--accent)">KILOMETERS</div>
+          <div
+            id="val-near"
+            style="font-size: 0.7rem; color: #888; margin-top: 5px"
+          >
+            OFFLINE
           </div>
         </div>
       </div>
 
-      <div class="deck-panel">
-        <div class="panel-head"><span>AI LEARNING</span><span>TF.JS</span></div>
-        <div style="flex: 1; width: 100%; min-height: 0">
-          <canvas id="waveChart"></canvas>
-        </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            font-size: 0.7rem;
-            color: #666;
-          "
-        >
-          <span>LOSS: <span id="val-res" style="color: #fff">--</span></span>
-          <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
-        </div>
+      <div class="panel">
+        <h3>SEISMIC ACTIVITY</h3>
+        <div style="flex: 1; width: 100%"><canvas id="waveChart"></canvas></div>
       </div>
-
-      <div class="deck-panel">
-        <div class="panel-head"><span>HAZARD TYPE</span><span>SCAN</span></div>
-        <div style="flex: 1; width: 100%; min-height: 0">
+      <div class="panel">
+        <h3>THREAT RADAR</h3>
+        <div style="flex: 1; width: 100%">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
-      <div class="deck-panel">
-        <div class="panel-head">
-          <span>TACTICAL OPS</span><span id="scan-countdown">60</span>
-        </div>
-
-        <div class="btn-grid">
-          <button
-            id="btn-gps"
-            class="cyber-btn"
-            style="grid-column: span 2"
-            onclick="locateUser()"
-          >
-            ◎ LOCATE ME (GPS)
-          </button>
-          <button
-            id="btn-quake"
-            class="cyber-btn active"
-            onclick="toggleFilter('QUAKE', this)"
-          >
-            [x] QUAKES
-          </button>
-          <button
-            id="btn-volcano"
-            class="cyber-btn active"
-            onclick="toggleFilter('VOLCANO', this)"
-          >
-            [x] VOLCANO
-          </button>
-          <button
-            id="btn-storm"
-            class="cyber-btn active"
-            onclick="toggleFilter('STORM', this)"
-          >
-            [x] STORMS
-          </button>
-          <button
-            id="btn-fire"
-            class="cyber-btn active"
-            onclick="toggleFilter('FIRE', this)"
-          >
-            [x] FIRES
-          </button>
-          <button
-            id="btn-nuke"
-            class="cyber-btn toxic active"
-            onclick="toggleFilter('NUKE', this)"
-          >
-            [x] NUKES
-          </button>
-          <button
-            id="btn-other"
-            class="cyber-btn active"
-            onclick="toggleFilter('OTHER', this)"
-          >
-            [x] OTHERS
-          </button>
-          <button
-            id="btn-predict"
-            class="cyber-btn ai-mode"
-            style="grid-column: span 2; text-align: center"
-            onclick="togglePrediction()"
-          >
-            🧠 NEURAL PREDICTION
-          </button>
-        </div>
-
+      <div class="panel">
         <div
           style="
             display: flex;
             justify-content: space-between;
-            font-family: var(--font-code);
-            font-size: 0.7rem;
-            color: #666;
-            margin-top: 5px;
+            align-items: center;
           "
         >
-          <span>AI: <span id="status-model">IDLE</span></span>
-          <span>GPS: <span id="status-loc">OFF</span></span>
+          <h3>TACTICAL OPS</h3>
+          <span
+            id="scan-timer"
+            style="font-family: var(--font-code); color: var(--warning)"
+            >60</span
+          >
         </div>
-
-        <button id="btn-link" class="main-action">INITIALIZE LINK</button>
+        <div class="btn-grid">
+          <button class="cyber-btn" onclick="locateUser()" id="btn-gps">
+            ◎ GPS LOCATE
+          </button>
+          <button
+            class="cyber-btn active"
+            onclick="toggleFilter('QUAKE', this)"
+          >
+            QUAKES
+          </button>
+          <button
+            class="cyber-btn active"
+            onclick="toggleFilter('VOLCANO', this)"
+          >
+            VOLCANO
+          </button>
+          <button
+            class="cyber-btn active"
+            onclick="toggleFilter('STORM', this)"
+          >
+            STORMS
+          </button>
+          <button class="cyber-btn active" onclick="toggleFilter('FIRE', this)">
+            FIRES
+          </button>
+          <button
+            class="cyber-btn toxic active"
+            onclick="toggleFilter('NUKE', this)"
+          >
+            ☢ NUKES
+          </button>
+          <button
+            class="cyber-btn ai active"
+            style="grid-column: span 2"
+            onclick="togglePrediction(this)"
+          >
+            🧠 AI PREDICTION
+          </button>
+        </div>
+        <div
+          style="
+            margin-top: 5px;
+            font-family: var(--font-code);
+            font-size: 0.65rem;
+            color: #666;
+            text-align: right;
+          "
+        >
+          STATUS: <span id="sys-status" style="color: #fff">WAITING</span>
+        </div>
       </div>
     </div>
 
     <script>
-      /* --- ERROR HANDLER --- */
-      const originalError = console.error;
-      console.error = function (...args) {
-        if (
-          args[0] &&
-          (args[0].toString().includes("t.map") ||
-            args[0].toString().includes("pathOpacity"))
-        )
-          return;
-        originalError.apply(console, args);
-      };
-
-      /* --- AUDIO --- */
-      class AudioSynth {
-        constructor() {
-          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-          this.muted = false;
-        }
-        playTone(freq, type, duration, vol = 0.1) {
-          if (this.muted) return;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = type;
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(
-            0.01,
-            this.ctx.currentTime + duration
-          );
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + duration);
-        }
-        playBeep() {
-          this.playTone(1000, "sine", 0.05, 0.05);
-        }
-        playScan() {
-          this.playTone(400, "square", 0.05, 0.02);
-        }
-        playAlarm() {
-          if (this.muted) return;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(200, this.ctx.currentTime);
-          osc.frequency.linearRampToValueAtTime(
-            100,
-            this.ctx.currentTime + 0.5
-          );
-          gain.gain.value = 0.1;
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.5);
-        }
-      }
-      const sfx = new AudioSynth();
-
-      /* --- TERMINAL --- */
-      const termOut = document.getElementById("term-output");
-      const termIn = document.getElementById("term-input");
-      const micBtn = document.getElementById("mic-btn");
-      let recognition;
-
-      function printTerm(msg, type = "") {
-        const div = document.createElement("div");
-        div.className = `term-line ${type}`;
-        div.innerText = `> ${msg}`;
-        termOut.appendChild(div);
-        termOut.scrollTop = termOut.scrollHeight;
+      // --- SETUP ---
+      const term = document.getElementById("term-out");
+      function log(msg, type = "") {
+        const d = document.createElement("div");
+        d.className = `ln ${type}`;
+        d.innerText = `> ${msg}`;
+        term.appendChild(d);
+        term.scrollTop = term.scrollHeight;
       }
 
-      if ("webkitSpeechRecognition" in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = "en-US";
-        recognition.interimResults = false;
-        recognition.onstart = function () {
-          micBtn.classList.add("listening");
+      // --- AUDIO ---
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      function beep(f = 1000, t = 0.05) {
+        const o = ctx.createOscillator(),
+          g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = f;
+        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t);
+        o.start();
+        o.stop(ctx.currentTime + t);
+      }
+
+      // --- DATA ---
+      let world,
+        timer,
+        activeFilters = {
+          QUAKE: 1,
+          VOLCANO: 1,
+          STORM: 1,
+          FIRE: 1,
+          NUKE: 1,
+          PREDICT: 0,
         };
-        recognition.onend = function () {
-          micBtn.classList.remove("listening");
-        };
-        recognition.onresult = function (event) {
-          const transcript = event.results[0][0].transcript.toLowerCase();
-          printTerm(`"${transcript}"`, "voice");
-          processCommand(transcript);
-        };
-      } else {
-        micBtn.style.display = "none";
-      }
+      let events = [],
+        training = [],
+        userLoc = null,
+        model = null;
 
-      function toggleVoice() {
-        if (recognition) recognition.start();
-      }
-
-      document.addEventListener("keydown", (e) => {
-        if (document.activeElement === termIn && e.key === "Enter") {
-          const cmd = termIn.value.trim().toLowerCase();
-          printTerm(cmd, "cmd");
-          processCommand(cmd);
-          termIn.value = "";
-          sfx.playBeep();
-        }
-      });
-
-      /* --- LOGIC CORE --- */
-      let isLive = false;
-      let timer = null;
-      let world;
-      let currentDefcon = 5;
-      let allEventsCache = [];
-      let activeFilters = {
-        QUAKE: true,
-        VOLCANO: true,
-        STORM: true,
-        FIRE: true,
-        OTHER: true,
-        NUKE: true,
-        PREDICT: false,
-      };
-      let predictionEvents = [];
-      let model = null;
-      let trainingData = [];
-      let isTraining = false;
-      let userLat = null;
-      let userLng = null;
-      let userEventMarker = null;
-
-      const nuclearPlants = [
-        {
-          name: "Fukushima Daiichi",
-          lat: 37.421,
-          lng: 141.033,
-          desc: "Japan - High Risk",
-        },
-        {
-          name: "Zaporizhzhia",
-          lat: 47.512,
-          lng: 34.586,
-          desc: "Ukraine - Active Zone",
-        },
-        {
-          name: "Diablo Canyon",
-          lat: 35.211,
-          lng: -120.855,
-          desc: "USA - Fault Line",
-        },
-        {
-          name: "Kashiwazaki",
-          lat: 37.429,
-          lng: 138.596,
-          desc: "Japan - Largest",
-        },
-        { name: "Hanul", lat: 37.094, lng: 129.385, desc: "South Korea" },
-        { name: "Gravelines", lat: 51.012, lng: 2.136, desc: "France" },
-        { name: "Bruce", lat: 44.326, lng: -81.599, desc: "Canada" },
-        { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China" },
+      const nukes = [
+        { lat: 37.42, lng: 141.03, name: "Fukushima" },
+        { lat: 47.51, lng: 34.58, name: "Zaporizhzhia" },
+        { lat: 35.21, lng: -120.85, name: "Diablo Canyon" },
+        { lat: 37.09, lng: 129.38, name: "Hanul" },
+        { lat: 51.01, lng: 2.13, name: "Gravelines" },
+        { lat: 25.03, lng: 121.56, name: "Maanshan" },
       ];
 
-      const satData = [...Array(150).keys()].map(() => ({
-        lat: (Math.random() - 0.5) * 180,
-        lng: (Math.random() - 0.5) * 360,
-        alt: 0.6 + Math.random() * 0.3,
-        velocity: Math.random() * 0.4 + 0.1,
-        color: "#ffd700",
-        type: "SATELLITE",
-      }));
+      const sats = Array(100)
+        .fill()
+        .map(() => ({
+          lat: (Math.random() - 0.5) * 180,
+          lng: (Math.random() - 0.5) * 360,
+          alt: 0.5 + Math.random() * 0.3,
+          color: "#ffd700",
+          type: "SAT",
+        }));
 
-      /* --- INIT GLOBE --- */
-      try {
+      // --- INIT ---
+      function startSystem() {
+        document.getElementById("start-overlay").classList.add("hidden");
+        document.getElementById("sys-status").innerText = "ONLINE";
+        document.getElementById("sys-status").style.color = "var(--success)";
+        ctx.resume();
+        beep(600, 0.2);
+        log("System Initialized.", "sys");
+        initGlobe();
+        initAI();
+        fetchData();
+        timer = setInterval(fetchData, 60000);
+        startCountdown();
+      }
+
+      function initGlobe() {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
           .bumpImageUrl(
@@ -908,84 +605,325 @@
             "//unpkg.com/three-globe/example/img/night-sky.png"
           )
           .atmosphereColor("#00f3ff")
-          .atmosphereAltitude(0.2)
+          .atmosphereAltitude(0.15)
           .pointAltitude("alt")
           .pointColor("color")
-          .pointRadius(0.5)
-          .pointsMerge(false)
+          .pointRadius(0.4)
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed("propagationSpeed")
-          .ringRepeatPeriod("repeatPeriod")
-          .customLayerData(satData)
-          .customThreeObjectUpdate((obj, d) => {
-            Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
-            obj.rotation.y += 0.1;
-            if (d.lng) {
-              d.lng += d.velocity || 0;
+          .ringPropagationSpeed("speed")
+          .ringRepeatPeriod("period")
+          .customLayerData(sats)
+          .customThreeObjectUpdate((o, d) => {
+            Object.assign(o.position, world.getCoords(d.lat, d.lng, d.alt));
+            if (d.type === "SAT") {
+              d.lng += 0.2;
               if (d.lng > 180) d.lng = -180;
             }
           })
           .onPointClick((d) => {
-            sfx.playBeep();
-            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
-            showInspector(d);
+            beep(1200);
+            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.0 }, 1000);
+            showInsp(d);
           });
 
         world.customThreeObject((d) => {
-          if (d.type === "NUCLEAR PLANT") {
-            const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
-            const material = new THREE.MeshBasicMaterial({ color: "#ccff00" });
-            return new THREE.Mesh(geometry, material);
-          } else if (d.type === "SATELLITE") {
-            const geometry = new THREE.SphereGeometry(0.3);
-            const material = new THREE.MeshBasicMaterial({ color: "#ffd700" });
-            return new THREE.Mesh(geometry, material);
-          } else if (d.type === "USER_LOC") {
-            const geometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 8);
-            const material = new THREE.MeshBasicMaterial({ color: "#00f3ff" });
-            return new THREE.Mesh(geometry, material);
-          } else {
-            const geometry = new THREE.TetrahedronGeometry(1.2);
-            const material = new THREE.MeshBasicMaterial({ color: d.color });
-            return new THREE.Mesh(geometry, material);
-          }
+          if (d.type.includes("NUKE"))
+            return new THREE.Mesh(
+              new THREE.CylinderGeometry(0.3, 0.3, 1.5, 6),
+              new THREE.MeshBasicMaterial({ color: "#ccff00" })
+            );
+          if (d.type.includes("SAT"))
+            return new THREE.Mesh(
+              new THREE.SphereGeometry(0.2),
+              new THREE.MeshBasicMaterial({ color: "#ffd700" })
+            );
+          if (d.type.includes("USER"))
+            return new THREE.Mesh(
+              new THREE.CylinderGeometry(0.3, 0.3, 2, 8),
+              new THREE.MeshBasicMaterial({ color: "#00f3ff" })
+            );
+          return new THREE.Mesh(
+            new THREE.TetrahedronGeometry(0.8),
+            new THREE.MeshBasicMaterial({ color: d.color })
+          );
         });
 
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.5;
-      } catch (e) {
-        console.error(e);
+        world.controls().autoRotateSpeed = 0.3;
       }
 
-      /* --- CHARTS --- */
-      Chart.defaults.color = "#666";
-      Chart.defaults.font.family = "Rajdhani";
-      const waveChart = new Chart(document.getElementById("waveChart"), {
-        type: "line",
-        data: {
-          labels: Array(30).fill(""),
-          datasets: [
-            {
-              data: Array(30).fill(0),
-              borderColor: "#00f3ff",
-              borderWidth: 1,
-              tension: 0.4,
-              pointRadius: 0,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { display: false } },
-        },
-      });
-      const radarChart = new Chart(document.getElementById("radarChart"), {
+      // --- FETCH ---
+      async function fetchData() {
+        log("Scanning satellites...", "sys");
+        try {
+          const [q, n] = await Promise.all([
+            fetch(
+              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+            ).then((r) => r.json()),
+            fetch(
+              "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
+            ).then((r) => r.json()),
+          ]);
+
+          let ev = [],
+            counts = { Q: 0, V: 0, S: 0, F: 0, N: 0 };
+          training = [];
+
+          if (q.features)
+            q.features.forEach((f, i) => {
+              const m = f.properties.mag;
+              counts.Q++;
+              const c = m > 6 ? "#ff003c" : m > 5 ? "#ffd700" : "#00f3ff";
+              ev.push({
+                lat: f.geometry.coordinates[1],
+                lng: f.geometry.coordinates[0],
+                alt: m * 0.04,
+                color: c,
+                type: `QUAKE M${m.toFixed(1)}`,
+                val: m,
+                place: f.properties.place,
+                maxR: m > 5 ? m * 3 : 0,
+                speed: 4,
+                period: 1000,
+              });
+              if (i < 50) training.push({ x: i, y: m });
+            });
+
+          if (n.events)
+            n.events.forEach((e) => {
+              const c = e.categories[0].id;
+              const g = e.geometry[0].coordinates;
+              let col = "#fff",
+                typ = "OTHER";
+              if (c === "wildfires") {
+                counts.F++;
+                col = "#ff6600";
+                typ = "FIRE";
+              }
+              if (c === "volcanoes") {
+                counts.V++;
+                col = "#ffd700";
+                typ = "VOLCANO";
+              }
+              if (c === "severeStorms") {
+                counts.S++;
+                col = "#bd00ff";
+                typ = "STORM";
+              }
+              ev.push({
+                lat: g[1],
+                lng: g[0],
+                alt: 0.1,
+                color: col,
+                type: typ,
+                val: 5,
+                place: e.title,
+                maxR: 0,
+              });
+            });
+
+          nukes.forEach((n) => {
+            counts.N++;
+            ev.push({
+              lat: n.lat,
+              lng: n.lng,
+              alt: 0.1,
+              color: "#ccff00",
+              type: "NUCLEAR PLANT",
+              val: 10,
+              place: n.name,
+              maxR: 15,
+              speed: 1,
+              period: 3000,
+            });
+          });
+
+          events = ev;
+          updateStats(counts);
+          trainAI();
+          render();
+          log(`Scan complete. ${ev.length} targets found.`, "sys");
+        } catch (e) {
+          log("Data Uplink Failed.", "err");
+        }
+      }
+
+      // --- RENDER & FILTER ---
+      function render() {
+        let show = events.filter((d) => {
+          if (d.type.includes("QUAKE")) return activeFilters.QUAKE;
+          if (d.type.includes("VOLCANO")) return activeFilters.VOLCANO;
+          if (d.type.includes("STORM")) return activeFilters.STORM;
+          if (d.type.includes("FIRE")) return activeFilters.FIRE;
+          if (d.type.includes("NUCLEAR")) return activeFilters.NUKE;
+          if (d.type.includes("USER")) return true;
+          return true;
+        });
+        if (activeFilters.PREDICT) show = show.concat(genPredictions());
+        if (userLoc) show.push(userLoc);
+
+        world.pointsData(show);
+        world.ringsData(show.filter((d) => d.maxR > 0));
+
+        // Calc Nearest
+        if (userLoc) {
+          let min = 99999;
+          show.forEach((d) => {
+            if (d.type.includes("USER") || d.type.includes("PREDICT")) return;
+            const dist = getDist(userLoc.lat, userLoc.lng, d.lat, d.lng);
+            if (dist < min) min = dist;
+          });
+          document.getElementById("val-dist").innerText = Math.round(min);
+          document.getElementById("val-dist").style.color =
+            min < 500 ? "var(--accent)" : "var(--success)";
+          document.getElementById("val-near").innerText =
+            min < 99999 ? "TARGET LOCKED" : "SCANNING...";
+        }
+      }
+
+      // --- AI ---
+      async function initAI() {
+        model = tf.sequential();
+        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+        model.compile({ loss: "meanSquaredError", optimizer: "sgd" });
+      }
+
+      async function trainAI() {
+        if (isTraining || training.length < 5) return;
+        isTraining = true;
+        await model.fit(
+          tf.tensor2d(
+            training.map((d) => d.x * 0.01),
+            [training.length, 1]
+          ),
+          tf.tensor2d(
+            training.map((d) => d.y),
+            [training.length, 1]
+          ),
+          { epochs: 10 }
+        );
+        isTraining = false;
+      }
+
+      function genPredictions() {
+        if (!model) return [];
+        const p = model.predict(tf.tensor2d([0.5], [1, 1])).dataSync()[0];
+        let preds = [];
+        for (let i = 0; i < events.length; i += 10) {
+          if (events[i].type.includes("QUAKE"))
+            preds.push({
+              lat: events[i].lat,
+              lng: events[i].lng,
+              alt: 0.05,
+              color: "#ffffff",
+              type: "AI PREDICT",
+              val: p,
+              place: "High Risk Zone",
+              maxR: 20,
+              speed: 3,
+              period: 1000,
+            });
+        }
+        return preds;
+      }
+
+      // --- UI UTILS ---
+      window.toggleFilter = (t, b) => {
+        activeFilters[t] = !activeFilters[t];
+        b.classList.toggle("active");
+        render();
+        beep(800);
+      };
+      window.togglePrediction = (b) => {
+        activeFilters.PREDICT = !activeFilters.PREDICT;
+        b.classList.toggle("active");
+        render();
+        beep(600);
+      };
+
+      window.locateUser = () => {
+        if (!navigator.geolocation) return log("No GPS.", "err");
+        document.getElementById("btn-gps").innerText = "LOCATING...";
+        navigator.geolocation.getCurrentPosition((p) => {
+          userLoc = {
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            alt: 0.02,
+            color: "#00f3ff",
+            type: "USER BASE",
+            val: 0,
+            place: "My Location",
+            maxR: 10,
+            speed: 1,
+            period: 2000,
+          };
+          world.pointOfView(
+            { lat: userLoc.lat, lng: userLoc.lng, altitude: 1.5 },
+            1500
+          );
+          document.getElementById("btn-gps").innerText = "GPS LOCKED";
+          log(
+            `GPS Fixed: ${userLoc.lat.toFixed(2)}, ${userLoc.lng.toFixed(2)}`,
+            "sys"
+          );
+          render();
+        });
+      };
+
+      function getDist(lat1, lon1, lat2, lon2) {
+        const p = 0.017453292519943295;
+        const a =
+          0.5 -
+          Math.cos((lat2 - lat1) * p) / 2 +
+          (Math.cos(lat1 * p) *
+            Math.cos(lat2 * p) *
+            (1 - Math.cos((lon2 - lon1) * p))) /
+            2;
+        return 12742 * Math.asin(Math.sqrt(a));
+      }
+
+      function updateStats(c) {
+        radar.data.datasets[0].data = [c.Q, c.F, c.V, c.S, c.N];
+        radar.update();
+        let d = 5;
+        if (c.Q > 50 || c.S > 5) d = 4;
+        if (c.N > 0 && c.Q > 80) d = 3;
+        const dl = document.getElementById("defcon-level");
+        dl.innerText = "DEFCON " + d;
+        dl.style.color = d < 4 ? "var(--accent)" : "var(--primary)";
+      }
+
+      function startCountdown() {
+        let t = 60;
+        setInterval(() => {
+          t--;
+          if (t < 0) t = 60;
+          document.getElementById("scan-timer").innerText = t;
+        }, 1000);
+      }
+
+      function showInsp(d) {
+        const i = document.getElementById("inspector");
+        i.classList.add("active");
+        document.getElementById("insp-content").innerHTML = `
+                <div class="insp-row"><span>TYPE</span><strong style="color:${
+                  d.color
+                }">${d.type}</strong></div>
+                <div class="insp-row"><span>LOC</span><span>${
+                  d.place
+                }</span></div>
+                <div class="insp-row"><span>VAL</span><span>${d.val.toFixed(
+                  1
+                )}</span></div>
+            `;
+      }
+
+      // Charts
+      const radar = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
-          labels: ["Q", "F", "V", "S", "O"],
+          labels: ["Q", "F", "V", "S", "N"],
           datasets: [
             {
               data: [0, 0, 0, 0, 0],
@@ -994,363 +932,34 @@
                 "#ff6600",
                 "#ffd700",
                 "#bd00ff",
-                "#ffffff",
+                "#ccff00",
               ],
               borderWidth: 0,
             },
           ],
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { r: { ticks: { display: false }, grid: { color: "#333" } } },
+          scales: { r: { display: false } },
         },
       });
-
-      /* --- FUNCTIONS --- */
-      window.toggleFilter = (type, btn) => {
-        activeFilters[type] = !activeFilters[type];
-        if (activeFilters[type]) btn.classList.add("active");
-        else btn.classList.remove("active");
-        sfx.playBeep();
-        applyFilters();
-      };
-
-      window.togglePrediction = () => {
-        activeFilters["PREDICT"] = !activeFilters["PREDICT"];
-        const btn = document.getElementById("btn-predict");
-        if (activeFilters["PREDICT"]) {
-          btn.classList.add("active");
-          runNeuralPrediction();
-        } else {
-          btn.classList.remove("active");
-          predictionEvents = [];
-          applyFilters();
-        }
-      };
-
-      window.locateUser = () => {
-        if (navigator.geolocation) {
-          document.getElementById("btn-gps").innerText = "◎ LOCATING...";
-          navigator.geolocation.getCurrentPosition((pos) => {
-            userLat = pos.coords.latitude;
-            userLng = pos.coords.longitude;
-            document.getElementById("btn-gps").innerText = "◎ GPS LOCKED";
-            document.getElementById("btn-gps").classList.add("active");
-            document.getElementById("status-loc").innerText = "LOCKED";
-            document.getElementById("status-loc").style.color =
-              "var(--primary)";
-
-            userEventMarker = {
-              lat: userLat,
-              lng: userLng,
-              alt: 0.02,
-              color: "#00f3ff",
-              type: "USER_LOC",
-              place: "HOME BASE",
-              value: 0,
-              desc: "Your Location",
-              maxR: 8,
-              propagationSpeed: 1,
-              repeatPeriod: 2000,
-            };
-            world.pointOfView(
-              { lat: userLat, lng: userLng, altitude: 1.5 },
-              2000
-            );
-            applyFilters();
-            calcNearestThreat();
-          });
-        } else printTerm("GPS unavailable.", "err");
-      };
-
-      function applyFilters() {
-        let filtered = allEventsCache.filter((d) => {
-          if (d.type.includes("USER_LOC")) return true;
-          if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
-          if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
-          if (d.type.includes("STORM") && d.color === "#bd00ff")
-            return activeFilters["STORM"];
-          if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
-          if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
-          if (d.type.includes("OTHER")) return activeFilters["OTHER"];
-          return false;
-        });
-        if (activeFilters["PREDICT"])
-          filtered = filtered.concat(predictionEvents);
-        if (userEventMarker) filtered.push(userEventMarker);
-        world.pointsData(filtered);
-        world.ringsData(filtered.filter((d) => d.maxR > 0));
-      }
-
-      /* --- DATA LOOP --- */
-      async function fetchAllData() {
-        try {
-          const [qData, nData] = await Promise.all([
-            fetch(
-              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
-            ).then((r) => r.json()),
-            fetch(
-              "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
-            ).then((r) => r.json()),
-          ]);
-          processData(qData, nData);
-          startTimer();
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      function processData(qData, nData) {
-        let events = [];
-        let c = { Q: 0, F: 0, V: 0, S: 0, O: 0 };
-        trainingData = [];
-
-        if (qData.features)
-          qData.features.forEach((f, i) => {
-            const mag = f.properties.mag;
-            c.Q++;
-            let col = mag > 6 ? "#ff003c" : mag > 5 ? "#ffd700" : "#00f3ff";
-            events.push({
-              lat: f.geometry.coordinates[1],
-              lng: f.geometry.coordinates[0],
-              alt: mag * 0.05,
-              color: col,
-              type: `QUAKE M${mag.toFixed(1)}`,
-              place: f.properties.place,
-              value: mag,
-              desc: "Seismic Activity",
-              maxR: mag > 5 ? mag * 5 : 0,
-              propagationSpeed: 5,
-              repeatPeriod: 800,
-            });
-            if (i < 50) trainingData.push({ x: i, y: mag });
-          });
-
-        if (nData.events)
-          nData.events.forEach((e) => {
-            const cat = e.categories[0].id;
-            const geo = e.geometry[0].coordinates;
-            let col = "#fff",
-              type = "OTHER EVENT";
-            if (cat === "wildfires") {
-              c.F++;
-              col = "#ff6600";
-              type = "WILDFIRE";
-            } else if (cat === "volcanoes") {
-              c.V++;
-              col = "#ffd700";
-              type = "VOLCANO";
-            } else if (cat === "severeStorms") {
-              c.S++;
-              col = "#bd00ff";
-              type = "STORM";
-            } else c.O++;
-
-            events.push({
-              lat: geo[1],
-              lng: geo[0],
-              alt: 0.2,
-              color: col,
-              type: type,
-              place: e.title,
-              value: 5,
-              desc: "NASA Event",
-              maxR: 0,
-              propagationSpeed: 5,
-              repeatPeriod: 800,
-            });
-          });
-
-        nuclearPlants.forEach((n) => {
-          events.push({
-            lat: n.lat,
-            lng: n.lng,
-            alt: 0.1,
-            color: "#ccff00",
-            type: "NUCLEAR PLANT",
-            place: n.name,
-            value: 10,
-            desc: n.desc,
-            maxR: 20,
-            propagationSpeed: 1,
-            repeatPeriod: 3000,
-          });
-        });
-
-        allEventsCache = events;
-
-        // Stats
-        radarChart.data.datasets[0].data = [c.Q, c.F, c.V, c.S, c.O];
-        radarChart.update();
-        updateTicker(events.length);
-
-        if (model) trainModel();
-        calcNearestThreat();
-        if (activeFilters["PREDICT"]) runNeuralPrediction();
-        else applyFilters();
-      }
-
-      /* --- AI --- */
-      async function initModel() {
-        model = tf.sequential();
-        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        model.compile({
-          loss: "meanSquaredError",
-          optimizer: tf.train.adam(0.1),
-        });
-      }
-
-      async function trainModel() {
-        if (isTraining || trainingData.length < 5) return;
-        isTraining = true;
-        document.getElementById("status-model").innerText = "TRAINING";
-        document.getElementById("status-model").style.color = "var(--warning)";
-
-        const xs = tf.tensor2d(
-          trainingData.map((d) => d.x * 0.01),
-          [trainingData.length, 1]
-        );
-        const ys = tf.tensor2d(
-          trainingData.map((d) => d.y),
-          [trainingData.length, 1]
-        );
-
-        await model.fit(xs, ys, { epochs: 20 });
-
-        document.getElementById("status-model").innerText = "ONLINE";
-        document.getElementById("status-model").style.color = "var(--success)";
-        isTraining = false;
-        xs.dispose();
-        ys.dispose();
-      }
-
-      function runNeuralPrediction() {
-        if (!model) return;
-        const pred = model
-          .predict(tf.tensor2d([(trainingData.length + 1) * 0.01], [1, 1]))
-          .dataSync()[0];
-        printTerm(`AI Forecast Magnitude: ${pred.toFixed(1)}`, "ai");
-
-        predictionEvents = [];
-        // Simple clustering visualizer
-        for (let i = 0; i < allEventsCache.length; i += 5) {
-          const e = allEventsCache[i];
-          if (e.type.includes("QUAKE")) {
-            predictionEvents.push({
-              lat: e.lat,
-              lng: e.lng,
-              alt: 0.05,
-              color: "#ffffff",
-              type: "NEURAL PREDICTION",
-              place: "AI High Risk Zone",
-              value: pred,
-              desc: "AI Forecast",
-              maxR: 15,
-              propagationSpeed: 2,
-              repeatPeriod: 1200,
-            });
-          }
-        }
-        applyFilters();
-      }
-
-      /* --- UTILS --- */
-      function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const p = Math.PI / 180;
-        const a =
-          0.5 -
-          Math.cos((lat2 - lat1) * p) / 2 +
-          (Math.cos(lat1 * p) *
-            Math.cos(lat2 * p) *
-            (1 - Math.cos((lon2 - lon1) * p))) /
-            2;
-        return 2 * R * Math.asin(Math.sqrt(a));
-      }
-
-      function calcNearestThreat() {
-        if (!userLat) return;
-        let minD = 999999,
-          name = "";
-        allEventsCache.forEach((e) => {
-          if (e.type.includes("USER")) return;
-          const d = getDistance(userLat, userLng, e.lat, e.lng);
-          if (d < minD) {
-            minD = d;
-            name = e.type + " " + e.place;
-          }
-        });
-        document.getElementById("val-prob").innerText = Math.round(minD);
-        document.getElementById("nearest-name").innerText = name;
-        const col =
-          minD < 500
-            ? "var(--accent)"
-            : minD < 1500
-            ? "var(--warning)"
-            : "var(--success)";
-        document.getElementById("val-prob").style.color = col;
-      }
-
-      function updateTicker(count) {
-        document.getElementById(
-          "ai-ticker-text"
-        ).innerText = `SYSTEM ONLINE /// TRACKING ${count} GLOBAL EVENTS /// AI NEURAL NET ACTIVE /// GUARDIAN PROTOCOL ENGAGED`;
-      }
-
-      function startTimer() {
-        let t = 60;
-        const el = document.getElementById("scan-countdown");
-        if (window.scanInt) clearInterval(window.scanInt);
-        window.scanInt = setInterval(() => {
-          t--;
-          el.innerText = t;
-          if (t <= 0) t = 60;
-        }, 1000);
-      }
-
-      function processCommand(c) {
-        if (c.includes("scan")) fetchAllData();
-        else if (c.includes("locate")) locateUser();
-        else printTerm("Unknown command.", "err");
-      }
-
-      window.showInspector = (d) => {
-        const el = document.getElementById("inspector");
-        el.classList.add("active");
-        document.getElementById("inspector-content").innerHTML = `
-                <div class="insp-row"><span class="insp-lbl">TYPE</span><span class="insp-val" style="color:${
-                  d.color
-                }">${d.type}</span></div>
-                <div class="insp-row"><span class="insp-lbl">LOC</span><span class="insp-val" style="font-size:0.7rem">${
-                  d.place
-                }</span></div>
-                <div class="insp-row"><span class="insp-lbl">VAL</span><span class="insp-val">${d.value.toFixed(
-                  1
-                )}</span></div>
-            `;
-      };
-      window.closeInspector = () =>
-        document.getElementById("inspector").classList.remove("active");
-
-      document.getElementById("btn-link").addEventListener("click", () => {
-        isLive = !isLive;
-        const btn = document.getElementById("btn-link");
-        if (isLive) {
-          btn.classList.add("active");
-          btn.innerText = "LINK ESTABLISHED";
-          sfx.ctx.resume();
-          initModel();
-          fetchAllData();
-          timer = setInterval(fetchAllData, 60000);
-          world.controls().autoRotate = false;
-        } else {
-          btn.classList.remove("active");
-          btn.innerText = "INITIALIZE LINK";
-          clearInterval(timer);
-          world.controls().autoRotate = true;
-        }
+      const wave = new Chart(document.getElementById("waveChart"), {
+        type: "line",
+        data: {
+          labels: Array(20).fill(""),
+          datasets: [
+            {
+              data: Array(20).fill(0),
+              borderColor: "#00f3ff",
+              borderWidth: 1,
+              pointRadius: 0,
+            },
+          ],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { x: { display: false }, y: { display: false } },
+        },
       });
     </script>
   </body>
