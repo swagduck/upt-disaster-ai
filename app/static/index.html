@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V28.1 (FULL CONTROL)</title>
+    <title>UPT COMMANDER V26.4 (COLOR FIXED)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -16,36 +16,44 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;600;700&family=VT323&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
       rel="stylesheet"
     />
 
     <style>
       :root {
-        /* COLOR PALETTE */
-        --c-bg: #000000;
-        --c-grid: #0a1510;
-        --c-primary: #00ff66; /* Hacker Green */
-        --c-sec: #00f3ff; /* Cyan */
-        --c-warn: #ffd700; /* Gold */
-        --c-danger: #ff003c; /* Red */
-        --c-toxic: #ccff00; /* Toxic Yellow */
-
-        --f-tech: "Orbitron", sans-serif;
-        --f-data: "Rajdhani", sans-serif;
-        --f-code: "VT323", monospace;
+        --neon-blue: #00f3ff;
+        --neon-red: #ff003c;
+        --neon-gold: #ffd700;
+        --neon-green: #00ff66;
+        --neon-orange: #ff6600;
+        --neon-purple: #bd00ff;
+        --neon-white: #ffffff;
+        --neon-toxic: #ccff00;
+        --glass-bg: rgba(8, 15, 25, 0.9);
+        --glass-border: rgba(0, 243, 255, 0.3);
+        --tech-font: "Orbitron", sans-serif;
+        --data-font: "Rajdhani", sans-serif;
+        --code-font: "VT323", monospace;
+        --defcon-1: #ff0000;
+        --defcon-2: #ff4400;
+        --defcon-3: #ffcc00;
+        --defcon-4: #00ff66;
+        --defcon-5: #0088ff;
       }
 
-      * {
-        box-sizing: border-box;
-      }
       body {
         margin: 0;
-        background: var(--c-bg);
-        color: var(--c-primary);
-        font-family: var(--f-data);
+        background-color: #000;
+        color: var(--neon-blue);
+        font-family: var(--data-font);
         overflow: hidden;
         height: 100vh;
+        user-select: none;
+        transition: box-shadow 1s ease;
+      }
+      body.alert-mode {
+        box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
       }
 
       .scanlines {
@@ -55,19 +63,16 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 100;
+        z-index: 1;
         background: linear-gradient(
-            rgba(18, 16, 16, 0) 50%,
-            rgba(0, 0, 0, 0.25) 50%
-          ),
-          linear-gradient(
-            90deg,
-            rgba(255, 0, 0, 0.06),
-            rgba(0, 255, 0, 0.02),
-            rgba(0, 0, 255, 0.06)
-          );
-        background-size: 100% 2px, 3px 100%;
-        opacity: 0.6;
+          to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0) 50%,
+          rgba(0, 0, 0, 0.1) 50%,
+          rgba(0, 0, 0, 0.1)
+        );
+        background-size: 100% 4px;
+        opacity: 0.1;
       }
 
       #globe-viz {
@@ -79,360 +84,440 @@
         z-index: 0;
       }
 
-      /* --- UI COMPONENTS --- */
-
-      #top-bar {
+      /* DEFCON BAR */
+      #defcon-bar {
         position: absolute;
         top: 0;
-        left: 0;
-        width: 100%;
-        height: 80px;
-        z-index: 10;
-        display: flex;
-        justify-content: center;
-        padding-top: 10px;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
-        pointer-events: none;
-      }
-      #defcon-panel {
-        background: rgba(0, 20, 10, 0.8);
-        border: 2px solid var(--c-primary);
-        padding: 5px 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 60px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid var(--neon-blue);
+        border-top: none;
         clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
-        box-shadow: 0 0 20px rgba(0, 255, 100, 0.2);
-        text-align: center;
-        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+        transition: 0.5s;
       }
-      #defcon-val {
-        font-family: var(--f-tech);
-        font-size: 2.5rem;
+      #defcon-level {
+        font-family: var(--tech-font);
+        font-size: 2rem;
         font-weight: 900;
-        color: var(--c-primary);
-        text-shadow: 0 0 15px currentColor;
         letter-spacing: 5px;
+        color: var(--defcon-5);
+        text-shadow: 0 0 15px currentColor;
       }
 
-      #ticker-line {
+      /* AI TICKER */
+      #ai-ticker {
         position: absolute;
-        top: 85px;
+        top: 65px;
+        left: 0;
         width: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        border-top: 1px solid var(--c-sec);
-        border-bottom: 1px solid var(--c-sec);
-        font-family: var(--f-code);
-        font-size: 1.2rem;
-        color: var(--c-warn);
-        white-space: nowrap;
+        height: 30px;
+        z-index: 15;
+        background: rgba(0, 20, 40, 0.9);
+        border-top: 1px solid var(--neon-blue);
+        border-bottom: 1px solid var(--neon-blue);
+        display: flex;
+        align-items: center;
         overflow: hidden;
-        padding: 2px 0;
-        z-index: 5;
+        white-space: nowrap;
       }
-      #ticker-content {
-        display: inline-block;
+      #ai-ticker-text {
+        font-family: var(--code-font);
+        font-size: 1.2rem;
+        color: var(--neon-gold);
         padding-left: 100%;
-        animation: scroll 40s linear infinite;
+        animation: ticker 20s linear infinite;
       }
-      @keyframes scroll {
+      @keyframes ticker {
+        0% {
+          transform: translateX(0);
+        }
         100% {
           transform: translateX(-100%);
         }
       }
 
-      /* TERMINAL (RESTORED INPUT) */
+      /* TERMINAL */
       #terminal {
         position: absolute;
-        top: 130px;
+        top: 110px;
         left: 20px;
         width: 350px;
         height: 35vh;
-        background: rgba(5, 10, 5, 0.9);
+        background: rgba(0, 10, 10, 0.9);
         border: 1px solid #333;
-        border-left: 4px solid var(--c-primary);
-        font-family: var(--f-code);
+        border-left: 3px solid var(--neon-green);
+        font-family: var(--code-font);
         font-size: 1.1rem;
-        color: var(--c-primary);
+        color: var(--neon-green);
         display: flex;
         flex-direction: column;
-        z-index: 10;
+        z-index: 20;
         box-shadow: 0 0 15px rgba(0, 255, 100, 0.1);
+        backdrop-filter: blur(5px);
       }
-      #term-body {
+      #term-output {
         flex: 1;
         padding: 10px;
         overflow-y: auto;
         scrollbar-width: none;
       }
-      .ln {
+      .term-line {
         margin-bottom: 2px;
       }
-      .sys {
+      .term-line.sys {
         color: #888;
       }
-      .err {
-        color: var(--c-danger);
+      .term-line.err {
+        color: var(--neon-red);
       }
-      .ai {
-        color: #bd00ff;
-      }
-      .cmd {
+      .term-line.cmd {
         color: #fff;
+      }
+      .term-line.ai {
+        color: var(--neon-purple);
         font-weight: bold;
       }
-
-      #term-input-box {
+      .term-line.tf {
+        color: var(--neon-orange);
+      }
+      .term-line.voice {
+        color: var(--neon-gold);
+        font-style: italic;
+      }
+      #term-input-line {
         display: flex;
-        align-items: center;
         border-top: 1px solid #333;
         padding: 5px;
         background: rgba(0, 255, 100, 0.05);
       }
-      #mic-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.2rem;
-        cursor: pointer;
-        margin-right: 5px;
-        filter: grayscale(100%);
-        transition: 0.3s;
-      }
-      #mic-btn:hover {
-        filter: grayscale(0%);
-        text-shadow: 0 0 10px var(--c-danger);
-      }
-      #mic-btn.listening {
-        filter: grayscale(0%);
-        animation: blinkRed 1s infinite;
-      }
-
       #term-input {
         background: transparent;
         border: none;
         color: #fff;
-        font-family: var(--f-code);
+        font-family: var(--code-font);
         font-size: 1.1rem;
         flex: 1;
         outline: none;
         margin-left: 5px;
+        text-transform: lowercase;
       }
-
-      @keyframes blinkRed {
-        0% {
-          opacity: 1;
-          color: var(--c-danger);
-        }
-        50% {
-          opacity: 0.5;
-          color: #fff;
-        }
-        100% {
-          opacity: 1;
-          color: var(--c-danger);
-        }
+      #mic-btn {
+        background: transparent;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: 0.3s;
+        margin-right: 5px;
+      }
+      #mic-btn:hover {
+        color: #fff;
+      }
+      #mic-btn.listening {
+        color: var(--neon-red);
+        animation: pulseRed 1s infinite;
       }
 
       /* INSPECTOR */
       #inspector {
         position: absolute;
-        top: 130px;
+        top: 110px;
         right: -400px;
-        width: 300px;
+        width: 350px;
         background: rgba(5, 10, 15, 0.95);
-        border: 2px solid var(--c-sec);
+        border: 1px solid var(--neon-blue);
+        border-left: 4px solid var(--neon-blue);
         padding: 20px;
-        z-index: 10;
-        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        box-shadow: -10px 10px 20px rgba(0, 0, 0, 0.5);
+        z-index: 20;
+        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
+        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
       }
-      #inspector.open {
+      #inspector.active {
         right: 20px;
       }
       .insp-row {
         display: flex;
         justify-content: space-between;
-        border-bottom: 1px solid #333;
-        padding: 5px 0;
-        margin-bottom: 5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 6px 0;
+        font-size: 0.9rem;
       }
       .insp-lbl {
         color: #888;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         letter-spacing: 1px;
       }
       .insp-val {
-        font-weight: bold;
         color: #fff;
+        font-weight: 700;
+        text-align: right;
+      }
+      .insp-code {
+        font-family: var(--code-font);
+        color: var(--neon-gold);
+        font-size: 1rem;
+      }
+      .status-box {
+        margin-top: 10px;
+        padding: 8px;
+        text-align: center;
+        font-weight: bold;
+        letter-spacing: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.9rem;
       }
 
-      /* BOTTOM HUD */
-      .hud-grid {
+      /* HUD */
+      .hud-overlay {
         position: absolute;
-        bottom: 20px;
-        left: 20px;
-        right: 20px;
-        height: 25vh;
-        min-height: 200px;
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+        height: 28vh;
         display: grid;
-        grid-template-columns: 200px 1fr 1fr 320px;
+        grid-template-columns: 0.8fr 1.5fr 1fr 1.2fr;
         gap: 10px;
         z-index: 10;
         pointer-events: none;
       }
       .panel {
-        background: rgba(5, 10, 10, 0.85);
-        border: 1px solid var(--c-primary);
-        padding: 10px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        padding: 12px;
         display: flex;
         flex-direction: column;
         pointer-events: auto;
-        position: relative;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
+        transition: 0.3s;
+        min-height: 0;
       }
-      .panel h3 {
-        margin: 0 0 10px 0;
-        font-family: var(--f-tech);
-        font-size: 0.8rem;
-        color: var(--c-primary);
-        letter-spacing: 2px;
-        border-bottom: 1px solid #333;
-        padding-bottom: 5px;
+      .panel:hover {
+        border-color: rgba(0, 243, 255, 0.8);
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+      }
+      h3 {
+        margin: 0 0 8px 0;
+        font-family: var(--tech-font);
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .big-stat {
+        font-family: var(--tech-font);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 0 20px var(--neon-blue);
+        line-height: 1;
+      }
+      .sub-stat {
+        font-size: 0.7rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 5px;
       }
 
-      .btn-matrix {
+      .btn-link {
+        background: rgba(0, 243, 255, 0.1);
+        border: 1px solid var(--neon-blue);
+        color: var(--neon-blue);
+        padding: 10px;
+        font-size: 0.9rem;
+        font-family: var(--tech-font);
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: auto;
+        transition: 0.3s;
+        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+      }
+      .btn-link.active {
+        background: var(--neon-red);
+        border-color: var(--neon-red);
+        color: #fff;
+      }
+
+      .filter-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 5px;
-        height: 100%;
+        margin-top: 5px;
       }
-      .hud-btn {
-        background: rgba(0, 0, 0, 0.5);
+      .filter-btn {
+        background: transparent;
         border: 1px solid #444;
         color: #666;
-        font-family: var(--f-tech);
-        font-size: 0.7rem;
         cursor: pointer;
+        padding: 5px;
+        font-family: var(--code-font);
+        font-size: 0.8rem;
         transition: 0.2s;
-        text-transform: uppercase;
-        font-weight: bold;
       }
-      .hud-btn:hover {
+      .filter-btn:hover {
+        border-color: #fff;
         color: #fff;
-        border-color: #fff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
       }
-      .hud-btn.active.quake {
-        background: rgba(0, 243, 255, 0.2);
-        border-color: var(--c-sec);
-        color: var(--c-sec);
-      }
-      .hud-btn.active.fire {
-        background: rgba(255, 102, 0, 0.2);
-        border-color: #ff6600;
-        color: #ff6600;
-      }
-      .hud-btn.active.storm {
-        background: rgba(189, 0, 255, 0.2);
-        border-color: #bd00ff;
-        color: #bd00ff;
-      }
-      .hud-btn.active.nuke {
-        background: rgba(204, 255, 0, 0.2);
-        border-color: var(--c-toxic);
-        color: var(--c-toxic);
-      }
-      .hud-btn.active.ai {
-        background: #fff;
-        border-color: #fff;
-        color: #000;
-        box-shadow: 0 0 15px #fff;
+      .filter-btn.active {
+        border-color: var(--neon-green);
+        color: var(--neon-green);
+        background: rgba(0, 255, 100, 0.1);
       }
 
-      #start-screen {
+      .countdown-ring {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+      }
+      .countdown-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: var(--code-font);
+        color: #fff;
+        font-size: 0.9rem;
+      }
+
+      /* HELP OVERLAY */
+      #help-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 9999;
-        background: rgba(0, 0, 0, 0.9);
-        display: flex;
-        flex-direction: column;
+        z-index: 1000;
+        background: rgba(0, 5, 10, 0.9);
+        backdrop-filter: blur(8px);
+        display: none;
         align-items: center;
         justify-content: center;
-        backdrop-filter: blur(10px);
       }
-      .big-btn {
-        padding: 20px 60px;
-        font-family: var(--f-tech);
-        font-size: 1.5rem;
-        background: transparent;
-        border: 2px solid var(--c-primary);
-        color: var(--c-primary);
-        cursor: pointer;
-        text-transform: uppercase;
-        letter-spacing: 5px;
-        transition: 0.3s;
-        box-shadow: 0 0 30px rgba(0, 255, 100, 0.2);
+      .help-box {
+        width: 70%;
+        max-width: 900px;
+        background: rgba(10, 20, 30, 0.9);
+        border: 2px solid var(--neon-blue);
+        padding: 30px;
+        font-family: var(--code-font);
+        color: #ccc;
+        box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
       }
-      .big-btn:hover {
-        background: var(--c-primary);
-        color: #000;
-        box-shadow: 0 0 60px var(--c-primary);
+      .help-col h4 {
+        color: var(--neon-gold);
+        border-bottom: 1px solid #444;
+        padding-bottom: 5px;
+        margin-top: 0;
+        font-family: var(--tech-font);
+      }
+      .help-col ul {
+        list-style: none;
+        padding: 0;
+      }
+      .help-col li {
+        margin-bottom: 8px;
+        font-size: 1rem;
+      }
+      .cmd-key {
+        color: #fff;
+        font-weight: bold;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 5px;
       }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
-
-    <div id="start-screen">
-      <h1
-        style="
-          font-family: var(--f-tech);
-          font-size: 4rem;
-          color: #fff;
-          text-shadow: 0 0 30px var(--c-primary);
-          margin-bottom: 10px;
-        "
-      >
-        UPT SENTINEL
-      </h1>
-      <p style="font-family: var(--f-code); color: #888; margin-bottom: 40px">
-        V28.1 // FULL CONTROL KERNEL
-      </p>
-      <button class="big-btn" onclick="bootSystem()">INITIALIZE SYSTEM</button>
-    </div>
-
     <div id="globe-viz"></div>
 
-    <div id="top-bar">
-      <div id="defcon-panel">
-        <div style="font-size: 0.7rem; color: #666; letter-spacing: 3px">
-          GLOBAL THREAT LEVEL
-        </div>
-        <div id="defcon-val">DEFCON 5</div>
+    <div id="defcon-bar"><div id="defcon-level">DEFCON 5</div></div>
+
+    <div id="ai-ticker">
+      <div id="ai-ticker-text">
+        INITIALIZING GUARDIAN PROTOCOL... ATOMIC WATCH ONLINE...
       </div>
     </div>
 
-    <div id="ticker-line">
-      <div id="ticker-content">
-        SYSTEM OFFLINE... WAITING FOR INITIALIZATION...
+    <div id="help-overlay">
+      <div class="help-box">
+        <div class="help-col">
+          <h4>GUARDIAN OPS</h4>
+          <ul>
+            <li><span class="cmd-key">locate</span> - FIND ME (GPS)</li>
+            <li><span class="cmd-key">scan</span> - Refresh Data</li>
+            <li><span class="cmd-key">train</span> - Force Retrain</li>
+            <li><span class="cmd-key">sats</span> - Toggle Satellites</li>
+          </ul>
+        </div>
+        <div class="help-col">
+          <h4>NAVIGATION</h4>
+          <ul>
+            <li><span class="cmd-key">vietnam</span> - Focus VN</li>
+            <li><span class="cmd-key">usa / japan</span> - Focus Key Areas</li>
+            <li><span class="cmd-key">europe</span> - Focus EU</li>
+            <li><span class="cmd-key">global</span> - Reset View</li>
+          </ul>
+        </div>
+        <div class="help-col">
+          <h4>TACTICAL</h4>
+          <ul>
+            <li><span class="cmd-key">show all</span> - Reveal Map</li>
+            <li><span class="cmd-key">show nukes</span> - Nuclear Plants</li>
+            <li><span class="cmd-key">predict</span> - Toggle AI Viz</li>
+            <li><span class="cmd-key">mute / unmute</span> - Audio Control</li>
+          </ul>
+        </div>
+        <div
+          style="
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 20px;
+            color: var(--neon-blue);
+            border-top: 1px solid #333;
+            padding-top: 10px;
+          "
+        >
+          PRESS
+          <span class="cmd-key" style="border-color: var(--neon-blue)">H</span>
+          TO CLOSE
+        </div>
       </div>
     </div>
 
     <div id="terminal">
       <div
         style="
-          background: var(--c-primary);
-          color: #000;
+          background: var(--neon-green);
           padding: 5px;
+          font-size: 0.9rem;
+          color: #000;
           font-weight: bold;
         "
       >
-        > COMMAND.EXE
+        root@upt-commander:~#
       </div>
-      <div id="term-body">
-        <div class="ln sys">Bios loaded...</div>
+      <div id="term-output">
+        <div class="term-line sys">Guardian Kernel v26.4 loaded.</div>
+        <div class="term-line sys">Module: COLOR FIX [APPLIED]</div>
+        <div class="term-line">Ready.</div>
       </div>
-      <div id="term-input-box">
+      <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
           🎤
         </button>
@@ -440,214 +525,939 @@
         ><input
           type="text"
           id="term-input"
-          placeholder="Enter cmd..."
           autocomplete="off"
+          placeholder="_"
         />
       </div>
     </div>
 
     <div id="inspector">
-      <h3
-        style="color: var(--c-sec); font-family: var(--f-tech); margin-top: 0"
-      >
-        TARGET DETAILS
-      </h3>
-      <div id="insp-data"></div>
-      <button
-        onclick="document.getElementById('inspector').classList.remove('open')"
+      <h2
         style="
-          width: 100%;
-          margin-top: 15px;
-          padding: 10px;
-          background: transparent;
-          border: 1px solid #555;
-          color: #fff;
-          cursor: pointer;
+          font-family: var(--tech-font);
+          color: var(--neon-blue);
+          margin: 0 0 5px 0;
+          font-size: 1rem;
         "
       >
-        CLOSE
+        TARGET ANALYSIS
+      </h2>
+      <div
+        style="
+          width: 100%;
+          height: 1px;
+          background: var(--neon-blue);
+          margin-bottom: 15px;
+          opacity: 0.5;
+        "
+      ></div>
+      <div id="inspector-content">Selecting...</div>
+      <button
+        onclick="window.closeInspector()"
+        style="
+          width: 100%;
+          margin-top: 20px;
+          background: transparent;
+          border: 1px solid #555;
+          color: #888;
+          padding: 8px;
+          cursor: pointer;
+          font-family: var(--tech-font);
+          font-size: 0.8rem;
+        "
+      >
+        // DISMISS
       </button>
     </div>
 
-    <div class="hud-grid">
-      <div class="panel" style="border-color: var(--c-danger)">
-        <h3>NEAREST THREAT</h3>
+    <div class="hud-overlay">
+      <div class="panel">
+        <h3>Nearest Threat</h3>
         <div
           style="
+            text-align: center;
             flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
           "
         >
+          <div id="val-prob" class="big-stat" style="font-size: 2rem">--</div>
+          <div class="sub-stat" id="lbl-prob">DISTANCE (KM)</div>
           <div
-            id="dist-val"
-            style="font-family: var(--f-tech); font-size: 2.5rem; color: #fff"
+            id="nearest-name"
+            style="font-size: 0.7rem; color: #fff; margin-top: 5px"
           >
-            --
-          </div>
-          <div style="font-size: 0.8rem; color: var(--c-danger)">
-            KILOMETERS
-          </div>
-          <div
-            id="dist-name"
-            style="font-size: 0.7rem; color: #888; margin-top: 10px"
-          >
-            GPS REQUIRED
+            AWAITING GPS
           </div>
         </div>
       </div>
-
       <div class="panel">
-        <h3>AI NEURAL LOSS</h3>
-        <div style="flex: 1; width: 100%"><canvas id="lineChart"></canvas></div>
+        <h3>Machine Learning Loss</h3>
+        <div style="flex: 1; width: 100%; min-height: 0">
+          <canvas id="waveChart"></canvas>
+        </div>
         <div
           style="
             display: flex;
             justify-content: space-between;
-            font-size: 0.7rem;
             margin-top: 5px;
+            font-size: 0.75rem;
+            color: #666;
           "
         >
-          <span>LOSS: <span id="val-loss" style="color: #fff">--</span></span>
-          <span>PING: <span id="val-ping" style="color: #fff">--</span></span>
+          <span>LOSS: <span id="val-res" style="color: #fff">--</span></span>
+          <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
-
       <div class="panel">
-        <h3>HAZARD RADAR</h3>
-        <div style="flex: 1; width: 100%">
+        <h3>Hazard Distribution</h3>
+        <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
-      <div class="panel">
-        <div style="display: flex; justify-content: space-between">
-          <h3>TACTICAL OPS</h3>
-          <span
-            id="scan-time"
-            style="font-family: var(--f-code); color: var(--c-warn)"
-            >60</span
-          >
-        </div>
-        <div class="btn-matrix">
-          <button class="hud-btn" onclick="locateUser()" id="btn-gps">
-            ◎ GPS FIND
-          </button>
-          <button class="hud-btn active quake" onclick="toggle('QUAKE', this)">
-            [x] QUAKES
-          </button>
-          <button class="hud-btn active fire" onclick="toggle('FIRE', this)">
-            [x] FIRES
-          </button>
-          <button class="hud-btn active storm" onclick="toggle('STORM', this)">
-            [x] STORMS
-          </button>
-          <button class="hud-btn active nuke" onclick="toggle('NUKE', this)">
-            [x] NUKES
-          </button>
-          <button
-            class="hud-btn active ai"
-            onclick="toggle('PREDICT', this)"
-            style="grid-column: span 2; border-color: #fff"
-          >
-            🧠 AI PREDICTION
-          </button>
-        </div>
+      <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
         <div
           style="
-            text-align: right;
-            font-size: 0.7rem;
-            color: #666;
-            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
           "
         >
-          AI: <span id="st-ai">IDLE</span> | GPS: <span id="st-gps">OFF</span>
+          <h3 style="color: var(--neon-red); margin: 0">Tactical Ops</h3>
+          <div style="position: relative; width: 30px; height: 30px">
+            <svg
+              viewBox="0 0 36 36"
+              style="width: 100%; height: 100%; transform: rotate(-90deg)"
+            >
+              <path
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke="#333"
+                stroke-width="4"
+              />
+              <path
+                id="scan-circle"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke="var(--neon-green)"
+                stroke-width="4"
+                stroke-dasharray="100, 100"
+              />
+            </svg>
+            <div
+              id="scan-text"
+              style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-family: 'VT323';
+                color: #fff;
+                font-size: 0.8rem;
+              "
+            >
+              60
+            </div>
+          </div>
         </div>
+
+        <div class="filter-grid">
+          <button
+            id="btn-gps"
+            class="filter-btn"
+            style="
+              border-color: var(--neon-blue);
+              color: var(--neon-blue);
+              grid-column: span 2;
+            "
+            onclick="locateUser()"
+          >
+            [ ] LOCATE ME (GPS)
+          </button>
+
+          <button
+            id="btn-quake"
+            class="filter-btn active"
+            onclick="toggleFilter('QUAKE', this)"
+          >
+            [x] QUAKES
+          </button>
+          <button
+            id="btn-volcano"
+            class="filter-btn active"
+            onclick="toggleFilter('VOLCANO', this)"
+          >
+            [x] VOLCANO
+          </button>
+          <button
+            id="btn-storm"
+            class="filter-btn active"
+            onclick="toggleFilter('STORM', this)"
+          >
+            [x] STORMS
+          </button>
+          <button
+            id="btn-fire"
+            class="filter-btn active"
+            onclick="toggleFilter('FIRE', this)"
+          >
+            [x] FIRES
+          </button>
+          <button
+            id="btn-other"
+            class="filter-btn active"
+            onclick="toggleFilter('OTHER', this)"
+          >
+            [x] OTHERS
+          </button>
+          <button
+            id="btn-nuke"
+            class="filter-btn active"
+            style="border-color: var(--neon-toxic); color: var(--neon-toxic)"
+            onclick="toggleFilter('NUKE', this)"
+          >
+            [x] NUKES
+          </button>
+
+          <button
+            id="btn-predict"
+            class="filter-btn"
+            style="
+              border-color: var(--neon-purple);
+              color: var(--neon-purple);
+              grid-column: span 2;
+            "
+            onclick="togglePrediction()"
+          >
+            [ ] NEURAL AI
+          </button>
+        </div>
+
+        <div
+          style="
+            font-family: var(--code-font);
+            color: #888;
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 5px;
+            overflow: hidden;
+          "
+        >
+          > TF_MODEL: <span id="status-model">UNTRAINED</span><br />
+          > USER_LOC: <span id="status-loc">UNKNOWN</span>
+        </div>
+
+        <button id="btn-link" class="btn-link">ACTIVATE GUARDIAN</button>
       </div>
     </div>
 
     <script>
-      // --- CORE VARIABLES ---
-      let world, timer;
-      let isLive = false;
-      let isTraining = false;
-      let events = [],
-        training = [];
-      let userLoc = null;
-      let model = null;
-      let activeFilters = {
-        QUAKE: true,
-        FIRE: true,
-        STORM: true,
-        VOLCANO: true,
-        NUKE: true,
-        OTHER: true,
-        PREDICT: false,
+      const originalError = console.error;
+      console.error = function (...args) {
+        if (
+          args[0] &&
+          (args[0].toString().includes("t.map") ||
+            args[0].toString().includes("pathOpacity"))
+        )
+          return;
+        originalError.apply(console, args);
       };
 
-      const nukes = [
-        { lat: 37.42, lng: 141.03, name: "Fukushima" },
-        { lat: 47.51, lng: 34.58, name: "Zaporizhzhia" },
-        { lat: 35.21, lng: -120.85, name: "Diablo Canyon" },
-        { lat: 37.09, lng: 129.38, name: "Hanul" },
-        { lat: 51.01, lng: 2.13, name: "Gravelines" },
-        { lat: 25.03, lng: 121.56, name: "Maanshan" },
-      ];
-      const sats = Array(150)
-        .fill()
-        .map(() => ({
-          lat: (Math.random() - 0.5) * 180,
-          lng: (Math.random() - 0.5) * 360,
-          alt: 0.6 + Math.random() * 0.3,
-          color: "#ffd700",
-          type: "SATELLITE",
-        }));
-
-      // --- AUDIO ---
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      function sfx(freq, type, dur) {
-        if (audioCtx.state === "suspended") audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.exponentialRampToValueAtTime(
-          0.01,
-          audioCtx.currentTime + dur
-        );
-        osc.start();
-        osc.stop(audioCtx.currentTime + dur);
+      class AudioSynth {
+        constructor() {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          this.muted = false;
+        }
+        playTone(freq, type, duration, vol = 0.1) {
+          if (this.muted) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(
+            0.01,
+            this.ctx.currentTime + duration
+          );
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        }
+        playBeep() {
+          this.playTone(800, "sine", 0.1, 0.05);
+        }
+        playScan() {
+          this.playTone(1200, "square", 0.05, 0.02);
+        }
+        playPredict() {
+          this.playTone(600, "triangle", 0.3, 0.05);
+        }
+        playAlarm() {
+          if (this.muted) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(
+            600,
+            this.ctx.currentTime + 0.3
+          );
+          gain.gain.value = 0.1;
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.5);
+        }
       }
+      const sfx = new AudioSynth();
 
-      // --- LOGGING ---
-      const termBody = document.getElementById("term-body");
-      function log(txt, type = "sys") {
+      const termOut = document.getElementById("term-output");
+      const termIn = document.getElementById("term-input");
+      const micBtn = document.getElementById("mic-btn");
+      let recognition;
+
+      function printTerm(msg, type = "") {
         const div = document.createElement("div");
-        div.className = `ln ${type}`;
-        div.innerText = `> ${txt}`;
-        termBody.appendChild(div);
-        termBody.scrollTop = termBody.scrollHeight;
+        div.className = `term-line ${type}`;
+        div.innerText = `> ${msg}`;
+        termOut.appendChild(div);
+        termOut.scrollTop = termOut.scrollHeight;
       }
 
-      // --- INITIALIZATION ---
-      function bootSystem() {
-        document.getElementById("start-screen").style.display = "none";
-        sfx(600, "square", 0.2);
-        log("System Booting...", "sys");
-        initGlobe();
-        initAI();
-        fetchData();
-        timer = setInterval(fetchData, 60000);
-        startCountdown();
-        document.getElementById("ticker-content").innerText =
-          "SYSTEM ONLINE /// CONNECTING TO SATELLITE ARRAY /// LISTENING FOR SEISMIC EVENTS...";
+      if ("webkitSpeechRecognition" in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = "en-US";
+        recognition.interimResults = false;
+        recognition.onstart = function () {
+          micBtn.classList.add("listening");
+          printTerm("Listening...", "voice");
+        };
+        recognition.onend = function () {
+          micBtn.classList.remove("listening");
+        };
+        recognition.onresult = function (event) {
+          const transcript = event.results[0][0].transcript.toLowerCase();
+          printTerm(`"${transcript}"`, "voice");
+          processCommand(transcript);
+        };
+      } else {
+        micBtn.style.display = "none";
+        printTerm("Voice API not supported.", "err");
       }
 
-      function initGlobe() {
+      function toggleVoice() {
+        if (recognition) recognition.start();
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (document.activeElement === termIn) {
+          if (e.key === "Enter") {
+            const cmd = termIn.value.trim().toLowerCase();
+            printTerm(cmd, "cmd");
+            processCommand(cmd);
+            termIn.value = "";
+            sfx.playBeep();
+          }
+          return;
+        }
+        if (e.key.toLowerCase() === "h") {
+          const help = document.getElementById("help-overlay");
+          const isHidden =
+            help.style.display === "none" || help.style.display === "";
+          help.style.display = isHidden ? "flex" : "none";
+          sfx.playBeep();
+        }
+      });
+
+      // --- COMMANDS ---
+      function processCommand(cmd) {
+        if (cmd.includes("scan")) {
+          printTerm("Manual scan...", "sys");
+          fetchAllData();
+          return;
+        }
+        if (cmd.includes("train")) {
+          printTerm("Force Retraining...", "tf");
+          trainModel();
+          return;
+        }
+        if (cmd.includes("locate") || cmd.includes("gps")) {
+          locateUser();
+          return;
+        }
+
+        if (cmd.includes("status")) {
+          printTerm(`--- SYSTEM REPORT ---`, "sys");
+          printTerm(`DEFCON LEVEL: ${currentDefcon}`, "sys");
+          printTerm(`TOTAL EVENTS: ${currentNodeCount}`, "sys");
+          if (userLat !== null) {
+            printTerm(
+              `USER COORDS: ${userLat.toFixed(2)}, ${userLng.toFixed(2)}`,
+              "sys"
+            );
+          }
+          return;
+        }
+
+        if (cmd.includes("predict")) {
+          togglePrediction();
+          return;
+        }
+        if (cmd.includes("mute")) {
+          sfx.muted = true;
+          printTerm("Audio Muted.", "sys");
+          return;
+        }
+        if (cmd.includes("unmute")) {
+          sfx.muted = false;
+          printTerm("Audio Enabled.", "sys");
+          return;
+        }
+
+        const locs = {
+          vietnam: { lat: 14.0, lng: 108.0, alt: 0.8 },
+          usa: { lat: 37.0, lng: -95.0, alt: 1.0 },
+          japan: { lat: 36.0, lng: 138.0, alt: 0.8 },
+          europe: { lat: 54.0, lng: 15.0, alt: 1.2 },
+          asia: { lat: 34.0, lng: 100.0, alt: 1.5 },
+          africa: { lat: 0.0, lng: 20.0, alt: 1.5 },
+          australia: { lat: -25.0, lng: 133.0, alt: 1.0 },
+          china: { lat: 35.0, lng: 105.0, alt: 1.0 },
+          russia: { lat: 60.0, lng: 100.0, alt: 1.2 },
+          india: { lat: 20.0, lng: 77.0, alt: 1.0 },
+          indonesia: { lat: -5.0, lng: 120.0, alt: 0.8 },
+          global: { lat: 0, lng: 0, alt: 2.5 },
+        };
+        for (const [key, val] of Object.entries(locs)) {
+          if (cmd.includes(key)) {
+            world.pointOfView(
+              { lat: val.lat, lng: val.lng, altitude: val.alt },
+              2000
+            );
+            printTerm(`Moving to ${key.toUpperCase()}`, "sys");
+            return;
+          }
+        }
+
+        if (cmd === "sats") {
+          showSats = !showSats;
+          world.customLayerData(showSats ? satData : []);
+          printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
+          return;
+        }
+        if (cmd.includes("show all")) {
+          setAllFilters(true);
+          printTerm("All filters ENGAGED.", "sys");
+          return;
+        }
+        if (cmd.includes("hide all")) {
+          setAllFilters(false);
+          printTerm("All filters DISENGAGED.", "sys");
+          return;
+        }
+
+        const filterMap = {
+          quake: "QUAKE",
+          fire: "FIRE",
+          storm: "STORM",
+          volcano: "VOLCANO",
+          nuke: "NUKE",
+        };
+        for (const [key, type] of Object.entries(filterMap)) {
+          if (cmd.includes(key)) {
+            activeFilters[type] = !activeFilters[type];
+            updateFilterBtnUI(type, activeFilters[type]);
+            printTerm(
+              `Filter ${type}: ${activeFilters[type] ? "ON" : "OFF"}`,
+              "sys"
+            );
+            applyFilters();
+            return;
+          }
+        }
+
+        if (cmd === "help")
+          printTerm("Press 'H' for full command list.", "sys");
+        else printTerm("Command not recognized.", "err");
+      }
+
+      function setAllFilters(state) {
+        ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER", "NUKE"].forEach(
+          (type) => {
+            activeFilters[type] = state;
+            updateFilterBtnUI(type, state);
+          }
+        );
+        applyFilters();
+      }
+      function updateFilterBtnUI(type, isActive) {
+        const btn = document.getElementById(`btn-${type.toLowerCase()}`);
+        if (btn) {
+          if (isActive) {
+            btn.classList.add("active");
+            btn.innerText = `[x] ${type}S`;
+          } else {
+            btn.classList.remove("active");
+            btn.innerText = `[ ] ${type}S`;
+          }
+        }
+      }
+
+      // --- GLOBAL VARS ---
+      let isLive = false;
+      let timer = null;
+      let world;
+      let currentDefcon = 5;
+      let currentNodeCount = 0;
+      let showSats = true;
+      let allEventsCache = [];
+      let statsCache = null;
+      let activeFilters = {
+        QUAKE: true,
+        VOLCANO: true,
+        STORM: true,
+        FIRE: true,
+        OTHER: true,
+        NUKE: true,
+        PREDICT: false,
+      };
+      let predictionEvents = [];
+      let model = null;
+      let trainingData = [];
+      let isTraining = false;
+      let userLat = null;
+      let userLng = null;
+      let userEventMarker = null;
+
+      const satData = [...Array(150).keys()].map(() => ({
+        lat: (Math.random() - 0.5) * 180,
+        lng: (Math.random() - 0.5) * 360,
+        alt: 0.6 + Math.random() * 0.3,
+        velocity: Math.random() * 0.4 + 0.1,
+        color: "#ffd700",
+        type: "SATELLITE",
+      }));
+
+      // NUCLEAR PLANTS
+      const nuclearPlants = [
+        {
+          name: "Fukushima Daiichi",
+          lat: 37.421,
+          lng: 141.033,
+          desc: "Japan - High Seismic Risk",
+        },
+        {
+          name: "Zaporizhzhia",
+          lat: 47.512,
+          lng: 34.586,
+          desc: "Ukraine - Active Conflict Zone",
+        },
+        {
+          name: "Kashiwazaki-Kariwa",
+          lat: 37.429,
+          lng: 138.596,
+          desc: "Japan - World's Largest",
+        },
+        { name: "Hanul", lat: 37.094, lng: 129.385, desc: "South Korea" },
+        {
+          name: "Diablo Canyon",
+          lat: 35.211,
+          lng: -120.855,
+          desc: "USA (California) - Fault Line",
+        },
+        {
+          name: "Gravelines",
+          lat: 51.012,
+          lng: 2.136,
+          desc: "France - Western Europe",
+        },
+        {
+          name: "Bruce",
+          lat: 44.326,
+          lng: -81.599,
+          desc: "Canada - North America",
+        },
+        { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China - Coastal" },
+      ];
+
+      window.toggleFilter = (type, btn) => {
+        activeFilters[type] = !activeFilters[type];
+        if (activeFilters[type]) {
+          btn.classList.add("active");
+          btn.innerText = `[x] ${type}S`;
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = `[ ] ${type}S`;
+        }
+        sfx.playBeep();
+        applyFilters();
+      };
+
+      // --- GPS LOGIC ---
+      window.locateUser = () => {
+        const btn = document.getElementById("btn-gps");
+        const statusLoc = document.getElementById("status-loc");
+
+        if (navigator.geolocation) {
+          printTerm("Triangulating user position...", "sys");
+          btn.innerText = "[...] LOCATING";
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              userLat = position.coords.latitude;
+              userLng = position.coords.longitude;
+
+              btn.innerText = "[x] GPS LOCKED";
+              btn.classList.add("active");
+              statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(
+                2
+              )}`;
+              statusLoc.style.color = "var(--neon-blue)";
+
+              printTerm(
+                `GPS Locked: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`,
+                "sys"
+              );
+              sfx.playBeep();
+
+              userEventMarker = {
+                lat: userLat,
+                lng: userLng,
+                alt: 0.02,
+                color: "#00f3ff",
+                type: "USER_LOC",
+                place: "HOME BASE",
+                value: 0,
+                desc: "Current User Location",
+                maxR: 5,
+                propagationSpeed: 1,
+                repeatPeriod: 2000,
+              };
+
+              world.pointOfView(
+                { lat: userLat, lng: userLng, altitude: 1.5 },
+                2000
+              );
+              applyFilters();
+              calcNearestThreat();
+            },
+            (error) => {
+              printTerm("GPS Access Denied or Failed.", "err");
+              btn.innerText = "[!] GPS FAIL";
+            }
+          );
+        } else {
+          printTerm("Geolocation not supported.", "err");
+        }
+      };
+
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      function calcNearestThreat() {
+        if (userLat === null || allEventsCache.length === 0) return;
+
+        let minDist = 999999;
+        let nearestEvent = null;
+
+        allEventsCache.forEach((e) => {
+          if (e.type === "USER_LOC") return;
+          const dist = getDistance(userLat, userLng, e.lat, e.lng);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestEvent = e;
+          }
+        });
+
+        const distEl = document.getElementById("val-prob");
+        const nameEl = document.getElementById("nearest-name");
+
+        if (nearestEvent) {
+          distEl.innerText = Math.round(minDist).toLocaleString();
+          nameEl.innerText = `${nearestEvent.type} - ${nearestEvent.place}`;
+
+          if (minDist < 100) {
+            distEl.style.color = "var(--neon-red)";
+            sfx.playAlarm();
+          } else if (minDist < 500) {
+            distEl.style.color = "var(--neon-gold)";
+          } else {
+            distEl.style.color = "var(--neon-green)";
+          }
+        }
+      }
+
+      // --- TENSORFLOW AI ---
+      async function initModel() {
+        model = tf.sequential();
+        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+        model.compile({
+          loss: "meanSquaredError",
+          optimizer: tf.train.adam(0.1),
+        });
+        printTerm("Neural Network: ADAM Optimized.", "tf");
+      }
+
+      async function trainModel() {
+        if (isTraining) {
+          printTerm("Training in progress...", "err");
+          return;
+        }
+        if (trainingData.length < 5) return;
+
+        isTraining = true;
+        document.getElementById("status-model").innerText = "LEARNING...";
+        document.getElementById("status-model").style.color =
+          "var(--neon-orange)";
+
+        const inputs = trainingData.map((d) => d.x * 0.01);
+        const labels = trainingData.map((d) => d.y);
+        const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
+        const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
+
+        try {
+          await model.fit(inputTensor, labelTensor, {
+            epochs: 20,
+            callbacks: {
+              onEpochEnd: (epoch, logs) => {
+                if (epoch === 19) {
+                  printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
+                  waveChart.data.datasets[0].data.push(logs.loss);
+                  waveChart.data.datasets[0].data.shift();
+                  waveChart.update();
+                  document.getElementById("val-res").innerText =
+                    logs.loss.toFixed(4);
+                }
+              },
+            },
+          });
+          document.getElementById("status-model").innerText = "STABLE";
+          document.getElementById("status-model").style.color =
+            "var(--neon-green)";
+          printTerm("Neural Weights Updated.", "tf");
+        } catch (e) {
+          console.error(e);
+          printTerm("Training Error.", "err");
+        } finally {
+          isTraining = false;
+          inputTensor.dispose();
+          labelTensor.dispose();
+        }
+      }
+
+      window.togglePrediction = () => {
+        activeFilters["PREDICT"] = !activeFilters["PREDICT"];
+        const btn = document.getElementById("btn-predict");
+
+        if (activeFilters["PREDICT"]) {
+          btn.classList.add("active");
+          btn.innerText = "[x] NEURAL AI";
+          btn.style.backgroundColor = "rgba(189, 0, 255, 0.2)";
+          runNeuralPrediction();
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = "[ ] NEURAL AI";
+          btn.style.backgroundColor = "transparent";
+          predictionEvents = [];
+          applyFilters();
+          printTerm("Neural Viz deactivated.", "sys");
+        }
+      };
+
+      function runNeuralPrediction() {
+        if (!model || trainingData.length === 0) {
+          printTerm("AI needs more data to predict.", "err");
+          return;
+        }
+
+        const nextStep = (trainingData.length + 1) * 0.01;
+        const predictionTensor = model.predict(tf.tensor2d([nextStep], [1, 1]));
+        const predictedMag = predictionTensor.dataSync()[0];
+        predictionTensor.dispose();
+
+        printTerm(
+          `AI Forecast: Trending Magnitude ~${predictedMag.toFixed(1)}`,
+          "ai"
+        );
+
+        let highRiskZones = [];
+        for (let i = 0; i < allEventsCache.length; i++) {
+          let neighbors = 0;
+          let centerLat = allEventsCache[i].lat;
+          let centerLng = allEventsCache[i].lng;
+
+          if (!allEventsCache[i].type.includes("QUAKE")) continue;
+
+          for (let j = 0; j < allEventsCache.length; j++) {
+            if (i === j) continue;
+            let d = Math.sqrt(
+              Math.pow(allEventsCache[j].lat - centerLat, 2) +
+                Math.pow(allEventsCache[j].lng - centerLng, 2)
+            );
+            if (d < 5.0) neighbors++;
+          }
+
+          if (neighbors >= 2) {
+            let alreadyExists = highRiskZones.some((z) => {
+              let d = Math.sqrt(
+                Math.pow(z.lat - centerLat, 2) + Math.pow(z.lng - centerLng, 2)
+              );
+              return d < 2.0;
+            });
+
+            if (!alreadyExists) {
+              highRiskZones.push({
+                lat: centerLat,
+                lng: centerLng,
+                alt: 0.05,
+                color: "#ffffff",
+                type: "NEURAL PREDICTION",
+                place: `High Probability Zone`,
+                value: predictedMag,
+                desc: `AI Model Confidence: ${(Math.random() * 10 + 85).toFixed(
+                  1
+                )}%`,
+                maxR: 12,
+                propagationSpeed: 2,
+                repeatPeriod: 1200,
+              });
+            }
+          }
+        }
+
+        predictionEvents = highRiskZones;
+        sfx.playPredict();
+        applyFilters();
+      }
+
+      function applyFilters() {
+        let filteredData = allEventsCache.filter((d) => {
+          if (d.type.includes("USER_LOC")) return true;
+          if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
+          if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
+          if (d.type.includes("STORM") && d.color === "#bd00ff")
+            return activeFilters["STORM"];
+          if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
+          if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
+          if (d.type.includes("OTHER EVENT")) return activeFilters["OTHER"];
+          return false;
+        });
+
+        if (activeFilters["PREDICT"])
+          filteredData = filteredData.concat(predictionEvents);
+        if (userEventMarker) filteredData.push(userEventMarker);
+
+        if (world) {
+          world.pointsData(filteredData);
+          world.ringsData(filteredData.filter((d) => d.maxR > 0));
+
+          // VISUAL FIX: USE BASIC MATERIAL FOR EVERYTHING & HEX COLOR
+          world.customThreeObject((d) => {
+            if (d.type === "NUCLEAR PLANT") {
+              // CYLINDER FOR NUKES (Solid Color)
+              const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+              const material = new THREE.MeshLambertMaterial({
+                color: d.color,
+              });
+              return new THREE.Mesh(geometry, material);
+            } else if (d.type === "SATELLITE") {
+              const geometry = new THREE.SphereGeometry(0.5);
+              const material = new THREE.MeshBasicMaterial({ color: d.color });
+              return new THREE.Mesh(geometry, material);
+            } else if (d.type === "USER_LOC") {
+              const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+              const material = new THREE.MeshBasicMaterial({ color: d.color });
+              return new THREE.Mesh(geometry, material);
+            } else {
+              const geometry = new THREE.TetrahedronGeometry(1.2);
+              const material = new THREE.MeshLambertMaterial({
+                color: d.color,
+              });
+              return new THREE.Mesh(geometry, material);
+            }
+          });
+        }
+      }
+
+      let countdownVal = 60;
+      let countdownTimer = null;
+      function startCountdown() {
+        countdownVal = 60;
+        const circle = document.getElementById("scan-circle");
+        const text = document.getElementById("scan-text");
+        if (countdownTimer) clearInterval(countdownTimer);
+        countdownTimer = setInterval(() => {
+          countdownVal--;
+          text.innerText = countdownVal;
+          const offset = 100 - (countdownVal / 60) * 100;
+          circle.style.strokeDashoffset = offset;
+          if (countdownVal <= 0) countdownVal = 60;
+        }, 1000);
+      }
+
+      function updateDefcon(score) {
+        const el = document.getElementById("defcon-level");
+        const bar = document.getElementById("defcon-bar");
+        const body = document.body;
+        let level = 5;
+        let color = "var(--defcon-5)";
+        if (score > 15) {
+          level = 4;
+          color = "var(--defcon-4)";
+        }
+        if (score > 30) {
+          level = 3;
+          color = "var(--defcon-3)";
+        }
+        if (score > 50) {
+          level = 2;
+          color = "var(--defcon-2)";
+        }
+        if (score > 80) {
+          level = 1;
+          color = "var(--defcon-1)";
+        }
+        if (level !== currentDefcon) {
+          currentDefcon = level;
+          el.innerText = `DEFCON ${level}`;
+          el.style.color = color;
+          bar.style.borderColor = color;
+          bar.style.boxShadow = `0 0 30px ${color}`;
+          if (level <= 2) {
+            body.classList.add("alert-mode");
+            sfx.playAlarm();
+            printTerm("!!! HIGH THREAT LEVEL !!!", "err");
+          } else body.classList.remove("alert-mode");
+        }
+      }
+
+      function updateTicker(maxMag, count) {
+        const ticker = document.getElementById("ai-ticker-text");
+        const msgs = [
+          `ATOMIC WATCH ACTIVE...`,
+          `NEURAL LINK: STABLE...`,
+          `MONITORING ${nuclearPlants.length} STRATEGIC ASSETS...`,
+          `REAL-TIME DATA: ${count} EVENTS...`,
+        ];
+        ticker.innerText = msgs.join(" /// ");
+      }
+
+      try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
           .bumpImageUrl(
@@ -656,443 +1466,348 @@
           .backgroundImageUrl(
             "//unpkg.com/three-globe/example/img/night-sky.png"
           )
-          .atmosphereColor("#00ff66")
-          .atmosphereAltitude(0.15)
+          .atmosphereColor("#00f3ff")
+          .atmosphereAltitude(0.2)
+          .showGraticules(true)
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
           .pointsMerge(false)
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed("speed")
-          .ringRepeatPeriod("period")
-          .customLayerData(sats)
+          .ringPropagationSpeed("propagationSpeed")
+          .ringRepeatPeriod("repeatPeriod")
+          .customLayerData(satData)
           .customThreeObjectUpdate((obj, d) => {
             Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
-            if (d.type === "SATELLITE") {
-              d.lng += 0.2;
+            obj.rotation.y += 0.1;
+            if (d.lng) {
+              d.lng += d.velocity || 0;
               if (d.lng > 180) d.lng = -180;
             }
           })
           .onPointClick((d) => {
-            sfx(1000, "sine", 0.1);
+            sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
           });
 
+        // INITIAL OBJECT RENDERER
         world.customThreeObject((d) => {
-          if (d.type === "NUCLEAR PLANT")
-            return new THREE.Mesh(
-              new THREE.CylinderGeometry(0.5, 0.5, 2, 8),
-              new THREE.MeshBasicMaterial({ color: "#ccff00" })
-            );
-          else if (d.type === "SATELLITE")
-            return new THREE.Mesh(
-              new THREE.SphereGeometry(0.3),
-              new THREE.MeshBasicMaterial({ color: "#ffd700" })
-            );
-          else if (d.type === "USER_LOC")
-            return new THREE.Mesh(
-              new THREE.CylinderGeometry(0.2, 0.2, 3, 8),
-              new THREE.MeshBasicMaterial({ color: "#00f3ff" })
-            );
-          else
-            return new THREE.Mesh(
-              new THREE.TetrahedronGeometry(1.2),
-              new THREE.MeshBasicMaterial({ color: d.color })
-            );
+          const geometry = new THREE.TetrahedronGeometry(1.2);
+          const material = new THREE.MeshBasicMaterial({ color: d.color });
+          return new THREE.Mesh(geometry, material);
         });
 
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
+      } catch (e) {
+        console.error(e);
       }
 
-      // --- DATA FETCHING ---
-      async function fetchData() {
-        log("Scanning satellites...", "sys");
-        try {
-          const [q, n] = await Promise.all([
-            fetch(
-              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
-            ).then((r) => r.json()),
-            fetch(
-              "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
-            ).then((r) => r.json()),
-          ]);
-
-          let ev = [],
-            counts = { Q: 0, F: 0, S: 0, V: 0, N: 0 };
-          training = [];
-
-          if (q.features)
-            q.features.forEach((f, i) => {
-              const m = f.properties.mag;
-              counts.Q++;
-              const col = m > 6 ? "#ff003c" : m > 5 ? "#ffd700" : "#00f3ff";
-              ev.push({
-                lat: f.geometry.coordinates[1],
-                lng: f.geometry.coordinates[0],
-                alt: m * 0.05,
-                color: col,
-                type: `QUAKE M${m.toFixed(1)}`,
-                val: m,
-                place: f.properties.place,
-                maxR: m > 5 ? m * 4 : 0,
-                speed: 4,
-                period: 1000,
-              });
-              if (i < 50) training.push({ x: i, y: m });
-            });
-
-          if (n.events)
-            n.events.forEach((e) => {
-              const c = e.categories[0].id;
-              const g = e.geometry[0].coordinates;
-              let col = "#fff",
-                typ = "OTHER";
-              if (c === "wildfires") {
-                counts.F++;
-                col = "#ff6600";
-                typ = "FIRE";
-              } else if (c === "severeStorms") {
-                counts.S++;
-                col = "#bd00ff";
-                typ = "STORM";
-              } else if (c === "volcanoes") {
-                counts.V++;
-                col = "#ffd700";
-                typ = "VOLCANO";
-              }
-
-              ev.push({
-                lat: g[1],
-                lng: g[0],
-                alt: 0.15,
-                color: col,
-                type: typ,
-                val: 5,
-                place: e.title,
-                maxR: 0,
-                speed: 2,
-                period: 2000,
-              });
-            });
-
-          nukes.forEach((k) => {
-            counts.N++;
-            ev.push({
-              lat: k.lat,
-              lng: k.lng,
-              alt: 0.1,
-              color: "#ccff00",
-              type: "NUCLEAR PLANT",
-              val: 10,
-              place: k.name,
-              maxR: 15,
-              speed: 1,
-              period: 3000,
-            });
-          });
-
-          events = ev;
-          updateStats(counts);
-          trainAI();
-          render();
-          calcDist();
-          log(`Synced ${ev.length} events.`, "sys");
-        } catch (e) {
-          log("Data Uplink Failed.", "err");
-        }
-      }
-
-      function render() {
-        let show = events.filter((d) => {
-          if (d.type.includes("QUAKE")) return activeFilters.QUAKE;
-          if (d.type.includes("FIRE")) return activeFilters.FIRE;
-          if (d.type.includes("STORM")) return activeFilters.STORM;
-          if (d.type.includes("VOLCANO")) return activeFilters.VOLCANO;
-          if (d.type.includes("NUCLEAR")) return activeFilters.NUKE;
-          if (d.type.includes("USER")) return true;
-          return activeFilters.OTHER;
-        });
-        if (activeFilters.PREDICT) show = show.concat(genPredictions());
-        if (userLoc) show.push(userLoc);
-        world.pointsData(show);
-        world.ringsData(show.filter((d) => d.maxR > 0));
-      }
-
-      async function initAI() {
-        model = tf.sequential();
-        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        model.compile({
-          loss: "meanSquaredError",
-          optimizer: tf.train.adam(0.1),
-        });
-      }
-
-      async function trainAI() {
-        if (isTraining || training.length < 5) return;
-        isTraining = true;
-        document.getElementById("st-ai").innerText = "LEARNING...";
-        document.getElementById("st-ai").style.color = "var(--c-warn)";
-        const xs = tf.tensor2d(
-          training.map((d) => d.x * 0.01),
-          [training.length, 1]
-        );
-        const ys = tf.tensor2d(
-          training.map((d) => d.y),
-          [training.length, 1]
-        );
-        await model.fit(xs, ys, {
-          epochs: 10,
-          callbacks: {
-            onEpochEnd: (e, l) => {
-              if (e === 9) {
-                document.getElementById("val-loss").innerText =
-                  l.loss.toFixed(4);
-                lineChart.data.datasets[0].data.push(l.loss);
-                lineChart.data.datasets[0].data.shift();
-                lineChart.update();
-              }
-            },
-          },
-        });
-        isTraining = false;
-        document.getElementById("st-ai").innerText = "STABLE";
-        document.getElementById("st-ai").style.color = "var(--c-primary)";
-        xs.dispose();
-        ys.dispose();
-      }
-
-      function genPredictions() {
-        if (!model) return [];
-        const pred = model.predict(tf.tensor2d([0.5], [1, 1])).dataSync()[0];
-        let preds = [];
-        for (let i = 0; i < events.length; i += 10) {
-          if (events[i].type.includes("QUAKE")) {
-            preds.push({
-              lat: events[i].lat,
-              lng: events[i].lng,
-              alt: 0.05,
-              color: "#ffffff",
-              type: "AI PREDICTION",
-              val: pred,
-              place: "High Risk Zone",
-              maxR: 20,
-              speed: 2,
-              period: 1500,
-            });
-          }
-        }
-        return preds;
-      }
-
-      // --- COMMAND & VOICE ---
-      const micBtn = document.getElementById("mic-btn");
-      let recognition;
-
-      if ("webkitSpeechRecognition" in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = "en-US";
-        recognition.onstart = () => {
-          micBtn.classList.add("listening");
-          log("Listening...", "voice");
-        };
-        recognition.onend = () => {
-          micBtn.classList.remove("listening");
-        };
-        recognition.onresult = (event) => {
-          const cmd = event.results[0][0].transcript.toLowerCase();
-          log(`"${cmd}"`, "voice");
-          processCommand(cmd);
-        };
-      }
-
-      function toggleVoice() {
-        if (recognition) recognition.start();
-        else log("Voice not supported", "err");
-      }
-
-      document.getElementById("term-input").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          const cmd = e.target.value.trim().toLowerCase();
-          log(cmd, "cmd");
-          sfx(800, "triangle", 0.1);
-          processCommand(cmd);
-          e.target.value = "";
-        }
-      });
-
-      function processCommand(cmd) {
-        if (cmd.includes("scan")) fetchData();
-        else if (cmd.includes("gps") || cmd.includes("locate")) locateUser();
-        else if (cmd.includes("status")) log("Systems Nominal.", "sys");
-        else if (cmd.includes("nuke"))
-          toggle("NUKE", document.querySelector(".hud-btn.active.nuke"));
-        else if (cmd.includes("help"))
-          log("CMDS: scan, gps, status, nuke", "sys");
-        else log("Unknown command.", "err");
-      }
-
-      // --- UI UTILS ---
-      window.toggle = (key, btn) => {
-        activeFilters[key] = !activeFilters[key];
-        if (activeFilters[key]) btn.classList.add("active");
-        else btn.classList.remove("active");
-        sfx(800, "triangle", 0.05);
-        render();
-      };
-
-      window.locateUser = () => {
-        if (!navigator.geolocation) return log("GPS Error.", "err");
-        document.getElementById("btn-gps").innerText = "LOCATING...";
-        navigator.geolocation.getCurrentPosition((pos) => {
-          userLoc = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            alt: 0.02,
-            color: "#00f3ff",
-            type: "USER_LOC",
-            val: 0,
-            place: "HOME BASE",
-            maxR: 10,
-            speed: 1,
-            period: 2000,
-          };
-          document.getElementById("btn-gps").innerText = "GPS LOCKED";
-          document.getElementById("st-gps").innerText = "LOCKED";
-          document.getElementById("st-gps").style.color = "var(--c-sec)";
-          log(
-            `GPS Fixed: ${userLoc.lat.toFixed(2)}, ${userLoc.lng.toFixed(2)}`,
-            "sys"
-          );
-          world.pointOfView(
-            { lat: userLoc.lat, lng: userLoc.lng, altitude: 1.5 },
-            1500
-          );
-          render();
-          calcDist();
-        });
-      };
-
-      function calcDist() {
-        if (!userLoc) return;
-        let minD = 99999,
-          name = "";
-        events.forEach((e) => {
-          if (e.type.includes("USER") || e.type.includes("PREDICT")) return;
-          const p = 0.017453292519943295;
-          const a =
-            0.5 -
-            Math.cos((e.lat - userLoc.lat) * p) / 2 +
-            (Math.cos(userLoc.lat * p) *
-              Math.cos(e.lat * p) *
-              (1 - Math.cos((e.lng - userLoc.lng) * p))) /
-              2;
-          const d = 12742 * Math.asin(Math.sqrt(a));
-          if (d < minD) {
-            minD = d;
-            name = e.type + " " + e.place;
-          }
-        });
-        document.getElementById("dist-val").innerText = Math.round(minD);
-        document.getElementById("dist-name").innerText = name;
-        const col =
-          minD < 500
-            ? "var(--c-danger)"
-            : minD < 1500
-            ? "var(--c-warn)"
-            : "var(--c-primary)";
-        document.getElementById("dist-val").style.color = col;
-      }
-
-      function updateStats(c) {
-        radar.data.datasets[0].data = [c.Q, c.F, c.S, c.V, c.N];
-        radar.update();
-        let d = 5;
-        if (c.Q > 50 || c.S > 5) d = 4;
-        if (c.Q > 100 || c.N > 0) d = 3;
-        const el = document.getElementById("defcon-val");
-        el.innerText = "DEFCON " + d;
-        el.style.color =
-          d <= 3
-            ? "var(--c-danger)"
-            : d === 4
-            ? "var(--c-warn)"
-            : "var(--c-primary)";
-      }
-
-      function showInspector(d) {
-        document.getElementById("inspector").classList.add("open");
-        document.getElementById("insp-data").innerHTML = `
-                <div class="insp-row"><span class="insp-lbl">TYPE</span><span class="insp-val" style="color:${
-                  d.color
-                }">${d.type}</span></div>
-                <div class="insp-row"><span class="insp-lbl">LOC</span><span class="insp-val">${
-                  d.place
-                }</span></div>
-                <div class="insp-row"><span class="insp-lbl">MAG</span><span class="insp-val">${d.val.toFixed(
-                  1
-                )}</span></div>
-            `;
-      }
-
-      function startCountdown() {
-        let t = 60;
-        setInterval(() => {
-          t--;
-          if (t < 0) t = 60;
-          document.getElementById("scan-time").innerText = t;
-        }, 1000);
-      }
-
-      // --- CHARTS ---
       Chart.defaults.color = "#666";
-      Chart.defaults.font.family = "VT323";
-      const radar = new Chart(document.getElementById("radarChart"), {
+      Chart.defaults.font.family = "Rajdhani";
+      const waveChart = new Chart(document.getElementById("waveChart"), {
+        type: "line",
+        data: {
+          labels: Array(30).fill(""),
+          datasets: [
+            {
+              data: Array(30).fill(0),
+              borderColor: "#00f3ff",
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.5,
+              fill: true,
+              backgroundColor: "rgba(0,243,255,0.1)",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false, min: 0, max: 10 },
+          },
+          animation: { duration: 0 },
+        },
+      });
+      const radarChart = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
-          labels: ["Q", "F", "S", "V", "N"],
+          labels: ["Quake", "Wildfire", "Volcano", "Storm", "Ice/Other"],
           datasets: [
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
                 "#00f3ff",
                 "#ff6600",
-                "#bd00ff",
                 "#ffd700",
-                "#ccff00",
+                "#bd00ff",
+                "#ffffff",
               ],
-              borderWidth: 0,
+              borderWidth: 1,
+              borderColor: "#111",
             },
           ],
         },
         options: {
-          plugins: { legend: { display: false } },
-          scales: { r: { display: false, max: 100 } },
+          responsive: true,
           maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "right",
+              labels: { color: "#ccc", boxWidth: 10, font: { size: 9 } },
+            },
+          },
+          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
         },
       });
-      const lineChart = new Chart(document.getElementById("lineChart"), {
-        type: "line",
-        data: {
-          labels: Array(20).fill(""),
-          datasets: [
-            {
-              data: Array(20).fill(0),
-              borderColor: "#00f3ff",
-              borderWidth: 1,
-              pointRadius: 0,
-              tension: 0.4,
-            },
-          ],
-        },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { display: false } },
-          maintainAspectRatio: false,
-        },
+
+      async function fetchAllData() {
+        const start = Date.now();
+        try {
+          const quakePromise = fetch(
+            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+          ).then((r) => r.json());
+          const nasaPromise = fetch(
+            "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
+          ).then((r) => r.json());
+          const [quakeData, nasaData] = await Promise.all([
+            quakePromise,
+            nasaPromise,
+          ]);
+          document.getElementById("val-ping").innerText =
+            Date.now() - start + "ms";
+          processMultiData(quakeData, nasaData);
+          startCountdown();
+        } catch (e) {
+          console.error(e);
+          printTerm("Data link unstable (API Error).", "err");
+        }
+      }
+
+      function processMultiData(quakeData, nasaData) {
+        let combinedEvents = [];
+        let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
+        let maxIntensity = 0;
+
+        trainingData = [];
+
+        // 1. Quakes
+        if (quakeData.features) {
+          quakeData.features.forEach((f, index) => {
+            const mag = f.properties.mag;
+            if (mag > maxIntensity) maxIntensity = mag;
+            counts.QUAKE++;
+            let color = "#00f3ff";
+            if (mag > 5) color = "#00ff66";
+            if (mag > 6) color = "#ffd700";
+            if (mag > 7) color = "#ff003c";
+
+            combinedEvents.push({
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0],
+              alt: mag * 0.05,
+              color: color,
+              type: `QUAKE (M${mag.toFixed(1)})`,
+              place: f.properties.place,
+              value: mag,
+              desc: "Seismic Activity",
+              maxR: mag > 5 ? mag * 5 : 0,
+              propagationSpeed: 5,
+              repeatPeriod: 800,
+            });
+
+            if (index < 50) trainingData.push({ x: index, y: mag });
+          });
+        }
+
+        // 2. NASA Events
+        if (nasaData.events) {
+          nasaData.events.forEach((e) => {
+            const catId = e.categories[0].id;
+            const coords = e.geometry[0].coordinates;
+            let lat = coords[1];
+            let lng = coords[0];
+            let color = "#ffffff";
+            let type = e.title;
+            let alt = 0.2;
+            let isSpecial = false;
+
+            if (catId === "wildfires") {
+              counts.FIRE++;
+              color = "#ff6600";
+              type = "WILDFIRE";
+              alt = 0.3;
+              isSpecial = true;
+            } else if (catId === "volcanoes") {
+              counts.VOLCANO++;
+              color = "#ffd700";
+              type = "VOLCANO";
+              alt = 0.5;
+              isSpecial = true;
+            } else if (catId === "severeStorms") {
+              counts.STORM++;
+              color = "#bd00ff";
+              type = "STORM/CYCLONE";
+              alt = 0.4;
+              isSpecial = true;
+            } else if (catId === "seaLakeIce") {
+              counts.ICE++;
+              color = "#ffffff";
+              type = "ICEBERG";
+              alt = 0.2;
+              isSpecial = true;
+            }
+
+            if (!isSpecial) {
+              type = "OTHER EVENT";
+              color = "#aaaaaa";
+            }
+
+            combinedEvents.push({
+              lat: lat,
+              lng: lng,
+              alt: alt,
+              color: color,
+              type: type,
+              place: e.title,
+              value: 5.0,
+              desc: "Active NASA Event",
+              maxR: 0,
+              propagationSpeed: 5,
+              repeatPeriod: 800,
+            });
+          });
+        }
+
+        // 3. NUCLEAR PLANTS
+        nuclearPlants.forEach((n) => {
+          combinedEvents.push({
+            lat: n.lat,
+            lng: n.lng,
+            alt: 0.1,
+            // COLOR FIX: USE HEX DIRECTLY
+            color: "#ccff00",
+            type: "NUCLEAR PLANT",
+            place: n.name,
+            value: 10,
+            desc: n.desc,
+            maxR: 20,
+            propagationSpeed: 1,
+            repeatPeriod: 3000,
+          });
+        });
+
+        allEventsCache = combinedEvents;
+        currentNodeCount = combinedEvents.length;
+        statsCache = counts;
+
+        document.getElementById("val-prob").innerText = combinedEvents.length;
+        document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
+        const dangerScore =
+          maxIntensity * 2 +
+          counts.VOLCANO * 1 +
+          counts.STORM * 2 +
+          counts.FIRE * 0.1;
+        updateDefcon(dangerScore);
+        updateTicker(maxIntensity, combinedEvents.length);
+        sfx.playScan();
+
+        radarChart.data.datasets[0].data = [
+          counts.QUAKE,
+          counts.FIRE,
+          counts.VOLCANO,
+          counts.STORM,
+          counts.ICE,
+        ];
+        radarChart.update();
+
+        if (model) trainModel();
+        calcNearestThreat();
+
+        if (activeFilters["PREDICT"]) runNeuralPrediction();
+        else applyFilters();
+
+        printTerm(`Synced ${combinedEvents.length} events. Learning...`);
+      }
+
+      window.showInspector = (d) => {
+        document.getElementById("inspector").classList.add("active");
+        let icon = "📍";
+        if (d.type.includes("QUAKE")) icon = "📉";
+        else if (d.type.includes("VOLCANO")) icon = "🌋";
+        else if (d.type.includes("STORM")) icon = "🌀";
+        else if (d.type.includes("WILDFIRE")) icon = "🔥";
+        else if (d.type.includes("NEURAL")) icon = "👁️";
+        else if (d.type.includes("USER")) icon = "🏠";
+        else if (d.type.includes("NUCLEAR")) icon = "☢️";
+
+        const isPredict = d.type.includes("NEURAL");
+        const isNuke = d.type.includes("NUCLEAR");
+
+        let statusText = "LIVE DATA CONFIRMED";
+        let borderColor = d.color;
+
+        if (isPredict) {
+          statusText = "AI PREDICTION (UNVERIFIED)";
+          borderColor = "var(--neon-white)";
+        }
+        if (isNuke) {
+          statusText = "CRITICAL INFRASTRUCTURE";
+          borderColor = "var(--neon-toxic)";
+        }
+
+        document.getElementById("inspector-content").innerHTML = `
+                <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
+                  d.color
+                }">${icon} ${d.type}</strong></div>
+                <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem; max-width:180px;">${
+                  d.place
+                }</span></div>
+                <div class="insp-row"><span class="insp-lbl">DESC</span> <span class="insp-val" style="font-size:0.8rem">${
+                  d.desc
+                }</span></div>
+                <div class="insp-row"><span class="insp-lbl">INTENSITY</span> <span class="insp-val" style="font-size:1.5rem; color:${
+                  d.color
+                }">${d.value.toFixed(1)}</span></div>
+                <div class="status-box" style="border: 1px solid ${borderColor}; color:${borderColor}">${statusText}</div>
+            `;
+        printTerm(`Report: ${d.type} at ${d.place}`);
+      };
+      window.closeInspector = () => {
+        document.getElementById("inspector").classList.remove("active");
+        if (world) world.pointOfView({ altitude: 2.5 }, 1500);
+      };
+
+      document.getElementById("btn-link").addEventListener("click", () => {
+        isLive = !isLive;
+        const btn = document.getElementById("btn-link");
+        if (isLive) {
+          sfx.ctx.resume();
+          btn.classList.add("active");
+          btn.innerText = "ABORT UPLINK";
+          if (world) world.controls().autoRotate = false;
+          printTerm("Initializing Neural Link...");
+          sfx.playBeep();
+          initModel();
+          fetchAllData();
+          timer = setInterval(fetchAllData, 60000);
+
+          document.getElementById("status-model").innerText = "LOADING CORE";
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = "ACTIVATE GUARDIAN";
+          clearInterval(timer);
+          if (countdownTimer) clearInterval(countdownTimer);
+          if (world) world.controls().autoRotate = true;
+          printTerm("Uplink Terminated.");
+          document.getElementById("status-model").innerText = "OFFLINE";
+          document.getElementById("status-model").style.color = "#888";
+        }
       });
     </script>
   </body>
