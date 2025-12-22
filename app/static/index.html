@@ -3,16 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT V17.0: ORBITAL GUARDIAN</title>
+    <title>UPT COMMANDER V17.1 (SATELLITE FIX)</title>
 
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>"
     />
 
+    <script src="//unpkg.com/three@0.160.0/build/three.min.js"></script>
+
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="//unpkg.com/three"></script>
 
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
@@ -342,8 +344,8 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Launching Satellite Network...</div>
-        <div class="term-line">Satellites Online.</div>
+        <div class="term-line sys">Orbital Grid: Online</div>
+        <div class="term-line">Satellites: Tracking (200)</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -459,9 +461,10 @@
     </div>
 
     <script>
-      // --- ERROR SUPPRESSION ---
+      // --- ERROR SUPPRESSION (Clean Console) ---
       const originalError = console.error;
       console.error = function (...args) {
+        // Chặn lỗi t.map nếu có
         if (
           args[0] &&
           (args[0].toString().includes("t.map") ||
@@ -593,7 +596,7 @@
           printTerm("Moving to USA...");
         }
 
-        // NEW COMMAND: SATELLITES
+        // SAT COMMAND
         else if (cmd === "sats" || cmd.includes("vệ tinh")) {
           showSats = !showSats;
           world.customLayerData(showSats ? satData : []);
@@ -603,22 +606,22 @@
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- C. MAIN LOGIC & SATELLITES GENERATION ---
+      // --- C. MAIN LOGIC & SATELLITES ---
       let isLive = false;
       let timer = null;
       let world;
       let previousDataHash = "";
       let currentDefcon = 5;
       let currentNodeCount = 0;
-
-      // --- NEW: SATELLITE DATA ---
       let showSats = true;
-      const satData = [...Array(200).keys()].map(() => ({
+
+      // Generate Satellites
+      const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
-        alt: 0.6 + Math.random() * 0.4, // Bay cao hơn thiên tai (0.4)
-        velocity: Math.random() * 0.5 + 0.1, // Tốc độ bay
-        angle: Math.random() * Math.PI * 2,
+        alt: 0.6 + Math.random() * 0.3,
+        velocity: Math.random() * 0.4 + 0.1,
+        color: "#ffd700",
       }));
 
       function updateDefcon(prob) {
@@ -670,10 +673,10 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
 
-          // 1. TACTICAL GRID (Clean & Tech)
+          // TACTICAL GRID
           .showGraticules(true)
 
-          // 2. DISASTER POINTS
+          // DISASTER POINTS
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
@@ -683,21 +686,18 @@
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
 
-          // 3. SATELLITE LAYER (NEW)
+          // SATELLITES (CUSTOM LAYER)
           .customLayerData(satData)
           .customThreeObject((d) => {
-            const geometry = new THREE.TetrahedronGeometry(0.5); // Hình kim tự tháp nhỏ
-            const material = new THREE.MeshLambertMaterial({
-              color: "#ffd700",
-            }); // Màu vàng
+            // Cần THREE được load global
+            if (typeof THREE === "undefined") return null;
+            const geometry = new THREE.TetrahedronGeometry(0.3);
+            const material = new THREE.MeshLambertMaterial({ color: d.color });
             return new THREE.Mesh(geometry, material);
           })
           .customThreeObjectUpdate((obj, d) => {
-            // Animation Loop cho vệ tinh
             Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
-            obj.rotation.y += 0.1; // Tự xoay
-
-            // Di chuyển vệ tinh
+            obj.rotation.y += 0.1;
             d.lng += d.velocity;
             if (d.lng > 180) d.lng = -180;
           })
