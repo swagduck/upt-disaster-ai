@@ -7,28 +7,33 @@ class DisasterService:
     USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson"
     NASA_URL = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=10"
     
-    # --- CẤU HÌNH TELEGRAM ---
-    # Thay token của bạn vào đây
-    TELEGRAM_TOKEN = "THAY_TOKEN_CUA_BAN_VAO_DAY_XOA_DAU_NGOAC" 
-    # Thay ID chat của bạn (để tạm logic gửi broadcast hoặc fix cứng ID sau)
-    # Cách đơn giản nhất để test: Bạn chat với bot, rồi bot sẽ reply lại ID của bạn.
-    # Nhưng để nhanh, ta sẽ dùng hàm send_message đơn giản.
+    # --- CẤU HÌNH TELEGRAM (QUAN TRỌNG) ---
     
-    bot = Bot(token=TELEGRAM_TOKEN)
+    # 1. Điền Token bạn lấy từ BotFather vào giữa 2 dấu nháy:
+    TELEGRAM_TOKEN = "THAY_TOKEN_CUA_BAN_VAO_DAY" 
     
-    # Lưu lại các sự kiện đã cảnh báo để không spam tin nhắn
+    # 2. ID của bạn (Tôi đã điền sẵn):
+    CHAT_ID = "8322247844"
+    
+    # ---------------------------------------
+    
+    # Khởi tạo Bot
+    try:
+        bot = Bot(token=TELEGRAM_TOKEN)
+    except:
+        bot = None
+    
     alerted_events = set()
 
     @staticmethod
     async def send_telegram_alert(message):
         """Gửi tin nhắn cảnh báo qua Telegram"""
+        if not DisasterService.bot: return
         try:
-            # Lưu ý: Bạn cần biết Chat ID của mình. 
-            # Cách lấy Chat ID: Chat với bot @userinfobot trên Telegram
-            # Điền Chat ID của bạn vào dòng dưới:
-            CHAT_ID = "DIEN_CHAT_ID_CUA_BAN_VAO_DAY" 
-            
-            await DisasterService.bot.send_message(chat_id=CHAT_ID, text=message)
+            await DisasterService.bot.send_message(
+                chat_id=DisasterService.CHAT_ID, 
+                text=message
+            )
         except Exception as e:
             print(f"Lỗi Telegram: {e}")
 
@@ -37,7 +42,7 @@ class DisasterService:
         sensors = []
         new_critical_events = []
 
-        # --- 1. USGS ---
+        # --- 1. LẤY DỮ LIỆU ĐỘNG ĐẤT (USGS) ---
         try:
             resp = requests.get(DisasterService.USGS_URL, timeout=5)
             if resp.status_code == 200:
@@ -48,7 +53,7 @@ class DisasterService:
                     mag = props.get('mag', 0) or 0
                     energy = min(max(mag / 9.0, 0.0), 1.0)
                     
-                    # Logic Cảnh báo Telegram: Nếu động đất > 6.0 độ (Energy > 0.65)
+                    # CẢNH BÁO: Nếu động đất > 6.0 độ (Energy > 0.65)
                     if energy > 0.65 and place not in DisasterService.alerted_events:
                         DisasterService.alerted_events.add(place)
                         msg = f"⚠️ [CRITICAL ALERT]\nLoại: ĐỘNG ĐẤT 📉\nVị trí: {place}\nĐộ lớn: {mag} Richter\nNăng lượng UPT: {energy:.2f}"
@@ -62,7 +67,7 @@ class DisasterService:
                     })
         except Exception: pass
 
-        # --- 2. NASA ---
+        # --- 2. LẤY DỮ LIỆU THIÊN TAI (NASA) ---
         try:
             resp = requests.get(DisasterService.NASA_URL, timeout=5)
             if resp.status_code == 200:
@@ -83,7 +88,7 @@ class DisasterService:
                     if cat in type_map:
                         d_type, energy, icon = type_map[cat]
                         
-                        # Logic Cảnh báo Telegram cho Núi lửa & Bão
+                        # CẢNH BÁO: Nếu năng lượng NASA > 0.8 (Bão lớn/Núi lửa)
                         if energy > 0.8 and title not in DisasterService.alerted_events:
                             DisasterService.alerted_events.add(title)
                             msg = f"⚠️ [CRITICAL ALERT]\nLoại: {d_type} {icon}\nVị trí: {title}\nNăng lượng UPT: {energy}"
@@ -96,7 +101,7 @@ class DisasterService:
                         })
         except Exception: pass
         
-        # Gửi tin nhắn (Async)
+        # Gửi tin nhắn đồng loạt
         for msg in new_critical_events:
             await DisasterService.send_telegram_alert(msg)
 
