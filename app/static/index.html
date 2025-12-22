@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.1 (STABLE AI)</title>
+    <title>UPT COMMANDER V24.2 (STABLE AI)</title>
 
     <link
       rel="icon"
@@ -975,6 +975,7 @@
       let predictionEvents = [];
       let model = null;
       let trainingData = [];
+      let isTraining = false; // LOCK FLAG
 
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
@@ -997,7 +998,7 @@
         applyFilters();
       };
 
-      // --- TENSORFLOW AI LOGIC (FIXED) ---
+      // --- TENSORFLOW AI LOGIC (FIXED & LOCKED) ---
       async function initModel() {
         model = tf.sequential();
         model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
@@ -1010,7 +1011,13 @@
       }
 
       async function trainModel() {
+        if (isTraining) {
+          printTerm("Training in progress... Please wait.", "err");
+          return;
+        }
         if (trainingData.length < 5) return;
+
+        isTraining = true; // LOCK
         document.getElementById("status-model").innerText = "LEARNING...";
         document.getElementById("status-model").style.color =
           "var(--neon-orange)";
@@ -1023,32 +1030,37 @@
         const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
         const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
 
-        await model.fit(inputTensor, labelTensor, {
-          epochs: 20, // Train longer
-          callbacks: {
-            onEpochEnd: (epoch, logs) => {
-              // Only log last epoch to save space
-              if (epoch === 19) {
-                printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
-                // Chart update
-                waveChart.data.datasets[0].data.push(logs.loss);
-                waveChart.data.datasets[0].data.shift();
-                waveChart.update();
-                document.getElementById("val-res").innerText =
-                  logs.loss.toFixed(4);
-              }
+        try {
+          await model.fit(inputTensor, labelTensor, {
+            epochs: 20, // Train longer
+            callbacks: {
+              onEpochEnd: (epoch, logs) => {
+                // Only log last epoch to save space
+                if (epoch === 19) {
+                  printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
+                  // Chart update
+                  waveChart.data.datasets[0].data.push(logs.loss);
+                  waveChart.data.datasets[0].data.shift();
+                  waveChart.update();
+                  document.getElementById("val-res").innerText =
+                    logs.loss.toFixed(4);
+                }
+              },
             },
-          },
-        });
+          });
 
-        document.getElementById("status-model").innerText = "STABLE";
-        document.getElementById("status-model").style.color =
-          "var(--neon-green)";
-
-        inputTensor.dispose();
-        labelTensor.dispose();
-
-        printTerm("Neural Weights Updated.", "tf");
+          document.getElementById("status-model").innerText = "STABLE";
+          document.getElementById("status-model").style.color =
+            "var(--neon-green)";
+          printTerm("Neural Weights Updated.", "tf");
+        } catch (e) {
+          console.error(e);
+          printTerm("Training Error.", "err");
+        } finally {
+          isTraining = false; // UNLOCK
+          inputTensor.dispose();
+          labelTensor.dispose();
+        }
       }
 
       window.togglePrediction = () => {
