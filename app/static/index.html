@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V16.0 (CLEAN CORE)</title>
+    <title>UPT V17.0: ORBITAL GUARDIAN</title>
 
     <link
       rel="icon"
@@ -12,6 +12,8 @@
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="//unpkg.com/three"></script>
+
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
       rel="stylesheet"
@@ -77,7 +79,7 @@
         z-index: 0;
       }
 
-      /* DEFCON */
+      /* DEFCON BAR */
       #defcon-bar {
         position: absolute;
         top: 0;
@@ -340,8 +342,8 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Core stable. Visuals loaded.</div>
-        <div class="term-line">Ready for input.</div>
+        <div class="term-line sys">Launching Satellite Network...</div>
+        <div class="term-line">Satellites Online.</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -450,14 +452,14 @@
         >
           > AUTO_PILOT: OFF<br />
           > TACTICAL_GRID: ON<br />
-          > VOICE: STANDBY
+          > SAT_LINK: ACTIVE
         </div>
         <button id="btn-link" class="btn-link">Initialize Uplink</button>
       </div>
     </div>
 
     <script>
-      // --- 0. ERROR SUPPRESSION (CHẶN LỖI NGỨA MẮT) ---
+      // --- ERROR SUPPRESSION ---
       const originalError = console.error;
       console.error = function (...args) {
         if (
@@ -589,18 +591,35 @@
         } else if (cmd.includes("usa") || cmd.includes("mỹ")) {
           world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
           printTerm("Moving to USA...");
+        }
+
+        // NEW COMMAND: SATELLITES
+        else if (cmd === "sats" || cmd.includes("vệ tinh")) {
+          showSats = !showSats;
+          world.customLayerData(showSats ? satData : []);
+          printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
         } else if (cmd === "help")
-          printTerm("TRY: scan, status, mute, vietnam, japan, usa");
+          printTerm("TRY: scan, status, mute, vietnam, usa, sats");
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- C. MAIN LOGIC ---
+      // --- C. MAIN LOGIC & SATELLITES GENERATION ---
       let isLive = false;
       let timer = null;
       let world;
       let previousDataHash = "";
       let currentDefcon = 5;
       let currentNodeCount = 0;
+
+      // --- NEW: SATELLITE DATA ---
+      let showSats = true;
+      const satData = [...Array(200).keys()].map(() => ({
+        lat: (Math.random() - 0.5) * 180,
+        lng: (Math.random() - 0.5) * 360,
+        alt: 0.6 + Math.random() * 0.4, // Bay cao hơn thiên tai (0.4)
+        velocity: Math.random() * 0.5 + 0.1, // Tốc độ bay
+        angle: Math.random() * Math.PI * 2,
+      }));
 
       function updateDefcon(prob) {
         const el = document.getElementById("defcon-level");
@@ -638,7 +657,7 @@
         }
       }
 
-      // --- D. INIT GLOBE (CLEAN CORE - NO EXTERNAL FETCH) ---
+      // --- D. INIT GLOBE ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -651,10 +670,10 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
 
-          // --- THAY THẾ TECTONIC BẰNG GRATICULES (LƯỚI CHIẾN THUẬT) ---
-          .showGraticules(true) // Bật lưới kinh vĩ tuyến
-          // -------------------------------------------------------------
+          // 1. TACTICAL GRID (Clean & Tech)
+          .showGraticules(true)
 
+          // 2. DISASTER POINTS
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
@@ -663,6 +682,26 @@
           .ringMaxRadius("maxR")
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
+
+          // 3. SATELLITE LAYER (NEW)
+          .customLayerData(satData)
+          .customThreeObject((d) => {
+            const geometry = new THREE.TetrahedronGeometry(0.5); // Hình kim tự tháp nhỏ
+            const material = new THREE.MeshLambertMaterial({
+              color: "#ffd700",
+            }); // Màu vàng
+            return new THREE.Mesh(geometry, material);
+          })
+          .customThreeObjectUpdate((obj, d) => {
+            // Animation Loop cho vệ tinh
+            Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+            obj.rotation.y += 0.1; // Tự xoay
+
+            // Di chuyển vệ tinh
+            d.lng += d.velocity;
+            if (d.lng > 180) d.lng = -180;
+          })
+
           .onPointClick((d) => {
             sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
