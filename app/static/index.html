@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT SENTINEL V27.2 (COMPACT FIX)</title>
+    <title>UPT COMMANDER V28.1 (FULL CONTROL)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💠</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -16,31 +16,34 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;600;700&family=VT323&display=swap"
       rel="stylesheet"
     />
 
     <style>
       :root {
-        --primary: #00f3ff;
-        --accent: #ff003c;
-        --warning: #ffd700;
-        --success: #00ff66;
-        --toxic: #ccff00;
-        --glass: rgba(8, 12, 16, 0.85);
-        --border: rgba(0, 243, 255, 0.3);
-        --font-head: "Orbitron", sans-serif;
-        --font-body: "Rajdhani", sans-serif;
-        --font-code: "JetBrains Mono", monospace;
+        /* COLOR PALETTE */
+        --c-bg: #000000;
+        --c-grid: #0a1510;
+        --c-primary: #00ff66; /* Hacker Green */
+        --c-sec: #00f3ff; /* Cyan */
+        --c-warn: #ffd700; /* Gold */
+        --c-danger: #ff003c; /* Red */
+        --c-toxic: #ccff00; /* Toxic Yellow */
+
+        --f-tech: "Orbitron", sans-serif;
+        --f-data: "Rajdhani", sans-serif;
+        --f-code: "VT323", monospace;
       }
+
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
-        background: #000;
-        color: var(--primary);
-        font-family: var(--font-body);
+        background: var(--c-bg);
+        color: var(--c-primary);
+        font-family: var(--f-data);
         overflow: hidden;
         height: 100vh;
       }
@@ -52,15 +55,21 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 1;
+        z-index: 100;
         background: linear-gradient(
-          to bottom,
-          rgba(255, 255, 255, 0) 50%,
-          rgba(0, 0, 0, 0.1) 50%
-        );
-        background-size: 100% 4px;
-        opacity: 0.2;
+            rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.25) 50%
+          ),
+          linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.06),
+            rgba(0, 255, 0, 0.02),
+            rgba(0, 0, 255, 0.06)
+          );
+        background-size: 100% 2px, 3px 100%;
+        opacity: 0.6;
       }
+
       #globe-viz {
         position: absolute;
         top: 0;
@@ -70,502 +79,514 @@
         z-index: 0;
       }
 
-      /* START OVERLAY */
-      #start-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        background: rgba(0, 5, 10, 0.95);
-        backdrop-filter: blur(20px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        transition: opacity 0.5s;
-      }
-      #start-overlay.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
+      /* --- UI COMPONENTS --- */
 
-      .start-btn {
-        background: transparent;
-        border: 2px solid var(--primary);
-        color: var(--primary);
-        padding: 15px 40px;
-        font-family: var(--font-head);
-        font-size: 1.2rem;
-        font-weight: 900;
-        letter-spacing: 3px;
-        cursor: pointer;
-        text-transform: uppercase;
-        box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
-        transition: 0.3s;
-      }
-      .start-btn:hover {
-        background: var(--primary);
-        color: #000;
-        box-shadow: 0 0 50px var(--primary);
-        transform: scale(1.05);
-      }
-
-      /* UI ELEMENTS */
       #top-bar {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 60px;
-        z-index: 20;
+        height: 80px;
+        z-index: 10;
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 10px 20px;
+        justify-content: center;
+        padding-top: 10px;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
         pointer-events: none;
       }
-      #defcon-widget {
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid var(--border);
-        padding: 5px 15px;
-        border-radius: 0 0 10px 10px;
-        border-top: none;
+      #defcon-panel {
+        background: rgba(0, 20, 10, 0.8);
+        border: 2px solid var(--c-primary);
+        padding: 5px 40px;
+        clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+        box-shadow: 0 0 20px rgba(0, 255, 100, 0.2);
+        text-align: center;
         pointer-events: auto;
       }
-      #defcon-level {
-        font-family: var(--font-head);
-        font-size: 1.5rem;
+      #defcon-val {
+        font-family: var(--f-tech);
+        font-size: 2.5rem;
         font-weight: 900;
-        color: #0088ff;
-        text-shadow: 0 0 10px currentColor;
+        color: var(--c-primary);
+        text-shadow: 0 0 15px currentColor;
+        letter-spacing: 5px;
       }
 
-      #ai-ticker {
+      #ticker-line {
         position: absolute;
-        top: 60px;
-        left: 0;
+        top: 85px;
         width: 100%;
-        height: 20px;
-        z-index: 10;
-        background: rgba(0, 10, 20, 0.9);
-        border-top: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        align-items: center;
-        overflow: hidden;
-      }
-      #ai-ticker-text {
-        font-family: var(--font-code);
-        color: var(--warning);
+        background: rgba(0, 0, 0, 0.8);
+        border-top: 1px solid var(--c-sec);
+        border-bottom: 1px solid var(--c-sec);
+        font-family: var(--f-code);
+        font-size: 1.2rem;
+        color: var(--c-warn);
         white-space: nowrap;
-        padding-left: 100%;
-        animation: ticker 40s linear infinite;
-        font-size: 0.75rem;
+        overflow: hidden;
+        padding: 2px 0;
+        z-index: 5;
       }
-      @keyframes ticker {
+      #ticker-content {
+        display: inline-block;
+        padding-left: 100%;
+        animation: scroll 40s linear infinite;
+      }
+      @keyframes scroll {
         100% {
           transform: translateX(-100%);
         }
       }
 
-      /* HUD BOTTOM (RESPONSIVE FIX) */
-      .hud-bottom {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        right: 10px;
-        height: 22vh;
-        min-height: 180px;
-        max-height: 250px;
-        display: grid;
-        /* Fix: Use percentages/fractions to fit screen */
-        grid-template-columns: 160px 1fr 1fr 240px;
-        gap: 10px;
-        z-index: 20;
-        pointer-events: none;
-      }
-      .panel {
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        pointer-events: auto;
-        transition: 0.3s;
-        position: relative;
-        overflow: hidden;
-      }
-      .panel:hover {
-        border-color: var(--primary);
-        box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
-      }
-      .panel h3 {
-        margin: 0 0 5px 0;
-        font-family: var(--font-head);
-        font-size: 0.6rem;
-        color: rgba(255, 255, 255, 0.6);
-        letter-spacing: 1px;
-      }
-
-      /* BUTTONS */
-      .btn-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px;
-        margin-top: auto;
-      }
-      .cyber-btn {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid #444;
-        color: #888;
-        padding: 6px 2px;
-        font-family: var(--font-code);
-        font-size: 0.65rem;
-        cursor: pointer;
-        text-align: center;
-        transition: 0.2s;
-        white-space: nowrap;
-        overflow: hidden;
-      }
-      .cyber-btn:hover {
-        color: #fff;
-        border-color: #fff;
-      }
-      .cyber-btn.active {
-        background: rgba(0, 243, 255, 0.1);
-        border-color: var(--primary);
-        color: var(--primary);
-      }
-      .cyber-btn.toxic.active {
-        border-color: var(--toxic);
-        color: var(--toxic);
-        background: rgba(204, 255, 0, 0.1);
-      }
-      .cyber-btn.ai.active {
-        border-color: #bd00ff;
-        color: #bd00ff;
-        background: rgba(189, 0, 255, 0.1);
-      }
-
-      /* TERMINAL */
+      /* TERMINAL (RESTORED INPUT) */
       #terminal {
         position: absolute;
-        top: 100px;
-        left: 10px;
-        width: 300px;
-        height: 30vh;
-        background: var(--glass);
-        border: 1px solid var(--border);
-        border-radius: 6px;
+        top: 130px;
+        left: 20px;
+        width: 350px;
+        height: 35vh;
+        background: rgba(5, 10, 5, 0.9);
+        border: 1px solid #333;
+        border-left: 4px solid var(--c-primary);
+        font-family: var(--f-code);
+        font-size: 1.1rem;
+        color: var(--c-primary);
         display: flex;
         flex-direction: column;
-        z-index: 20;
-        backdrop-filter: blur(10px);
+        z-index: 10;
+        box-shadow: 0 0 15px rgba(0, 255, 100, 0.1);
       }
-      #term-out {
+      #term-body {
         flex: 1;
         padding: 10px;
         overflow-y: auto;
-        font-family: var(--font-code);
-        font-size: 0.75rem;
         scrollbar-width: none;
       }
       .ln {
         margin-bottom: 2px;
-        word-wrap: break-word;
       }
       .sys {
-        color: #889;
+        color: #888;
       }
       .err {
-        color: var(--accent);
+        color: var(--c-danger);
       }
       .ai {
         color: #bd00ff;
+      }
+      .cmd {
+        color: #fff;
+        font-weight: bold;
+      }
+
+      #term-input-box {
+        display: flex;
+        align-items: center;
+        border-top: 1px solid #333;
+        padding: 5px;
+        background: rgba(0, 255, 100, 0.05);
+      }
+      #mic-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        margin-right: 5px;
+        filter: grayscale(100%);
+        transition: 0.3s;
+      }
+      #mic-btn:hover {
+        filter: grayscale(0%);
+        text-shadow: 0 0 10px var(--c-danger);
+      }
+      #mic-btn.listening {
+        filter: grayscale(0%);
+        animation: blinkRed 1s infinite;
+      }
+
+      #term-input {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-family: var(--f-code);
+        font-size: 1.1rem;
+        flex: 1;
+        outline: none;
+        margin-left: 5px;
+      }
+
+      @keyframes blinkRed {
+        0% {
+          opacity: 1;
+          color: var(--c-danger);
+        }
+        50% {
+          opacity: 0.5;
+          color: #fff;
+        }
+        100% {
+          opacity: 1;
+          color: var(--c-danger);
+        }
       }
 
       /* INSPECTOR */
       #inspector {
         position: absolute;
-        top: 100px;
-        right: 10px;
-        width: 260px;
-        background: var(--glass);
-        border: 1px solid var(--border);
-        padding: 15px;
-        z-index: 20;
-        transform: translateX(120%);
-        transition: 0.4s;
+        top: 130px;
+        right: -400px;
+        width: 300px;
+        background: rgba(5, 10, 15, 0.95);
+        border: 2px solid var(--c-sec);
+        padding: 20px;
+        z-index: 10;
+        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: -10px 10px 20px rgba(0, 0, 0, 0.5);
       }
-      #inspector.active {
-        transform: translateX(0);
+      #inspector.open {
+        right: 20px;
       }
       .insp-row {
         display: flex;
         justify-content: space-between;
         border-bottom: 1px solid #333;
         padding: 5px 0;
+        margin-bottom: 5px;
+      }
+      .insp-lbl {
+        color: #888;
         font-size: 0.8rem;
+        letter-spacing: 1px;
+      }
+      .insp-val {
+        font-weight: bold;
+        color: #fff;
+      }
+
+      /* BOTTOM HUD */
+      .hud-grid {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        height: 25vh;
+        min-height: 200px;
+        display: grid;
+        grid-template-columns: 200px 1fr 1fr 320px;
+        gap: 10px;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .panel {
+        background: rgba(5, 10, 10, 0.85);
+        border: 1px solid var(--c-primary);
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        pointer-events: auto;
+        position: relative;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+      .panel h3 {
+        margin: 0 0 10px 0;
+        font-family: var(--f-tech);
+        font-size: 0.8rem;
+        color: var(--c-primary);
+        letter-spacing: 2px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+      }
+
+      .btn-matrix {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        height: 100%;
+      }
+      .hud-btn {
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid #444;
+        color: #666;
+        font-family: var(--f-tech);
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: 0.2s;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+      .hud-btn:hover {
+        color: #fff;
+        border-color: #fff;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+      }
+      .hud-btn.active.quake {
+        background: rgba(0, 243, 255, 0.2);
+        border-color: var(--c-sec);
+        color: var(--c-sec);
+      }
+      .hud-btn.active.fire {
+        background: rgba(255, 102, 0, 0.2);
+        border-color: #ff6600;
+        color: #ff6600;
+      }
+      .hud-btn.active.storm {
+        background: rgba(189, 0, 255, 0.2);
+        border-color: #bd00ff;
+        color: #bd00ff;
+      }
+      .hud-btn.active.nuke {
+        background: rgba(204, 255, 0, 0.2);
+        border-color: var(--c-toxic);
+        color: var(--c-toxic);
+      }
+      .hud-btn.active.ai {
+        background: #fff;
+        border-color: #fff;
+        color: #000;
+        box-shadow: 0 0 15px #fff;
+      }
+
+      #start-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+      }
+      .big-btn {
+        padding: 20px 60px;
+        font-family: var(--f-tech);
+        font-size: 1.5rem;
+        background: transparent;
+        border: 2px solid var(--c-primary);
+        color: var(--c-primary);
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 5px;
+        transition: 0.3s;
+        box-shadow: 0 0 30px rgba(0, 255, 100, 0.2);
+      }
+      .big-btn:hover {
+        background: var(--c-primary);
+        color: #000;
+        box-shadow: 0 0 60px var(--c-primary);
       }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
 
-    <div id="start-overlay">
+    <div id="start-screen">
       <h1
         style="
-          font-family: var(--font-head);
-          font-size: 3rem;
-          margin-bottom: 10px;
+          font-family: var(--f-tech);
+          font-size: 4rem;
           color: #fff;
-          text-shadow: 0 0 20px var(--primary);
+          text-shadow: 0 0 30px var(--c-primary);
+          margin-bottom: 10px;
         "
       >
-        SENTINEL
+        UPT SENTINEL
       </h1>
-      <div
-        style="font-family: var(--font-code); color: #888; margin-bottom: 40px"
-      >
-        V27.2 // COMPACT CORE
-      </div>
-      <button class="start-btn" onclick="startSystem()">INITIALIZE</button>
+      <p style="font-family: var(--f-code); color: #888; margin-bottom: 40px">
+        V28.1 // FULL CONTROL KERNEL
+      </p>
+      <button class="big-btn" onclick="bootSystem()">INITIALIZE SYSTEM</button>
     </div>
 
     <div id="globe-viz"></div>
 
     <div id="top-bar">
-      <div style="display: flex; align-items: center">
-        <div
-          style="
-            font-family: var(--font-head);
-            font-weight: 900;
-            font-size: 1.2rem;
-            color: #fff;
-          "
-        >
-          🛡️ UPT COMMANDER
+      <div id="defcon-panel">
+        <div style="font-size: 0.7rem; color: #666; letter-spacing: 3px">
+          GLOBAL THREAT LEVEL
         </div>
-      </div>
-      <div id="defcon-widget">
-        <div
-          style="
-            font-size: 0.5rem;
-            letter-spacing: 2px;
-            color: #666;
-            margin-bottom: 2px;
-          "
-        >
-          GLOBAL THREAT
-        </div>
-        <div id="defcon-level">WAITING</div>
+        <div id="defcon-val">DEFCON 5</div>
       </div>
     </div>
 
-    <div id="ai-ticker">
-      <div id="ai-ticker-text">
-        SYSTEM STANDBY... WAITING FOR USER AUTHORIZATION...
+    <div id="ticker-line">
+      <div id="ticker-content">
+        SYSTEM OFFLINE... WAITING FOR INITIALIZATION...
       </div>
     </div>
 
     <div id="terminal">
       <div
         style="
-          padding: 5px 10px;
-          border-bottom: 1px solid #333;
-          font-size: 0.7rem;
-          background: rgba(0, 0, 0, 0.5);
+          background: var(--c-primary);
+          color: #000;
+          padding: 5px;
+          font-weight: bold;
         "
       >
-        CMD.EXE
+        > COMMAND.EXE
       </div>
-      <div id="term-out">
-        <div class="ln sys">Kernel loaded. Waiting for start...</div>
+      <div id="term-body">
+        <div class="ln sys">Bios loaded...</div>
+      </div>
+      <div id="term-input-box">
+        <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
+          🎤
+        </button>
+        <span>></span
+        ><input
+          type="text"
+          id="term-input"
+          placeholder="Enter cmd..."
+          autocomplete="off"
+        />
       </div>
     </div>
 
     <div id="inspector">
-      <h4
-        style="
-          margin: 0 0 10px 0;
-          color: var(--primary);
-          font-family: var(--font-head);
-        "
+      <h3
+        style="color: var(--c-sec); font-family: var(--f-tech); margin-top: 0"
       >
-        TARGET DATA
-      </h4>
-      <div id="insp-content"></div>
+        TARGET DETAILS
+      </h3>
+      <div id="insp-data"></div>
       <button
-        onclick="document.getElementById('inspector').classList.remove('active')"
+        onclick="document.getElementById('inspector').classList.remove('open')"
         style="
           width: 100%;
-          margin-top: 10px;
-          background: none;
+          margin-top: 15px;
+          padding: 10px;
+          background: transparent;
           border: 1px solid #555;
-          color: #888;
+          color: #fff;
           cursor: pointer;
-          padding: 5px;
         "
       >
         CLOSE
       </button>
     </div>
 
-    <div class="hud-bottom">
-      <div class="panel" style="border-color: rgba(255, 0, 60, 0.4)">
-        <h3>PROXIMITY</h3>
+    <div class="hud-grid">
+      <div class="panel" style="border-color: var(--c-danger)">
+        <h3>NEAREST THREAT</h3>
         <div
           style="
             flex: 1;
             display: flex;
             flex-direction: column;
+            align-items: center;
             justify-content: center;
-            text-align: center;
           "
         >
           <div
-            id="val-dist"
-            style="
-              font-family: var(--font-head);
-              font-size: 2rem;
-              color: #fff;
-              line-height: 1;
-            "
+            id="dist-val"
+            style="font-family: var(--f-tech); font-size: 2.5rem; color: #fff"
           >
             --
           </div>
-          <div style="font-size: 0.6rem; color: var(--accent)">KILOMETERS</div>
+          <div style="font-size: 0.8rem; color: var(--c-danger)">
+            KILOMETERS
+          </div>
           <div
-            id="val-near"
-            style="font-size: 0.6rem; color: #888; margin-top: 5px"
+            id="dist-name"
+            style="font-size: 0.7rem; color: #888; margin-top: 10px"
           >
-            OFFLINE
+            GPS REQUIRED
           </div>
         </div>
       </div>
 
       <div class="panel">
-        <h3>SEISMIC ENERGY</h3>
-        <div style="flex: 1; width: 100%; position: relative">
-          <canvas id="waveChart"></canvas>
+        <h3>AI NEURAL LOSS</h3>
+        <div style="flex: 1; width: 100%"><canvas id="lineChart"></canvas></div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-top: 5px;
+          "
+        >
+          <span>LOSS: <span id="val-loss" style="color: #fff">--</span></span>
+          <span>PING: <span id="val-ping" style="color: #fff">--</span></span>
         </div>
       </div>
+
       <div class="panel">
-        <h3>THREAT RADAR</h3>
-        <div style="flex: 1; width: 100%; position: relative">
+        <h3>HAZARD RADAR</h3>
+        <div style="flex: 1; width: 100%">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
       <div class="panel">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <h3>TACTICAL</h3>
+        <div style="display: flex; justify-content: space-between">
+          <h3>TACTICAL OPS</h3>
           <span
-            id="scan-timer"
-            style="
-              font-family: var(--font-code);
-              color: var(--warning);
-              font-size: 0.8rem;
-            "
+            id="scan-time"
+            style="font-family: var(--f-code); color: var(--c-warn)"
             >60</span
           >
         </div>
-        <div class="btn-grid">
-          <button class="cyber-btn" onclick="locateUser()" id="btn-gps">
-            ◎ GPS
+        <div class="btn-matrix">
+          <button class="hud-btn" onclick="locateUser()" id="btn-gps">
+            ◎ GPS FIND
+          </button>
+          <button class="hud-btn active quake" onclick="toggle('QUAKE', this)">
+            [x] QUAKES
+          </button>
+          <button class="hud-btn active fire" onclick="toggle('FIRE', this)">
+            [x] FIRES
+          </button>
+          <button class="hud-btn active storm" onclick="toggle('STORM', this)">
+            [x] STORMS
+          </button>
+          <button class="hud-btn active nuke" onclick="toggle('NUKE', this)">
+            [x] NUKES
           </button>
           <button
-            class="cyber-btn active"
-            onclick="toggleFilter('QUAKE', this)"
+            class="hud-btn active ai"
+            onclick="toggle('PREDICT', this)"
+            style="grid-column: span 2; border-color: #fff"
           >
-            QUAKES
-          </button>
-          <button
-            class="cyber-btn active"
-            onclick="toggleFilter('VOLCANO', this)"
-          >
-            VOLCANO
-          </button>
-          <button
-            class="cyber-btn active"
-            onclick="toggleFilter('STORM', this)"
-          >
-            STORMS
-          </button>
-          <button class="cyber-btn active" onclick="toggleFilter('FIRE', this)">
-            FIRES
-          </button>
-          <button
-            class="cyber-btn toxic active"
-            onclick="toggleFilter('NUKE', this)"
-          >
-            ☢ NUKES
-          </button>
-          <button
-            class="cyber-btn active"
-            onclick="toggleFilter('OTHER', this)"
-          >
-            OTHERS
-          </button>
-          <button class="cyber-btn ai active" onclick="togglePrediction(this)">
-            🧠 AI
+            🧠 AI PREDICTION
           </button>
         </div>
         <div
           style="
-            margin-top: auto;
-            font-family: var(--font-code);
-            font-size: 0.6rem;
-            color: #666;
             text-align: right;
-            padding-top: 5px;
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 5px;
           "
         >
-          AI: <span id="status-model">IDLE</span> | GPS:
-          <span id="status-loc">OFF</span>
+          AI: <span id="st-ai">IDLE</span> | GPS: <span id="st-gps">OFF</span>
         </div>
       </div>
     </div>
 
     <script>
-      // --- SETUP ---
-      const term = document.getElementById("term-out");
-      function log(msg, type = "") {
-        const d = document.createElement("div");
-        d.className = `ln ${type}`;
-        d.innerText = `> ${msg}`;
-        term.appendChild(d);
-        term.scrollTop = term.scrollHeight;
-      }
-
-      // --- GLOBAL VARIABLES (FIXED) ---
+      // --- CORE VARIABLES ---
       let world, timer;
       let isLive = false;
-      let isTraining = false; // <--- FIX ERROR
-      let events = [];
-      let training = [];
+      let isTraining = false;
+      let events = [],
+        training = [];
       let userLoc = null;
       let model = null;
       let activeFilters = {
-        QUAKE: 1,
-        VOLCANO: 1,
-        STORM: 1,
-        FIRE: 1,
-        NUKE: 1,
-        OTHER: 1,
-        PREDICT: 0,
+        QUAKE: true,
+        FIRE: true,
+        STORM: true,
+        VOLCANO: true,
+        NUKE: true,
+        OTHER: true,
+        PREDICT: false,
       };
 
-      // --- ASSETS ---
       const nukes = [
         { lat: 37.42, lng: 141.03, name: "Fukushima" },
         { lat: 47.51, lng: 34.58, name: "Zaporizhzhia" },
@@ -574,42 +595,56 @@
         { lat: 51.01, lng: 2.13, name: "Gravelines" },
         { lat: 25.03, lng: 121.56, name: "Maanshan" },
       ];
-
-      const sats = Array(120)
+      const sats = Array(150)
         .fill()
         .map(() => ({
           lat: (Math.random() - 0.5) * 180,
           lng: (Math.random() - 0.5) * 360,
-          alt: 0.6 + Math.random() * 0.2,
+          alt: 0.6 + Math.random() * 0.3,
           color: "#ffd700",
-          type: "SAT",
+          type: "SATELLITE",
         }));
 
       // --- AUDIO ---
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      function beep(f = 1000, t = 0.05) {
-        if (ctx.state === "suspended") ctx.resume();
-        const o = ctx.createOscillator(),
-          g = ctx.createGain();
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.frequency.value = f;
-        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t);
-        o.start();
-        o.stop(ctx.currentTime + t);
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      function sfx(freq, type, dur) {
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.exponentialRampToValueAtTime(
+          0.01,
+          audioCtx.currentTime + dur
+        );
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
       }
 
-      // --- INIT SYSTEM ---
-      function startSystem() {
-        document.getElementById("start-overlay").classList.add("hidden");
-        ctx.resume();
-        beep(600, 0.3);
-        log("System Initialized.", "sys");
+      // --- LOGGING ---
+      const termBody = document.getElementById("term-body");
+      function log(txt, type = "sys") {
+        const div = document.createElement("div");
+        div.className = `ln ${type}`;
+        div.innerText = `> ${txt}`;
+        termBody.appendChild(div);
+        termBody.scrollTop = termBody.scrollHeight;
+      }
+
+      // --- INITIALIZATION ---
+      function bootSystem() {
+        document.getElementById("start-screen").style.display = "none";
+        sfx(600, "square", 0.2);
+        log("System Booting...", "sys");
         initGlobe();
         initAI();
         fetchData();
         timer = setInterval(fetchData, 60000);
         startCountdown();
+        document.getElementById("ticker-content").innerText =
+          "SYSTEM ONLINE /// CONNECTING TO SATELLITE ARRAY /// LISTENING FOR SEISMIC EVENTS...";
       }
 
       function initGlobe() {
@@ -621,57 +656,58 @@
           .backgroundImageUrl(
             "//unpkg.com/three-globe/example/img/night-sky.png"
           )
-          .atmosphereColor("#00f3ff")
+          .atmosphereColor("#00ff66")
           .atmosphereAltitude(0.15)
           .pointAltitude("alt")
           .pointColor("color")
-          .pointRadius(0.4)
+          .pointRadius(0.5)
+          .pointsMerge(false)
           .ringColor("color")
           .ringMaxRadius("maxR")
           .ringPropagationSpeed("speed")
           .ringRepeatPeriod("period")
           .customLayerData(sats)
-          .customThreeObjectUpdate((o, d) => {
-            Object.assign(o.position, world.getCoords(d.lat, d.lng, d.alt));
-            if (d.type === "SAT") {
+          .customThreeObjectUpdate((obj, d) => {
+            Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+            if (d.type === "SATELLITE") {
               d.lng += 0.2;
               if (d.lng > 180) d.lng = -180;
             }
           })
           .onPointClick((d) => {
-            beep(1200);
-            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.0 }, 1000);
-            showInsp(d);
+            sfx(1000, "sine", 0.1);
+            world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
+            showInspector(d);
           });
 
-        // 3D OBJECTS
         world.customThreeObject((d) => {
-          if (d.type.includes("NUKE"))
+          if (d.type === "NUCLEAR PLANT")
             return new THREE.Mesh(
-              new THREE.CylinderGeometry(0.3, 0.3, 1.5, 6),
+              new THREE.CylinderGeometry(0.5, 0.5, 2, 8),
               new THREE.MeshBasicMaterial({ color: "#ccff00" })
             );
-          if (d.type.includes("SAT"))
+          else if (d.type === "SATELLITE")
             return new THREE.Mesh(
-              new THREE.SphereGeometry(0.2),
+              new THREE.SphereGeometry(0.3),
               new THREE.MeshBasicMaterial({ color: "#ffd700" })
             );
-          if (d.type.includes("USER"))
+          else if (d.type === "USER_LOC")
             return new THREE.Mesh(
-              new THREE.CylinderGeometry(0.3, 0.3, 2, 8),
+              new THREE.CylinderGeometry(0.2, 0.2, 3, 8),
               new THREE.MeshBasicMaterial({ color: "#00f3ff" })
             );
-          return new THREE.Mesh(
-            new THREE.TetrahedronGeometry(0.8),
-            new THREE.MeshBasicMaterial({ color: d.color })
-          );
+          else
+            return new THREE.Mesh(
+              new THREE.TetrahedronGeometry(1.2),
+              new THREE.MeshBasicMaterial({ color: d.color })
+            );
         });
 
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.3;
+        world.controls().autoRotateSpeed = 0.5;
       }
 
-      // --- FETCH DATA ---
+      // --- DATA FETCHING ---
       async function fetchData() {
         log("Scanning satellites...", "sys");
         try {
@@ -685,23 +721,23 @@
           ]);
 
           let ev = [],
-            counts = { Q: 0, V: 0, S: 0, F: 0, N: 0 };
+            counts = { Q: 0, F: 0, S: 0, V: 0, N: 0 };
           training = [];
 
           if (q.features)
             q.features.forEach((f, i) => {
               const m = f.properties.mag;
               counts.Q++;
-              const c = m > 6 ? "#ff003c" : m > 5 ? "#ffd700" : "#00f3ff";
+              const col = m > 6 ? "#ff003c" : m > 5 ? "#ffd700" : "#00f3ff";
               ev.push({
                 lat: f.geometry.coordinates[1],
                 lng: f.geometry.coordinates[0],
-                alt: m * 0.04,
-                color: c,
+                alt: m * 0.05,
+                color: col,
                 type: `QUAKE M${m.toFixed(1)}`,
                 val: m,
                 place: f.properties.place,
-                maxR: m > 5 ? m * 3 : 0,
+                maxR: m > 5 ? m * 4 : 0,
                 speed: 4,
                 period: 1000,
               });
@@ -718,39 +754,40 @@
                 counts.F++;
                 col = "#ff6600";
                 typ = "FIRE";
-              }
-              if (c === "volcanoes") {
+              } else if (c === "severeStorms") {
+                counts.S++;
+                col = "#bd00ff";
+                typ = "STORM";
+              } else if (c === "volcanoes") {
                 counts.V++;
                 col = "#ffd700";
                 typ = "VOLCANO";
               }
-              if (c === "severeStorms") {
-                counts.S++;
-                col = "#bd00ff";
-                typ = "STORM";
-              }
+
               ev.push({
                 lat: g[1],
                 lng: g[0],
-                alt: 0.1,
+                alt: 0.15,
                 color: col,
                 type: typ,
                 val: 5,
                 place: e.title,
                 maxR: 0,
+                speed: 2,
+                period: 2000,
               });
             });
 
-          nukes.forEach((n) => {
+          nukes.forEach((k) => {
             counts.N++;
             ev.push({
-              lat: n.lat,
-              lng: n.lng,
+              lat: k.lat,
+              lng: k.lng,
               alt: 0.1,
               color: "#ccff00",
               type: "NUCLEAR PLANT",
               val: 10,
-              place: n.name,
+              place: k.name,
               maxR: 15,
               speed: 1,
               period: 3000,
@@ -761,58 +798,43 @@
           updateStats(counts);
           trainAI();
           render();
-          log(`Scan complete. ${ev.length} targets.`, "sys");
+          calcDist();
+          log(`Synced ${ev.length} events.`, "sys");
         } catch (e) {
           log("Data Uplink Failed.", "err");
         }
       }
 
-      // --- RENDER ---
       function render() {
         let show = events.filter((d) => {
           if (d.type.includes("QUAKE")) return activeFilters.QUAKE;
-          if (d.type.includes("VOLCANO")) return activeFilters.VOLCANO;
-          if (d.type.includes("STORM")) return activeFilters.STORM;
           if (d.type.includes("FIRE")) return activeFilters.FIRE;
+          if (d.type.includes("STORM")) return activeFilters.STORM;
+          if (d.type.includes("VOLCANO")) return activeFilters.VOLCANO;
           if (d.type.includes("NUCLEAR")) return activeFilters.NUKE;
-          if (d.type.includes("OTHER")) return activeFilters.OTHER;
           if (d.type.includes("USER")) return true;
-          return true;
+          return activeFilters.OTHER;
         });
         if (activeFilters.PREDICT) show = show.concat(genPredictions());
         if (userLoc) show.push(userLoc);
-
         world.pointsData(show);
         world.ringsData(show.filter((d) => d.maxR > 0));
-
-        if (userLoc) {
-          let min = 99999;
-          show.forEach((d) => {
-            if (d.type.includes("USER") || d.type.includes("PREDICT")) return;
-            const dist = getDist(userLoc.lat, userLoc.lng, d.lat, d.lng);
-            if (dist < min) min = dist;
-          });
-          document.getElementById("val-dist").innerText = Math.round(min);
-          document.getElementById("val-dist").style.color =
-            min < 500 ? "var(--accent)" : "var(--success)";
-          document.getElementById("val-near").innerText =
-            min < 99999 ? "TARGET LOCKED" : "SCANNING...";
-        }
       }
 
-      // --- AI ---
       async function initAI() {
         model = tf.sequential();
         model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        model.compile({ loss: "meanSquaredError", optimizer: "sgd" });
+        model.compile({
+          loss: "meanSquaredError",
+          optimizer: tf.train.adam(0.1),
+        });
       }
 
       async function trainAI() {
         if (isTraining || training.length < 5) return;
         isTraining = true;
-        document.getElementById("status-model").innerText = "LEARNING";
-        document.getElementById("status-model").style.color = "var(--warning)";
-
+        document.getElementById("st-ai").innerText = "LEARNING...";
+        document.getElementById("st-ai").style.color = "var(--c-warn)";
         const xs = tf.tensor2d(
           training.map((d) => d.x * 0.01),
           [training.length, 1]
@@ -821,104 +843,199 @@
           training.map((d) => d.y),
           [training.length, 1]
         );
-
-        await model.fit(xs, ys, { epochs: 10 });
-
-        document.getElementById("status-model").innerText = "ONLINE";
-        document.getElementById("status-model").style.color = "var(--success)";
+        await model.fit(xs, ys, {
+          epochs: 10,
+          callbacks: {
+            onEpochEnd: (e, l) => {
+              if (e === 9) {
+                document.getElementById("val-loss").innerText =
+                  l.loss.toFixed(4);
+                lineChart.data.datasets[0].data.push(l.loss);
+                lineChart.data.datasets[0].data.shift();
+                lineChart.update();
+              }
+            },
+          },
+        });
         isTraining = false;
+        document.getElementById("st-ai").innerText = "STABLE";
+        document.getElementById("st-ai").style.color = "var(--c-primary)";
         xs.dispose();
         ys.dispose();
       }
 
       function genPredictions() {
         if (!model) return [];
-        const p = model.predict(tf.tensor2d([0.5], [1, 1])).dataSync()[0];
+        const pred = model.predict(tf.tensor2d([0.5], [1, 1])).dataSync()[0];
         let preds = [];
         for (let i = 0; i < events.length; i += 10) {
-          if (events[i].type.includes("QUAKE"))
+          if (events[i].type.includes("QUAKE")) {
             preds.push({
               lat: events[i].lat,
               lng: events[i].lng,
               alt: 0.05,
               color: "#ffffff",
-              type: "AI PREDICT",
-              val: p,
+              type: "AI PREDICTION",
+              val: pred,
               place: "High Risk Zone",
               maxR: 20,
-              speed: 3,
-              period: 1000,
+              speed: 2,
+              period: 1500,
             });
+          }
         }
         return preds;
       }
 
-      // --- UTILS ---
-      window.toggleFilter = (t, b) => {
-        activeFilters[t] = !activeFilters[t];
-        b.classList.toggle("active");
+      // --- COMMAND & VOICE ---
+      const micBtn = document.getElementById("mic-btn");
+      let recognition;
+
+      if ("webkitSpeechRecognition" in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = "en-US";
+        recognition.onstart = () => {
+          micBtn.classList.add("listening");
+          log("Listening...", "voice");
+        };
+        recognition.onend = () => {
+          micBtn.classList.remove("listening");
+        };
+        recognition.onresult = (event) => {
+          const cmd = event.results[0][0].transcript.toLowerCase();
+          log(`"${cmd}"`, "voice");
+          processCommand(cmd);
+        };
+      }
+
+      function toggleVoice() {
+        if (recognition) recognition.start();
+        else log("Voice not supported", "err");
+      }
+
+      document.getElementById("term-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const cmd = e.target.value.trim().toLowerCase();
+          log(cmd, "cmd");
+          sfx(800, "triangle", 0.1);
+          processCommand(cmd);
+          e.target.value = "";
+        }
+      });
+
+      function processCommand(cmd) {
+        if (cmd.includes("scan")) fetchData();
+        else if (cmd.includes("gps") || cmd.includes("locate")) locateUser();
+        else if (cmd.includes("status")) log("Systems Nominal.", "sys");
+        else if (cmd.includes("nuke"))
+          toggle("NUKE", document.querySelector(".hud-btn.active.nuke"));
+        else if (cmd.includes("help"))
+          log("CMDS: scan, gps, status, nuke", "sys");
+        else log("Unknown command.", "err");
+      }
+
+      // --- UI UTILS ---
+      window.toggle = (key, btn) => {
+        activeFilters[key] = !activeFilters[key];
+        if (activeFilters[key]) btn.classList.add("active");
+        else btn.classList.remove("active");
+        sfx(800, "triangle", 0.05);
         render();
-        beep(800);
-      };
-      window.togglePrediction = (b) => {
-        activeFilters.PREDICT = !activeFilters.PREDICT;
-        b.classList.toggle("active");
-        render();
-        beep(600);
       };
 
       window.locateUser = () => {
-        if (!navigator.geolocation) return log("No GPS.", "err");
-        document.getElementById("btn-gps").innerText = "◎ ...";
-        navigator.geolocation.getCurrentPosition((p) => {
+        if (!navigator.geolocation) return log("GPS Error.", "err");
+        document.getElementById("btn-gps").innerText = "LOCATING...";
+        navigator.geolocation.getCurrentPosition((pos) => {
           userLoc = {
-            lat: p.coords.latitude,
-            lng: p.coords.longitude,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
             alt: 0.02,
             color: "#00f3ff",
-            type: "USER BASE",
+            type: "USER_LOC",
             val: 0,
-            place: "My Location",
+            place: "HOME BASE",
             maxR: 10,
             speed: 1,
             period: 2000,
           };
-          world.pointOfView(
-            { lat: userLoc.lat, lng: userLoc.lng, altitude: 1.5 },
-            1500
-          );
-          document.getElementById("btn-gps").innerText = "◎ LOCKED";
-          document.getElementById("status-loc").innerText = "ON";
-          document.getElementById("status-loc").style.color = "var(--primary)";
+          document.getElementById("btn-gps").innerText = "GPS LOCKED";
+          document.getElementById("st-gps").innerText = "LOCKED";
+          document.getElementById("st-gps").style.color = "var(--c-sec)";
           log(
             `GPS Fixed: ${userLoc.lat.toFixed(2)}, ${userLoc.lng.toFixed(2)}`,
             "sys"
           );
+          world.pointOfView(
+            { lat: userLoc.lat, lng: userLoc.lng, altitude: 1.5 },
+            1500
+          );
           render();
+          calcDist();
         });
       };
 
-      function getDist(lat1, lon1, lat2, lon2) {
-        const p = 0.017453292519943295;
-        const a =
-          0.5 -
-          Math.cos((lat2 - lat1) * p) / 2 +
-          (Math.cos(lat1 * p) *
-            Math.cos(lat2 * p) *
-            (1 - Math.cos((lon2 - lon1) * p))) /
-            2;
-        return 12742 * Math.asin(Math.sqrt(a));
+      function calcDist() {
+        if (!userLoc) return;
+        let minD = 99999,
+          name = "";
+        events.forEach((e) => {
+          if (e.type.includes("USER") || e.type.includes("PREDICT")) return;
+          const p = 0.017453292519943295;
+          const a =
+            0.5 -
+            Math.cos((e.lat - userLoc.lat) * p) / 2 +
+            (Math.cos(userLoc.lat * p) *
+              Math.cos(e.lat * p) *
+              (1 - Math.cos((e.lng - userLoc.lng) * p))) /
+              2;
+          const d = 12742 * Math.asin(Math.sqrt(a));
+          if (d < minD) {
+            minD = d;
+            name = e.type + " " + e.place;
+          }
+        });
+        document.getElementById("dist-val").innerText = Math.round(minD);
+        document.getElementById("dist-name").innerText = name;
+        const col =
+          minD < 500
+            ? "var(--c-danger)"
+            : minD < 1500
+            ? "var(--c-warn)"
+            : "var(--c-primary)";
+        document.getElementById("dist-val").style.color = col;
       }
 
       function updateStats(c) {
-        radar.data.datasets[0].data = [c.Q, c.F, c.V, c.S, c.N];
+        radar.data.datasets[0].data = [c.Q, c.F, c.S, c.V, c.N];
         radar.update();
         let d = 5;
         if (c.Q > 50 || c.S > 5) d = 4;
-        if (c.N > 0 && c.Q > 80) d = 3;
-        const dl = document.getElementById("defcon-level");
-        dl.innerText = "DEFCON " + d;
-        dl.style.color = d < 4 ? "var(--accent)" : "var(--primary)";
+        if (c.Q > 100 || c.N > 0) d = 3;
+        const el = document.getElementById("defcon-val");
+        el.innerText = "DEFCON " + d;
+        el.style.color =
+          d <= 3
+            ? "var(--c-danger)"
+            : d === 4
+            ? "var(--c-warn)"
+            : "var(--c-primary)";
+      }
+
+      function showInspector(d) {
+        document.getElementById("inspector").classList.add("open");
+        document.getElementById("insp-data").innerHTML = `
+                <div class="insp-row"><span class="insp-lbl">TYPE</span><span class="insp-val" style="color:${
+                  d.color
+                }">${d.type}</span></div>
+                <div class="insp-row"><span class="insp-lbl">LOC</span><span class="insp-val">${
+                  d.place
+                }</span></div>
+                <div class="insp-row"><span class="insp-lbl">MAG</span><span class="insp-val">${d.val.toFixed(
+                  1
+                )}</span></div>
+            `;
       }
 
       function startCountdown() {
@@ -926,38 +1043,25 @@
         setInterval(() => {
           t--;
           if (t < 0) t = 60;
-          document.getElementById("scan-timer").innerText = t;
+          document.getElementById("scan-time").innerText = t;
         }, 1000);
       }
 
-      function showInsp(d) {
-        const i = document.getElementById("inspector");
-        i.classList.add("active");
-        document.getElementById("insp-content").innerHTML = `
-                <div class="insp-row"><span>TYPE</span><strong style="color:${
-                  d.color
-                }">${d.type}</strong></div>
-                <div class="insp-row"><span>LOC</span><span>${
-                  d.place
-                }</span></div>
-                <div class="insp-row"><span>VAL</span><span>${d.val.toFixed(
-                  1
-                )}</span></div>
-            `;
-      }
-
+      // --- CHARTS ---
+      Chart.defaults.color = "#666";
+      Chart.defaults.font.family = "VT323";
       const radar = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
-          labels: ["Q", "F", "V", "S", "N"],
+          labels: ["Q", "F", "S", "V", "N"],
           datasets: [
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
                 "#00f3ff",
                 "#ff6600",
-                "#ffd700",
                 "#bd00ff",
+                "#ffd700",
                 "#ccff00",
               ],
               borderWidth: 0,
@@ -966,11 +1070,11 @@
         },
         options: {
           plugins: { legend: { display: false } },
-          scales: { r: { display: false } },
+          scales: { r: { display: false, max: 100 } },
           maintainAspectRatio: false,
         },
       });
-      const wave = new Chart(document.getElementById("waveChart"), {
+      const lineChart = new Chart(document.getElementById("lineChart"), {
         type: "line",
         data: {
           labels: Array(20).fill(""),
@@ -980,6 +1084,7 @@
               borderColor: "#00f3ff",
               borderWidth: 1,
               pointRadius: 0,
+              tension: 0.4,
             },
           ],
         },
