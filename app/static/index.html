@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V18.0 (REAL-TIME DATA)</title>
+    <title>UPT COMMANDER V19.0 (NASA + USGS)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -24,6 +24,8 @@
         --neon-red: #ff003c;
         --neon-gold: #ffd700;
         --neon-green: #00ff66;
+        --neon-orange: #ff6600;
+        --neon-purple: #bd00ff;
         --glass-bg: rgba(8, 15, 25, 0.85);
         --glass-border: rgba(0, 243, 255, 0.3);
         --tech-font: "Orbitron", sans-serif;
@@ -341,9 +343,10 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Engine: Three.js r124</div>
-        <div class="term-line">Satellites: Tracking (150)</div>
-        <div class="term-line cmd">Waiting for USGS Real-time Feed...</div>
+        <div class="term-line sys">
+          Modules: USGS (Quakes) + NASA (Wildfires/Storms)
+        </div>
+        <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -411,11 +414,11 @@
           "
         >
           <div id="val-prob" class="big-stat">--</div>
-          <div class="sub-stat">ACTIVE EVENTS (24H)</div>
+          <div class="sub-stat">COMBINED EVENTS</div>
         </div>
       </div>
       <div class="panel">
-        <h3>Seismic Energy</h3>
+        <h3>Seismic / Heat Energy</h3>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="waveChart"></canvas>
         </div>
@@ -429,13 +432,14 @@
           "
         >
           <span
-            >MAX MAG: <span id="val-res" style="color: #fff">0.0</span></span
+            >PEAK INTENSITY:
+            <span id="val-res" style="color: #fff">0.0</span></span
           >
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
       <div class="panel">
-        <h3>Event Types</h3>
+        <h3>Multi-Hazard Radar</h3>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="radarChart"></canvas>
         </div>
@@ -452,12 +456,12 @@
             overflow: hidden;
           "
         >
-          > SOURCE: <span style="color: var(--neon-gold)">USGS.GOV (LIVE)</span
-          ><br />
+          > SOURCES:
+          <span style="color: var(--neon-gold)">USGS + NASA EONET</span><br />
           > STATUS: <span id="status-auto">READY</span><br />
           > SAT_LINK: <span id="status-sat">ACTIVE</span>
         </div>
-        <button id="btn-link" class="btn-link">CONNECT TO SATELLITE</button>
+        <button id="btn-link" class="btn-link">ESTABLISH MULTI-LINK</button>
       </div>
     </div>
 
@@ -574,27 +578,24 @@
       function processCommand(cmd) {
         const parts = cmd.split(" ");
         if (cmd.includes("scan") || cmd.includes("quét")) {
-          printTerm("Manual scan initiated...", "sys");
-          fetchData();
+          printTerm("Scanning global feeds...", "sys");
+          fetchAllData();
         } else if (cmd.includes("status") || cmd.includes("báo cáo")) {
           printTerm(`DEFCON: ${currentDefcon}`, "sys");
-          printTerm(`NODES: ${currentNodeCount}`, "sys");
+          printTerm(`EVENTS: ${currentNodeCount}`, "sys");
         } else if (cmd.includes("mute") || cmd.includes("im lặng")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
         } else if (cmd.includes("unmute") || cmd.includes("bật tiếng")) {
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
-        } else if (cmd.includes("vietnam") || cmd.includes("việt nam")) {
+        } else if (cmd.includes("vietnam")) {
           world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
-          printTerm("Moving to VIETNAM...");
-        } else if (cmd.includes("japan") || cmd.includes("nhật bản")) {
-          world.pointOfView({ lat: 36.0, lng: 138.0, altitude: 0.8 }, 2000);
-          printTerm("Moving to JAPAN...");
-        } else if (cmd.includes("usa") || cmd.includes("mỹ")) {
+          printTerm("Focus: VIETNAM");
+        } else if (cmd.includes("usa")) {
           world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
-          printTerm("Moving to USA...");
-        } else if (cmd === "sats" || cmd.includes("vệ tinh")) {
+          printTerm("Focus: USA");
+        } else if (cmd === "sats") {
           showSats = !showSats;
           world.customLayerData(showSats ? satData : []);
           printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
@@ -603,11 +604,10 @@
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- C. MAIN LOGIC & SATELLITES ---
+      // --- C. MAIN LOGIC ---
       let isLive = false;
       let timer = null;
       let world;
-      let previousDataHash = "";
       let currentDefcon = 5;
       let currentNodeCount = 0;
       let showSats = true;
@@ -620,27 +620,27 @@
         color: "#ffd700",
       }));
 
-      function updateDefcon(maxMag) {
+      function updateDefcon(score) {
         const el = document.getElementById("defcon-level");
         const bar = document.getElementById("defcon-bar");
         const body = document.body;
         let level = 5;
         let color = "var(--defcon-5)";
 
-        // Logic Defcon dựa trên độ lớn động đất
-        if (maxMag > 5.0) {
+        // Logic Defcon tổng hợp (Động đất lớn hoặc quá nhiều cháy rừng)
+        if (score > 5) {
           level = 4;
           color = "var(--defcon-4)";
         }
-        if (maxMag > 6.0) {
+        if (score > 10) {
           level = 3;
           color = "var(--defcon-3)";
         }
-        if (maxMag > 7.0) {
+        if (score > 20) {
           level = 2;
           color = "var(--defcon-2)";
         }
-        if (maxMag > 8.0) {
+        if (score > 50) {
           level = 1;
           color = "var(--defcon-1)";
         }
@@ -654,7 +654,7 @@
           if (level <= 2) {
             body.classList.add("alert-mode");
             sfx.playAlarm();
-            printTerm("!!! HIGH ALERT !!!", "err");
+            printTerm("!!! HIGH THREAT LEVEL !!!", "err");
           } else body.classList.remove("alert-mode");
         }
       }
@@ -740,16 +740,16 @@
       const radarChart = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
-          labels: ["Minor", "Moderate", "Strong", "Major", "Great"],
+          labels: ["Quake", "Wildfire", "Volcano", "Storm", "Ice/Other"],
           datasets: [
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
                 "#00f3ff",
-                "#00ff66",
-                "#ffd700",
                 "#ff6600",
-                "#ff003c",
+                "#ffd700",
+                "#bd00ff",
+                "#ffffff",
               ],
               borderWidth: 1,
               borderColor: "#111",
@@ -769,105 +769,159 @@
         },
       });
 
-      // --- F. REAL DATA FETCH (USGS API) ---
-      async function fetchData() {
+      // --- F. MULTI-SOURCE FETCH (USGS + NASA) ---
+      async function fetchAllData() {
         const start = Date.now();
         try {
-          // Lấy dữ liệu động đất 2.5+ trong ngày
-          const res = await fetch(
+          // 1. Fetch Earthquakes (USGS)
+          const quakePromise = fetch(
             "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
-          );
-          const data = await res.json();
+          ).then((r) => r.json());
+
+          // 2. Fetch Wildfires/Storms/Volcanoes (NASA EONET) - Limit 20 days
+          const nasaPromise = fetch(
+            "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
+          ).then((r) => r.json());
+
+          const [quakeData, nasaData] = await Promise.all([
+            quakePromise,
+            nasaPromise,
+          ]);
 
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
 
-          if (data.features) updateUI(data.features);
+          processMultiData(quakeData, nasaData);
         } catch (e) {
           console.error(e);
-          printTerm("Connection failed. Check Internet.", "err");
+          printTerm("Data link unstable (API Error).", "err");
         }
       }
 
-      function updateUI(features) {
-        // Stats
-        document.getElementById("val-prob").innerText = features.length;
+      function processMultiData(quakeData, nasaData) {
+        let combinedEvents = [];
+        let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
+        let maxIntensity = 0;
 
-        // Tìm trận động đất lớn nhất để cập nhật Defcon
-        let maxMag = 0;
-        let counts = [0, 0, 0, 0, 0]; // Minor, Mod, Strong, Major, Great
+        // --- 1. Process Quakes (USGS) ---
+        if (quakeData.features) {
+          quakeData.features.forEach((f) => {
+            const mag = f.properties.mag;
+            if (mag > maxIntensity) maxIntensity = mag;
+            counts.QUAKE++;
 
-        const globeData = features.map((f) => {
-          const mag = f.properties.mag;
-          if (mag > maxMag) maxMag = mag;
+            let color = "#00f3ff"; // Minor
+            if (mag > 5) color = "#00ff66";
+            if (mag > 6) color = "#ffd700";
+            if (mag > 7) color = "#ff003c";
 
-          // Phân loại
-          let type = "QUAKE (MINOR)";
-          let color = "#00f3ff";
-          if (mag < 4.0) {
-            counts[0]++;
-          } else if (mag < 5.0) {
-            counts[1]++;
-            type = "QUAKE (MODERATE)";
-            color = "#00ff66";
-          } else if (mag < 6.0) {
-            counts[2]++;
-            type = "QUAKE (STRONG)";
-            color = "#ffd700";
-          } else if (mag < 7.0) {
-            counts[3]++;
-            type = "QUAKE (MAJOR)";
-            color = "#ff6600";
-          } else {
-            counts[4]++;
-            type = "QUAKE (GREAT)";
-            color = "#ff003c";
-          }
+            combinedEvents.push({
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0],
+              alt: mag * 0.05,
+              color: color,
+              type: `QUAKE (M${mag.toFixed(1)})`,
+              place: f.properties.place,
+              value: mag,
+              desc: "Seismic Activity",
+              maxR: mag > 5 ? mag * 5 : 0,
+            });
+          });
+        }
 
-          return {
-            lat: f.geometry.coordinates[1],
-            lng: f.geometry.coordinates[0],
-            alt: mag * 0.05, // Chiều cao cột theo độ lớn
-            color: color,
-            type: type,
-            place: f.properties.place,
-            energy_level: mag, // Dùng độ lớn làm năng lượng
-            time: new Date(f.properties.time).toLocaleTimeString(),
-            maxR: mag > 5.0 ? mag * 5 : 0, // Chỉ tạo sóng nếu > 5.0
-          };
-        });
+        // --- 2. Process NASA EONET ---
+        if (nasaData.events) {
+          nasaData.events.forEach((e) => {
+            const catId = e.categories[0].id;
+            const coords = e.geometry[0].coordinates; // Lấy tọa độ điểm đầu tiên
 
-        // Update UI Elements
-        document.getElementById("val-res").innerText = maxMag.toFixed(1);
-        updateDefcon(maxMag);
+            // Xử lý tọa độ (NASA có thể trả về [lng, lat] hoặc polygon)
+            let lat = coords[1];
+            let lng = coords[0];
+
+            let color = "#ffffff";
+            let type = e.title;
+            let alt = 0.2;
+
+            if (catId === "wildfires") {
+              counts.FIRE++;
+              color = "var(--neon-orange)";
+              type = "WILDFIRE";
+              alt = 0.3;
+            } else if (catId === "volcanoes") {
+              counts.VOLCANO++;
+              color = "var(--neon-gold)";
+              type = "VOLCANO";
+              alt = 0.5;
+            } else if (catId === "severeStorms") {
+              counts.STORM++;
+              color = "var(--neon-purple)";
+              type = "STORM/CYCLONE";
+              alt = 0.4;
+            } else if (catId === "seaLakeIce") {
+              counts.ICE++;
+              color = "#ffffff";
+              type = "ICEBERG";
+              alt = 0.2;
+            }
+
+            combinedEvents.push({
+              lat: lat,
+              lng: lng,
+              alt: alt,
+              color: color,
+              type: type,
+              place: e.title,
+              value: 5.0, // Default intensity for NASA events
+              desc: "Active NASA Event",
+              maxR: 0,
+            });
+          });
+        }
+
+        // --- Update UI ---
+        document.getElementById("val-prob").innerText = combinedEvents.length;
+        document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
+
+        // Defcon Score = (Quakes * 1) + (Volcano * 3) + (Storm * 2)
+        const dangerScore =
+          maxIntensity + counts.VOLCANO * 2 + counts.STORM * 1.5;
+        updateDefcon(dangerScore);
+
         sfx.playScan();
 
         // Charts
-        waveChart.data.datasets[0].data.push(maxMag);
+        waveChart.data.datasets[0].data.push(maxIntensity);
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        radarChart.data.datasets[0].data = counts;
+        radarChart.data.datasets[0].data = [
+          counts.QUAKE,
+          counts.FIRE,
+          counts.VOLCANO,
+          counts.STORM,
+          counts.ICE,
+        ];
         radarChart.update();
 
         // Update Globe
         if (world) {
-          world.pointsData(globeData);
-          world.ringsData(globeData.filter((d) => d.maxR > 0));
+          world.pointsData(combinedEvents);
+          world.ringsData(combinedEvents.filter((d) => d.maxR > 0));
         }
 
-        // Check Update
-        if (features.length !== currentNodeCount) {
-          currentNodeCount = features.length;
-          printTerm(`Synced ${currentNodeCount} real-time events.`);
-        }
+        printTerm(`Synced ${combinedEvents.length} global events.`);
       }
 
       // --- G. CONTROLS ---
       window.showInspector = (d) => {
         document.getElementById("inspector").classList.add("active");
-        let icon = "📉";
-        const statusColor = d.color;
+        let icon = "📍";
+        if (d.type.includes("QUAKE")) icon = "📉";
+        else if (d.type.includes("VOLCANO")) icon = "🌋";
+        else if (d.type.includes("STORM")) icon = "🌀";
+        else if (d.type.includes("WILDFIRE")) icon = "🔥";
+        else if (d.type.includes("ICE")) icon = "🧊";
 
         document.getElementById("inspector-content").innerHTML = `
                 <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
@@ -876,15 +930,17 @@
                 <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem; max-width:180px;">${
                   d.place
                 }</span></div>
-                <div class="insp-row"><span class="insp-lbl">TIME</span> <span class="insp-val">${
-                  d.time
+                <div class="insp-row"><span class="insp-lbl">DESC</span> <span class="insp-val" style="font-size:0.8rem">${
+                  d.desc
                 }</span></div>
-                <div class="insp-row"><span class="insp-lbl">MAGNITUDE</span> <span class="insp-val" style="font-size:1.5rem; color:${
+                <div class="insp-row"><span class="insp-lbl">INTENSITY</span> <span class="insp-val" style="font-size:1.5rem; color:${
                   d.color
-                }">${d.energy_level.toFixed(1)}</span></div>
-                <div class="status-box" style="border: 1px solid ${statusColor}; color:${statusColor}">CONFIRMED REAL DATA</div>
+                }">${d.value.toFixed(1)}</span></div>
+                <div class="status-box" style="border: 1px solid ${
+                  d.color
+                }; color:${d.color}">LIVE DATA CONFIRMED</div>
             `;
-        printTerm(`Report: ${d.type} - Mag ${d.energy_level}`);
+        printTerm(`Report: ${d.type} at ${d.place}`);
       };
       window.closeInspector = () => {
         document.getElementById("inspector").classList.remove("active");
@@ -894,7 +950,6 @@
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
-        // --- CẬP NHẬT TRẠNG THÁI HUD ---
         const statusAuto = document.getElementById("status-auto");
         const statusSat = document.getElementById("status-sat");
 
@@ -903,10 +958,10 @@
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
           if (world) world.controls().autoRotate = false;
-          printTerm("Connecting to USGS Satellite...");
+          printTerm("Initializing Multi-Source Link...");
           sfx.playBeep();
-          fetchData();
-          timer = setInterval(fetchData, 60000); // Quét mỗi 60s (USGS không cần 3s)
+          fetchAllData();
+          timer = setInterval(fetchAllData, 60000); // 60s update
 
           statusAuto.innerText = "ENGAGED";
           statusAuto.style.color = "var(--neon-green)";
@@ -914,7 +969,7 @@
           statusSat.style.color = "var(--neon-green)";
         } else {
           btn.classList.remove("active");
-          btn.innerText = "CONNECT TO SATELLITE";
+          btn.innerText = "ESTABLISH MULTI-LINK";
           clearInterval(timer);
           if (world) world.controls().autoRotate = true;
           printTerm("Uplink Terminated.");
