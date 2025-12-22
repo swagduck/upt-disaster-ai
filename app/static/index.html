@@ -251,24 +251,31 @@
         .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
         .atmosphereColor("#00f3ff")
         .atmosphereAltitude(0.15)
-        // Cấu hình CỘT (Points)
+
+        // CẤU HÌNH CỘT (POINTS)
         .pointAltitude("alt")
         .pointColor("color")
         .pointRadius(0.6)
-        .pointsMerge(false) // Tắt merge để click được từng điểm riêng biệt
-        // Cấu hình VÒNG SÓNG (Rings)
+        .pointsMerge(false)
+
+        // --- QUAN TRỌNG: THÊM TRANSITION ĐỂ HẾT GIẬT ---
+        .pointAltitudeTransition(1500) // Mất 1.5 giây để thay đổi độ cao mượt mà
+        .pointColorTransition(1500) // Chuyển màu mượt
+        .pointRadiusTransition(1500) // Chuyển độ to nhỏ mượt
+        // -----------------------------------------------
+
+        // CẤU HÌNH VÒNG SÓNG (RINGS)
         .ringColor("color")
         .ringMaxRadius("maxR")
         .ringPropagationSpeed(3)
         .ringRepeatPeriod(1000)
+
         // TƯƠNG TÁC
         .pointLabel(
           (d) => `Target: ${d.place} (Energy: ${d.energy_level.toFixed(2)})`
-        ) // Hover tooltip
+        )
         .onPointClick((d) => {
-          // 1. Camera bay đến điểm đó
           globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
-          // 2. Mở bảng chi tiết
           showInspector(d);
         });
 
