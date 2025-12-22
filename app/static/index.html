@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT ULTIMATE COMMANDER V14.2 (PERFECT FIT)</title>
+    <title>UPT JARVIS V15.0 (VOICE + TECTONIC)</title>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -137,6 +137,11 @@
       .term-line.cmd {
         color: #fff;
       }
+      .term-line.voice {
+        color: var(--neon-gold);
+        font-style: italic;
+      } /* Màu cho giọng nói */
+
       #term-input-line {
         display: flex;
         border-top: 1px solid #333;
@@ -153,6 +158,24 @@
         outline: none;
         margin-left: 5px;
         text-transform: lowercase;
+      }
+
+      /* --- MIC BUTTON --- */
+      #mic-btn {
+        background: transparent;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: 0.3s;
+        margin-right: 5px;
+      }
+      #mic-btn:hover {
+        color: #fff;
+      }
+      #mic-btn.listening {
+        color: var(--neon-red);
+        animation: pulseRed 1s infinite;
       }
 
       /* --- INSPECTOR --- */
@@ -196,7 +219,6 @@
         color: var(--neon-gold);
         font-size: 1rem;
       }
-
       .status-box {
         margin-top: 10px;
         padding: 8px;
@@ -207,37 +229,35 @@
         font-size: 0.9rem;
       }
 
-      /* --- HUD (ĐÃ SỬA ĐỂ KHÔNG BỊ TRÀN MÀN HÌNH) --- */
+      /* --- HUD --- */
       .hud-overlay {
         position: absolute;
         bottom: 15px;
         left: 15px;
         right: 15px;
-        height: 28vh; /* Giảm chiều cao xuống */
+        height: 28vh;
         display: grid;
         grid-template-columns: 0.8fr 1.5fr 1fr 1fr;
-        gap: 10px; /* Giảm khoảng cách giữa các ô */
+        gap: 10px;
         z-index: 10;
         pointer-events: none;
       }
-
       .panel {
         background: var(--glass-bg);
         backdrop-filter: blur(12px);
         border: 1px solid var(--glass-border);
-        padding: 12px; /* Giảm padding bên trong */
+        padding: 12px;
         display: flex;
         flex-direction: column;
         pointer-events: auto;
         clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
         transition: 0.3s;
-        min-height: 0; /* Quan trọng để tránh tràn */
+        min-height: 0;
       }
       .panel:hover {
         border-color: rgba(0, 243, 255, 0.8);
         box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
       }
-
       h3 {
         margin: 0 0 8px 0;
         font-family: var(--tech-font);
@@ -247,7 +267,6 @@
         text-transform: uppercase;
         white-space: nowrap;
       }
-
       .big-stat {
         font-family: var(--tech-font);
         font-size: 2.5rem;
@@ -263,7 +282,6 @@
         letter-spacing: 1px;
         margin-top: 5px;
       }
-
       .btn-link {
         background: rgba(0, 243, 255, 0.1);
         border: 1px solid var(--neon-blue);
@@ -321,10 +339,14 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Modules loaded.</div>
-        <div class="term-line">Ready.</div>
+        <div class="term-line sys">Tectonic layers loaded.</div>
+        <div class="term-line sys">Voice module ready.</div>
+        <div class="term-line">Type 'help' or click MIC to speak.</div>
       </div>
       <div id="term-input-line">
+        <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
+          🎤
+        </button>
         <span>></span
         ><input
           type="text"
@@ -427,8 +449,8 @@
           "
         >
           > AUTO_PILOT: OFF<br />
-          > AUDIO_SYNTH: READY<br />
-          > UPLINK: STANDBY
+          > TECTONIC: VISIBLE<br />
+          > VOICE: STANDBY
         </div>
         <button id="btn-link" class="btn-link">Initialize Uplink</button>
       </div>
@@ -482,9 +504,12 @@
       }
       const sfx = new AudioSynth();
 
-      // --- B. TERMINAL ---
+      // --- B. TERMINAL & VOICE LOGIC ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
+      const micBtn = document.getElementById("mic-btn");
+      let recognition;
+
       function printTerm(msg, type = "") {
         const div = document.createElement("div");
         div.className = `term-line ${type}`;
@@ -492,6 +517,37 @@
         termOut.appendChild(div);
         termOut.scrollTop = termOut.scrollHeight;
       }
+
+      // --- VOICE RECOGNITION SETUP ---
+      if ("webkitSpeechRecognition" in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = "en-US"; // Hoặc 'vi-VN' nếu muốn tiếng Việt chuẩn
+        recognition.interimResults = false;
+
+        recognition.onstart = function () {
+          micBtn.classList.add("listening");
+          printTerm("Listening...", "voice");
+        };
+
+        recognition.onend = function () {
+          micBtn.classList.remove("listening");
+        };
+
+        recognition.onresult = function (event) {
+          const transcript = event.results[0][0].transcript.toLowerCase();
+          printTerm(`"${transcript}"`, "voice");
+          processCommand(transcript);
+        };
+      } else {
+        micBtn.style.display = "none"; // Ẩn nút nếu trình duyệt không hỗ trợ
+        printTerm("Voice API not supported.", "err");
+      }
+
+      function toggleVoice() {
+        if (recognition) recognition.start();
+      }
+
       termIn.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           const cmd = termIn.value.trim().toLowerCase();
@@ -501,34 +557,39 @@
           sfx.playBeep();
         }
       });
+
       function processCommand(cmd) {
+        // Xử lý lệnh (gõ tay hoặc giọng nói)
         const parts = cmd.split(" ");
-        if (cmd === "help")
-          printTerm("COMMANDS: scan, status, mute, unmute, focus [vn/jp/us]");
-        else if (cmd === "scan") {
-          printTerm("Forcing manual scan...", "sys");
+
+        // MAP CÁC TỪ KHÓA
+        if (cmd.includes("scan") || cmd.includes("quét")) {
+          printTerm("Manual scan initiated...", "sys");
           fetchData();
-        } else if (cmd === "status") {
+        } else if (cmd.includes("status") || cmd.includes("báo cáo")) {
           printTerm(`DEFCON: ${currentDefcon}`, "sys");
           printTerm(`NODES: ${currentNodeCount}`, "sys");
-        } else if (cmd === "mute") {
+        } else if (cmd.includes("mute") || cmd.includes("im lặng")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
-        } else if (cmd === "unmute") {
+        } else if (cmd.includes("unmute") || cmd.includes("bật tiếng")) {
           sfx.muted = false;
           printTerm("Audio Enabled.", "sys");
-        } else if (parts[0] === "focus") {
-          if (parts[1] === "vn") {
-            world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
-            printTerm("Moving camera to VIETNAM...");
-          } else if (parts[1] === "jp") {
-            world.pointOfView({ lat: 36.0, lng: 138.0, altitude: 0.8 }, 2000);
-            printTerm("Moving camera to JAPAN...");
-          } else if (parts[1] === "us") {
-            world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
-            printTerm("Moving camera to USA...");
-          }
-        } else printTerm("Unknown command.", "err");
+        }
+
+        // CAMERA MOVEMENT
+        else if (cmd.includes("vietnam") || cmd.includes("việt nam")) {
+          world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
+          printTerm("Moving to VIETNAM...");
+        } else if (cmd.includes("japan") || cmd.includes("nhật bản")) {
+          world.pointOfView({ lat: 36.0, lng: 138.0, altitude: 0.8 }, 2000);
+          printTerm("Moving to JAPAN...");
+        } else if (cmd.includes("usa") || cmd.includes("mỹ")) {
+          world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
+          printTerm("Moving to USA...");
+        } else if (cmd === "help")
+          printTerm("TRY: scan, status, mute, vietnam, japan, usa");
+        else printTerm("Command not recognized.", "err");
       }
 
       // --- C. MAIN LOGIC ---
@@ -575,7 +636,7 @@
         }
       }
 
-      // --- D. INIT GLOBE ---
+      // --- D. INIT GLOBE (WITH TECTONIC PLATES) ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -600,6 +661,24 @@
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
           });
+
+        // --- LOAD TECTONIC PLATES (KHOA HỌC) ---
+        fetch(
+          "//raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
+        )
+          .then((res) => res.json())
+          .then((plates) => {
+            world
+              .pathsData(plates.features)
+              .pathColor(() => "#ff4400") // Màu cam đỏ cho ranh giới mảng
+              .pathDashLength(0.01)
+              .pathDashGap(0.004)
+              .pathDashAnimateTime(100000) // Hiệu ứng chạy nhẹ
+              .pathOpacity(0.3); // Mờ mờ để không rối mắt
+
+            printTerm("Tectonic Plates loaded.", "sys");
+          });
+
         world.controls().autoRotate = true;
         world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
@@ -751,7 +830,7 @@
         radarChart.update();
       }
 
-      // --- G. CONTROLS & INSPECTOR ---
+      // --- G. CONTROLS ---
       window.showInspector = (d) => {
         document.getElementById("inspector").classList.add("active");
         let icon = "📍";
@@ -760,7 +839,6 @@
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("SOLAR")) icon = "☀️";
         else if (d.type.includes("TSUNAMI")) icon = "🌊";
-
         const isCritical = d.energy_level > 0.6;
         const statusText = isCritical ? "CRITICAL FAILURE" : "MONITORING";
         const statusColor = isCritical
@@ -768,35 +846,24 @@
           : "var(--neon-green)";
 
         document.getElementById("inspector-content").innerHTML = `
-                <div class="insp-row">
-                    <span class="insp-lbl">CLASS</span> 
-                    <strong style="color:${d.color}">${icon} ${d.type}</strong>
-                </div>
-                <div class="insp-row">
-                    <span class="insp-lbl">LOC</span> 
-                    <span class="insp-val" style="font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${
-                      d.place
-                    }</span>
-                </div>
-                <div class="insp-row">
-                    <span class="insp-lbl">GEO-DATA</span> 
-                    <span class="insp-code">${d.lat.toFixed(
-                      4
-                    )}, ${d.lng.toFixed(4)}</span>
-                </div>
-                <div class="insp-row">
-                    <span class="insp-lbl">KINETIC</span> 
-                    <span class="insp-val">${d.energy_level.toFixed(4)}</span>
-                </div>
-                <div class="status-box" style="border: 1px solid ${statusColor}; color:${statusColor}">
-                    ${statusText}
-                </div>
+                <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
+                  d.color
+                }">${icon} ${d.type}</strong></div>
+                <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${
+                  d.place
+                }</span></div>
+                <div class="insp-row"><span class="insp-lbl">GEO-DATA</span> <span class="insp-code">${d.lat.toFixed(
+                  4
+                )}, ${d.lng.toFixed(4)}</span></div>
+                <div class="insp-row"><span class="insp-lbl">KINETIC</span> <span class="insp-val">${d.energy_level.toFixed(
+                  4
+                )}</span></div>
+                <div class="status-box" style="border: 1px solid ${statusColor}; color:${statusColor}">${statusText}</div>
             `;
         printTerm(
           `Analysis: ${d.type} at ${d.lat.toFixed(2)},${d.lng.toFixed(2)}`
         );
       };
-
       window.closeInspector = () => {
         document.getElementById("inspector").classList.remove("active");
         if (world) world.pointOfView({ altitude: 2.5 }, 1500);
