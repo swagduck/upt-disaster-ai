@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.4 (INSTANT FIX)</title>
+    <title>UPT COMMANDER V24.5 (TOTAL CONTROL)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -683,6 +683,20 @@
             [x] STORMS
           </button>
           <button
+            id="btn-fire"
+            class="filter-btn active"
+            onclick="toggleFilter('FIRE', this)"
+          >
+            [x] FIRES
+          </button>
+          <button
+            id="btn-other"
+            class="filter-btn active"
+            onclick="toggleFilter('OTHER', this)"
+          >
+            [x] OTHERS
+          </button>
+          <button
             id="btn-predict"
             class="filter-btn"
             style="border-color: var(--neon-purple); color: var(--neon-purple)"
@@ -936,7 +950,7 @@
       }
 
       function setAllFilters(state) {
-        ["QUAKE", "VOLCANO", "STORM", "FIRE"].forEach((type) => {
+        ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER"].forEach((type) => {
           activeFilters[type] = state;
           updateFilterBtnUI(type, state);
         });
@@ -964,12 +978,13 @@
       let showSats = true;
       let allEventsCache = [];
       let statsCache = null;
+      // ADDED 'OTHER' CATEGORY
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
         STORM: true,
         FIRE: true,
-        ICE: true,
+        OTHER: true,
         PREDICT: false,
       };
       let predictionEvents = [];
@@ -1064,13 +1079,13 @@
           btn.classList.add("active");
           btn.innerText = "[x] NEURAL AI";
           btn.style.backgroundColor = "rgba(189, 0, 255, 0.2)";
-          runNeuralPrediction(); // FIX: RUN INSTANT
+          runNeuralPrediction();
         } else {
           btn.classList.remove("active");
           btn.innerText = "[ ] NEURAL AI";
           btn.style.backgroundColor = "transparent";
           predictionEvents = [];
-          applyFilters(); // FIX: APPLY INSTANT
+          applyFilters();
           printTerm("Neural Viz deactivated.", "sys");
         }
       };
@@ -1141,22 +1156,24 @@
         applyFilters();
       }
 
+      // --- FIXED STRICT FILTERING ---
       function applyFilters() {
         let filteredData = allEventsCache.filter((d) => {
-          if (d.type.includes("QUAKE") && !activeFilters["QUAKE"]) return false;
-          if (d.type.includes("VOLCANO") && !activeFilters["VOLCANO"])
-            return false;
-          if (d.type.includes("STORM") && !activeFilters["STORM"]) return false;
-          if (d.type.includes("WILDFIRE") && !activeFilters["FIRE"])
-            return false;
-          if (d.type.includes("ICE") && !activeFilters["ICE"]) return false;
-          return true;
+          if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
+          if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
+          if (d.type.includes("STORM") && d.color === "#bd00ff")
+            return activeFilters["STORM"]; // Strict Storm
+          if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
+
+          // CATCH ALL FOR OTHERS (Ice, Flood, Landslide, etc)
+          // If it's none of the above, it's an OTHER
+          return activeFilters["OTHER"];
         });
+
         if (activeFilters["PREDICT"])
           filteredData = filteredData.concat(predictionEvents);
 
         if (world) {
-          // INSTANT FIX: Force redraw without waiting for next tick
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
         }
@@ -1237,7 +1254,7 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
           .showGraticules(true)
-          .pointAltitude("alt") // FIXED ALTITUDE
+          .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
           .pointsMerge(false)
@@ -1397,27 +1414,40 @@
             let color = "#ffffff";
             let type = e.title;
             let alt = 0.2;
+            let isSpecial = false;
+
             if (catId === "wildfires") {
               counts.FIRE++;
               color = "#ff6600";
               type = "WILDFIRE";
               alt = 0.3;
+              isSpecial = true;
             } else if (catId === "volcanoes") {
               counts.VOLCANO++;
               color = "#ffd700";
               type = "VOLCANO";
               alt = 0.5;
+              isSpecial = true;
             } else if (catId === "severeStorms") {
               counts.STORM++;
               color = "#bd00ff";
               type = "STORM/CYCLONE";
               alt = 0.4;
+              isSpecial = true;
             } else if (catId === "seaLakeIce") {
               counts.ICE++;
               color = "#ffffff";
               type = "ICEBERG";
               alt = 0.2;
+              isSpecial = true;
             }
+
+            // If not special, it's 'OTHER' (white)
+            if (!isSpecial) {
+              type = "OTHER EVENT";
+              color = "#aaaaaa";
+            }
+
             combinedEvents.push({
               lat: lat,
               lng: lng,
