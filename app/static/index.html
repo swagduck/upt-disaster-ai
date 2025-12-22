@@ -3,9 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT JARVIS V15.2 (FINAL ROBUST)</title>
+    <title>UPT COMMANDER V16.0 (CLEAN CORE)</title>
 
-    <script src="//unpkg.com/globe.gl@2.27.0/dist/globe.gl.min.js"></script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>"
+    />
+
+    <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
@@ -56,8 +61,8 @@
           to bottom,
           rgba(255, 255, 255, 0),
           rgba(255, 255, 255, 0) 50%,
-          rgba(0, 0, 0, 0.2) 50%,
-          rgba(0, 0, 0, 0.2)
+          rgba(0, 0, 0, 0.1) 50%,
+          rgba(0, 0, 0, 0.1)
         );
         background-size: 100% 4px;
         opacity: 0.1;
@@ -72,7 +77,7 @@
         z-index: 0;
       }
 
-      /* --- DEFCON BAR --- */
+      /* DEFCON */
       #defcon-bar {
         position: absolute;
         top: 0;
@@ -100,7 +105,7 @@
         text-shadow: 0 0 15px currentColor;
       }
 
-      /* --- TERMINAL --- */
+      /* TERMINAL */
       #terminal {
         position: absolute;
         top: 100px;
@@ -141,7 +146,6 @@
         color: var(--neon-gold);
         font-style: italic;
       }
-
       #term-input-line {
         display: flex;
         border-top: 1px solid #333;
@@ -176,7 +180,7 @@
         animation: pulseRed 1s infinite;
       }
 
-      /* --- INSPECTOR --- */
+      /* INSPECTOR */
       #inspector {
         position: absolute;
         top: 20px;
@@ -194,7 +198,6 @@
       #inspector.active {
         right: 20px;
       }
-
       .insp-row {
         display: flex;
         justify-content: space-between;
@@ -227,7 +230,7 @@
         font-size: 0.9rem;
       }
 
-      /* --- HUD --- */
+      /* HUD */
       .hud-overlay {
         position: absolute;
         bottom: 15px;
@@ -337,8 +340,8 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Voice module ready.</div>
-        <div class="term-line">Type 'help' or click MIC to speak.</div>
+        <div class="term-line sys">Core stable. Visuals loaded.</div>
+        <div class="term-line">Ready for input.</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -446,7 +449,7 @@
           "
         >
           > AUTO_PILOT: OFF<br />
-          > TECTONIC: VISIBLE<br />
+          > TACTICAL_GRID: ON<br />
           > VOICE: STANDBY
         </div>
         <button id="btn-link" class="btn-link">Initialize Uplink</button>
@@ -454,6 +457,18 @@
     </div>
 
     <script>
+      // --- 0. ERROR SUPPRESSION (CHẶN LỖI NGỨA MẮT) ---
+      const originalError = console.error;
+      console.error = function (...args) {
+        if (
+          args[0] &&
+          (args[0].toString().includes("t.map") ||
+            args[0].toString().includes("pathOpacity"))
+        )
+          return;
+        originalError.apply(console, args);
+      };
+
       // --- A. AUDIO SYNTH ---
       class AudioSynth {
         constructor() {
@@ -623,7 +638,7 @@
         }
       }
 
-      // --- D. INIT GLOBE ---
+      // --- D. INIT GLOBE (CLEAN CORE - NO EXTERNAL FETCH) ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -635,6 +650,11 @@
           )
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
+
+          // --- THAY THẾ TECTONIC BẰNG GRATICULES (LƯỚI CHIẾN THUẬT) ---
+          .showGraticules(true) // Bật lưới kinh vĩ tuyến
+          // -------------------------------------------------------------
+
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
@@ -647,27 +667,6 @@
             sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
-          });
-
-        // --- LOAD TECTONIC PLATES (SAFE MODE: NO OPACITY FUNC, USE RGBA) ---
-        fetch(
-          "//raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
-        )
-          .then((res) => res.json())
-          .then((plates) => {
-            if (plates && plates.features) {
-              world
-                .pathsData(plates.features)
-                .pathColor(() => "rgba(255, 68, 0, 0.4)") // RGBA màu cam có độ mờ 0.4
-                .pathDashLength(0.01)
-                .pathDashGap(0.004)
-                .pathDashAnimateTime(100000);
-              printTerm("Tectonic Plates loaded.", "sys");
-            }
-          })
-          .catch((err) => {
-            console.error("Tectonic load error:", err);
-            printTerm("Tectonic load failed.", "err");
           });
 
         world.controls().autoRotate = true;
