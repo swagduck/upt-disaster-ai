@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V26.1 (STABLE GUARDIAN)</title>
+    <title>UPT COMMANDER V26.2 (VISUAL FIXED)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -513,8 +513,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v26.1 loaded.</div>
-        <div class="term-line sys">Module: STABILITY FIX [APPLIED]</div>
+        <div class="term-line sys">Guardian Kernel v26.2 loaded.</div>
+        <div class="term-line sys">Module: VISUAL UPGRADE [ACTIVE]</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -1029,6 +1029,7 @@
       let model = null;
       let trainingData = [];
       let isTraining = false;
+
       let userLat = null;
       let userLng = null;
       let userEventMarker = null;
@@ -1157,7 +1158,7 @@
       };
 
       function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
+        const R = 6371; // km
         const dLat = ((lat2 - lat1) * Math.PI) / 180;
         const dLon = ((lon2 - lon1) * Math.PI) / 180;
         const a =
@@ -1366,6 +1367,28 @@
         if (world) {
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
+
+          // FIXED 3D OBJECT RENDERER
+          world.customThreeObject((d) => {
+            if (d.type === "NUCLEAR PLANT") {
+              const geometry = new THREE.OctahedronGeometry(1.5);
+              const material = new THREE.MeshBasicMaterial({
+                color: d.color,
+                wireframe: true,
+              });
+              return new THREE.Mesh(geometry, material);
+            } else if (d.type === "SATELLITE") {
+              const geometry = new THREE.SphereGeometry(0.5);
+              const material = new THREE.MeshBasicMaterial({ color: d.color });
+              return new THREE.Mesh(geometry, material);
+            } else {
+              const geometry = new THREE.TetrahedronGeometry(1.2);
+              const material = new THREE.MeshLambertMaterial({
+                color: d.color,
+              });
+              return new THREE.Mesh(geometry, material);
+            }
+          });
         }
       }
 
