@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V21.0 (GLOBAL COMMAND)</title>
+    <title>UPT COMMANDER V21.1 (STATUS FIX)</title>
 
     <link
       rel="icon"
@@ -409,8 +409,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v21.0 loaded.</div>
-        <div class="term-line sys">Global Command Module: Online.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v21.1 loaded.</div>
+        <div class="term-line sys">Counter logic fixed.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -617,7 +617,7 @@
         originalError.apply(console, args);
       };
 
-      // --- A. AUDIO SYNTH ---
+      // --- AUDIO ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -664,7 +664,7 @@
       }
       const sfx = new AudioSynth();
 
-      // --- B. TERMINAL & VOICE ---
+      // --- TERMINAL ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -714,19 +714,27 @@
         }
       });
 
-      // --- EXPANDED COMMAND PROCESSOR ---
+      // --- COMMANDS ---
       function processCommand(cmd) {
-        // Standard Commands
-        if (cmd.includes("scan") || cmd.includes("quét")) {
+        if (cmd.includes("scan")) {
           printTerm("Manual scan...", "sys");
           fetchAllData();
           return;
         }
+
+        // FIXED STATUS COMMAND
         if (cmd.includes("status")) {
-          printTerm(`DEFCON: ${currentDefcon}`, "sys");
-          printTerm(`EVENTS: ${currentNodeCount}`, "sys");
+          printTerm(`--- SYSTEM REPORT ---`, "sys");
+          printTerm(`DEFCON LEVEL: ${currentDefcon}`, "sys");
+          printTerm(`TOTAL EVENTS: ${currentNodeCount}`, "sys");
+          if (statsCache) {
+            printTerm(`[+] QUAKES: ${statsCache.QUAKE}`, "sys");
+            printTerm(`[+] FIRES: ${statsCache.FIRE}`, "sys");
+            printTerm(`[+] STORMS: ${statsCache.STORM}`, "sys");
+          }
           return;
         }
+
         if (cmd.includes("mute")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
@@ -738,59 +746,48 @@
           return;
         }
 
-        // Satellite
-        if (cmd === "sats" || cmd.includes("vệ tinh")) {
-          showSats = !showSats;
-          world.customLayerData(showSats ? satData : []);
-          printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
-          return;
-        }
-
-        // --- LOCATION COMMANDS (Mở rộng) ---
         const locs = {
-          vietnam: { lat: 14.0, lng: 108.0, alt: 0.8, name: "VIETNAM" },
-          usa: { lat: 37.0, lng: -95.0, alt: 1.0, name: "USA" },
-          japan: { lat: 36.0, lng: 138.0, alt: 0.8, name: "JAPAN" },
-          europe: { lat: 54.0, lng: 15.0, alt: 1.2, name: "EUROPE" },
-          asia: { lat: 34.0, lng: 100.0, alt: 1.5, name: "ASIA" },
-          africa: { lat: 0.0, lng: 20.0, alt: 1.5, name: "AFRICA" },
-          "south america": {
-            lat: -15.0,
-            lng: -60.0,
-            alt: 1.5,
-            name: "SOUTH AMERICA",
-          },
-          australia: { lat: -25.0, lng: 133.0, alt: 1.0, name: "AUSTRALIA" },
-          china: { lat: 35.0, lng: 105.0, alt: 1.0, name: "CHINA" },
-          russia: { lat: 60.0, lng: 100.0, alt: 1.2, name: "RUSSIA" },
-          india: { lat: 20.0, lng: 77.0, alt: 1.0, name: "INDIA" },
-          indonesia: { lat: -5.0, lng: 120.0, alt: 0.8, name: "INDONESIA" },
+          vietnam: { lat: 14.0, lng: 108.0, alt: 0.8 },
+          usa: { lat: 37.0, lng: -95.0, alt: 1.0 },
+          japan: { lat: 36.0, lng: 138.0, alt: 0.8 },
+          europe: { lat: 54.0, lng: 15.0, alt: 1.2 },
+          asia: { lat: 34.0, lng: 100.0, alt: 1.5 },
+          africa: { lat: 0.0, lng: 20.0, alt: 1.5 },
+          australia: { lat: -25.0, lng: 133.0, alt: 1.0 },
+          china: { lat: 35.0, lng: 105.0, alt: 1.0 },
+          russia: { lat: 60.0, lng: 100.0, alt: 1.2 },
+          india: { lat: 20.0, lng: 77.0, alt: 1.0 },
+          indonesia: { lat: -5.0, lng: 120.0, alt: 0.8 },
         };
-
         for (const [key, val] of Object.entries(locs)) {
           if (cmd.includes(key)) {
             world.pointOfView(
               { lat: val.lat, lng: val.lng, altitude: val.alt },
               2000
             );
-            printTerm(`Moving to sector: ${val.name}`, "sys");
+            printTerm(`Moving to ${key.toUpperCase()}`, "sys");
             return;
           }
         }
 
-        // --- FILTER COMMANDS (Mở rộng) ---
-        if (cmd.includes("show all") || cmd.includes("tất cả")) {
+        if (cmd === "sats") {
+          showSats = !showSats;
+          world.customLayerData(showSats ? satData : []);
+          printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
+          return;
+        }
+
+        if (cmd.includes("show all")) {
           setAllFilters(true);
           printTerm("All filters ENGAGED.", "sys");
           return;
         }
-        if (cmd.includes("hide all") || cmd.includes("ẩn hết")) {
+        if (cmd.includes("hide all")) {
           setAllFilters(false);
           printTerm("All filters DISENGAGED.", "sys");
           return;
         }
 
-        // Map command words to filter keys
         const filterMap = {
           quake: "QUAKE",
           fire: "FIRE",
@@ -799,42 +796,19 @@
         };
         for (const [key, type] of Object.entries(filterMap)) {
           if (cmd.includes(key)) {
-            // Logic bật tắt thông minh
-            if (
-              cmd.includes("show") ||
-              cmd.includes("hiện") ||
-              cmd.includes("on")
-            ) {
-              activeFilters[type] = true;
-              updateFilterBtnUI(type, true);
-              printTerm(`Filter ${type}: ON`, "sys");
-            } else if (
-              cmd.includes("hide") ||
-              cmd.includes("ẩn") ||
-              cmd.includes("off")
-            ) {
-              activeFilters[type] = false;
-              updateFilterBtnUI(type, false);
-              printTerm(`Filter ${type}: OFF`, "sys");
-            } else {
-              // Toggle nếu không nói rõ on/off
-              activeFilters[type] = !activeFilters[type];
-              updateFilterBtnUI(type, activeFilters[type]);
-              printTerm(
-                `Filter ${type}: ${activeFilters[type] ? "ON" : "OFF"}`,
-                "sys"
-              );
-            }
+            activeFilters[type] = !activeFilters[type];
+            updateFilterBtnUI(type, activeFilters[type]);
+            printTerm(
+              `Filter ${type}: ${activeFilters[type] ? "ON" : "OFF"}`,
+              "sys"
+            );
             applyFilters();
             return;
           }
         }
 
-        // Default
         if (cmd === "help")
-          printTerm(
-            "TRY: vietnam, europe, africa, show fires, hide quakes, sats, scan"
-          );
+          printTerm("TRY: scan, status, mute, vietnam, show fires, sats");
         else printTerm("Command not recognized.", "err");
       }
 
@@ -845,10 +819,8 @@
         });
         applyFilters();
       }
-
       function updateFilterBtnUI(type, isActive) {
-        const btnId = `btn-${type.toLowerCase()}`; // ID mapping: btn-quake, btn-fire...
-        const btn = document.getElementById(btnId);
+        const btn = document.getElementById(`btn-${type.toLowerCase()}`);
         if (btn) {
           if (isActive) {
             btn.classList.add("active");
@@ -860,7 +832,7 @@
         }
       }
 
-      // --- C. MAIN LOGIC ---
+      // --- LOGIC ---
       let isLive = false;
       let timer = null;
       let world;
@@ -868,6 +840,7 @@
       let currentNodeCount = 0;
       let showSats = true;
       let allEventsCache = [];
+      let statsCache = null;
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
@@ -884,10 +857,8 @@
         color: "#ffd700",
       }));
 
-      // Hàm click từ nút HTML
       window.toggleFilter = (type, btn) => {
         activeFilters[type] = !activeFilters[type];
-        // UI update handled inside logic via class check, or simple toggle here
         if (activeFilters[type]) {
           btn.classList.add("active");
           btn.innerText = `[x] ${type}S`;
@@ -1179,6 +1150,9 @@
         }
 
         allEventsCache = combinedEvents;
+        currentNodeCount = combinedEvents.length; // <--- FIX LỖI Ở ĐÂY
+        statsCache = counts; // Lưu thống kê để báo cáo
+
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
         const dangerScore =
