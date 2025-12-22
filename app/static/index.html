@@ -3,10 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HOLOGRAPHIC COMMAND V10.1</title>
+    <title>UPT HOLOGRAPHIC V10.3 STABLE</title>
 
     <script src="//unpkg.com/three"></script>
     <script src="//unpkg.com/globe.gl"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
@@ -34,12 +35,11 @@
         height: 100vh;
       }
 
+      /* LAYOUT */
       .grid-container {
         display: grid;
         grid-template-rows: 100vh;
-      } /* Full screen 3D */
-
-      /* 3D GLOBE CONTAINER */
+      }
       #globe-viz {
         position: absolute;
         top: 0;
@@ -49,7 +49,7 @@
         z-index: 1;
       }
 
-      /* HUD OVERLAY (Nổi lên trên 3D) */
+      /* HUD OVERLAY */
       .hud-overlay {
         position: absolute;
         bottom: 0;
@@ -60,9 +60,9 @@
         gap: 10px;
         padding: 10px;
         box-sizing: border-box;
-        background: linear-gradient(to top, #000 80%, transparent 100%);
+        background: linear-gradient(to top, #000 90%, transparent 100%);
         z-index: 10;
-        pointer-events: none; /* Để chuột bấm xuyên qua vào Globe */
+        pointer-events: none;
       }
 
       .panel {
@@ -74,10 +74,10 @@
         flex-direction: column;
         backdrop-filter: blur(5px);
         border-radius: 5px;
-        pointer-events: auto; /* Panel thì bấm được */
+        pointer-events: auto;
       }
 
-      /* INSPECTOR PANEL (Trượt từ phải sang) */
+      /* INSPECTOR */
       #inspector {
         position: absolute;
         top: 0;
@@ -97,7 +97,7 @@
         right: 0;
       }
 
-      /* TEXT STYLES */
+      /* TEXT & UI */
       h3 {
         margin: 0 0 5px 0;
         font-family: "Orbitron";
@@ -122,7 +122,6 @@
         text-align: right;
       }
 
-      /* LOGS */
       #log-box {
         font-size: 0.7rem;
         overflow-y: auto;
@@ -137,7 +136,6 @@
         padding-left: 5px;
       }
 
-      /* BUTTONS */
       .btn-link {
         background: rgba(0, 243, 255, 0.1);
         border: 1px solid var(--primary);
@@ -244,46 +242,62 @@
     </div>
 
     <script>
-      // --- 1. SETUP GLOBE ---
-      const globe = Globe()(document.getElementById("globe-viz"))
-        .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
-        .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
-        .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
-        .atmosphereColor("#00f3ff")
-        .atmosphereAltitude(0.15)
+      // --- 1. KHAI BÁO BIẾN TOÀN CỤC TRƯỚC (QUAN TRỌNG ĐỂ SỬA LỖI ISLIVE) ---
+      let isLive = false;
+      let timer = null;
+      let globe; // Khai báo trước
 
-        // CẤU HÌNH CỘT (POINTS)
-        .pointAltitude("alt")
-        .pointColor("color")
-        .pointRadius(0.6)
-        .pointsMerge(false)
+      // --- 2. HÀM LOGGING ---
+      function log(msg) {
+        const box = document.getElementById("log-box");
+        const t = new Date().toLocaleTimeString("en-US", { hour12: false });
+        box.innerHTML =
+          `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
+      }
 
-        // --- QUAN TRỌNG: THÊM TRANSITION ĐỂ HẾT GIẬT ---
-        .pointAltitudeTransition(1500) // Mất 1.5 giây để thay đổi độ cao mượt mà
-        .pointColorTransition(1500) // Chuyển màu mượt
-        .pointRadiusTransition(1500) // Chuyển độ to nhỏ mượt
-        // -----------------------------------------------
+      // --- 3. KHỞI TẠO GLOBE ---
+      try {
+        globe = Globe()(document.getElementById("globe-viz"))
+          .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
+          .bumpImageUrl(
+            "//unpkg.com/three-globe/example/img/earth-topology.png"
+          )
+          .backgroundImageUrl(
+            "//unpkg.com/three-globe/example/img/night-sky.png"
+          )
+          .atmosphereColor("#00f3ff")
+          .atmosphereAltitude(0.15)
 
-        // CẤU HÌNH VÒNG SÓNG (RINGS)
-        .ringColor("color")
-        .ringMaxRadius("maxR")
-        .ringPropagationSpeed(3)
-        .ringRepeatPeriod(1000)
+          // Cấu hình Cột & Transition (Đã sửa lỗi function not found bằng cách load đúng thư viện)
+          .pointAltitude("alt")
+          .pointColor("color")
+          .pointRadius(0.6)
+          .pointsMerge(false)
+          .pointAltitudeTransition(1500)
+          .pointColorTransition(1500)
+          .pointRadiusTransition(1500)
 
-        // TƯƠNG TÁC
-        .pointLabel(
-          (d) => `Target: ${d.place} (Energy: ${d.energy_level.toFixed(2)})`
-        )
-        .onPointClick((d) => {
-          globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
-          showInspector(d);
-        });
+          // Vòng sóng
+          .ringColor("color")
+          .ringMaxRadius("maxR")
+          .ringPropagationSpeed(3)
+          .ringRepeatPeriod(1000)
 
-      // Auto rotate mặc định
-      globe.controls().autoRotate = true;
-      globe.controls().autoRotateSpeed = 0.5;
+          // Tương tác
+          .pointLabel((d) => `Target: ${d.place}`)
+          .onPointClick((d) => {
+            globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
+            showInspector(d);
+          });
 
-      // --- 2. CHARTS CONFIG ---
+        globe.controls().autoRotate = true;
+        globe.controls().autoRotateSpeed = 0.5;
+      } catch (e) {
+        console.error("Lỗi khởi tạo Globe:", e);
+        log("Lỗi thư viện 3D. Hãy F5 lại trang.");
+      }
+
+      // --- 4. CONFIG CHARTS ---
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
@@ -343,23 +357,11 @@
         },
       });
 
-      // --- 3. LOGIC ---
-      let isLive = false,
-        timer = null;
-
-      function log(msg) {
-        const box = document.getElementById("log-box");
-        const t = new Date().toLocaleTimeString("en-US", { hour12: false });
-        box.innerHTML =
-          `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
-      }
-
-      // INSPECTOR FUNCTIONS
+      // --- 5. LOGIC CHÍNH ---
       function showInspector(d) {
         const p = document.getElementById("inspector");
         p.classList.add("active");
 
-        // Icon Mapping
         let icon = "📍";
         if (d.type.includes("EARTHQUAKE")) icon = "📉";
         else if (d.type.includes("TSUNAMI")) icon = "🌊";
@@ -374,14 +376,10 @@
                 <div class="row"><span class="lbl">LOCATION</span> <span class="val">${
                   d.place
                 }</span></div>
-                <div class="row"><span class="lbl">COORDINATES</span> <span class="val">${d.lat.toFixed(
-                  2
-                )}, ${d.lng.toFixed(2)}</span></div>
                 <div class="row"><span class="lbl">ENERGY (E)</span> <span class="val" style="color:var(--warn)">${d.energy_level.toFixed(
                   3
                 )}</span></div>
                 <div style="margin-top:20px; border:1px solid #444; padding:15px; text-align:center; background:rgba(0,0,0,0.5)">
-                    <div style="font-size:0.7rem; color:#aaa; margin-bottom:5px">UPT ANALYSIS</div>
                     <strong style="font-size:1.5rem; color:${
                       d.energy_level > 0.6 ? "var(--danger)" : "var(--primary)"
                     }">
@@ -389,30 +387,31 @@
                     </strong>
                 </div>
             `;
-        log(`Focusing on: ${d.place}`);
       }
 
       function closeInspector() {
         document.getElementById("inspector").classList.remove("active");
-        globe.pointOfView({ altitude: 2.5 }, 2000); // Zoom out
+        globe.pointOfView({ altitude: 2.5 }, 2000);
       }
 
-      // SYSTEM CONTROL
+      // Hàm này được gọi khi bấm nút
       async function toggleSystem() {
+        // Sửa lỗi ReferenceError: isLive đã được khai báo ở trên cùng
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
+
         if (isLive) {
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
-          globe.controls().autoRotate = false; // Dừng xoay để người dùng thao tác
-          log("Hologram Interactive Mode: ON");
+          if (globe) globe.controls().autoRotate = false;
+          log("System Initialized.");
           fetchData();
           timer = setInterval(fetchData, 3000);
         } else {
           btn.classList.remove("active");
           btn.innerText = "INITIALIZE [3s]";
           clearInterval(timer);
-          globe.controls().autoRotate = true;
+          if (globe) globe.controls().autoRotate = true;
           log("System Standby.");
         }
       }
@@ -426,12 +425,12 @@
             Date.now() - start + "ms";
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          log("Signal lost.");
+          console.error(e);
+          log("Signal weak...");
         }
       }
 
       function updateUI(data) {
-        // Stats & Charts
         const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
         document.getElementById("val-prob").innerText = prob + "%";
         document.getElementById("val-res").innerText =
@@ -443,7 +442,6 @@
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // Prepare Globe Data
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
@@ -451,6 +449,7 @@
           SOLAR_FLARE: 0,
           TSUNAMI: 0,
         };
+
         const globeData = data.raw_sensors.map((s) => {
           counts[s.type] = (counts[s.type] || 0) + 1;
           let color = "#00f3ff";
@@ -464,20 +463,20 @@
           return {
             lat: s.lat,
             lng: s.lon,
-            alt: s.energy_level * 0.4, // Độ cao cột
+            alt: s.energy_level * 0.4,
             color: color,
             type: s.type,
             place: s.place,
-            energy_level: s.energy_level, // Dữ liệu đi kèm để hiện Inspector
-            maxR: s.energy_level > 0.5 ? s.energy_level * 15 : 0, // Bán kính vòng sóng
+            energy_level: s.energy_level,
+            maxR: s.energy_level > 0.5 ? s.energy_level * 15 : 0,
           };
         });
 
-        // Update Globe
-        globe.pointsData(globeData);
-        globe.ringsData(globeData.filter((d) => d.maxR > 0));
+        if (globe) {
+          globe.pointsData(globeData);
+          globe.ringsData(globeData.filter((d) => d.maxR > 0));
+        }
 
-        // Radar
         radarChart.data.datasets[0].data = [
           counts["EARTHQUAKE"],
           counts["VOLCANO"],
@@ -487,7 +486,7 @@
         ];
         radarChart.update();
 
-        log(`Synced ${data.raw_sensors.length} targets.`);
+        log(`Synced ${data.raw_sensors.length} nodes.`);
       }
     </script>
   </body>
