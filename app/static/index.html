@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V22.0 (FINAL HUD)</title>
+    <title>UPT COMMANDER V23.1 (SMART LOGIC)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -26,7 +26,8 @@
         --neon-green: #00ff66;
         --neon-orange: #ff6600;
         --neon-purple: #bd00ff;
-        --glass-bg: rgba(8, 15, 25, 0.85);
+        --neon-white: #ffffff;
+        --glass-bg: rgba(8, 15, 25, 0.9);
         --glass-border: rgba(0, 243, 255, 0.3);
         --tech-font: "Orbitron", sans-serif;
         --data-font: "Rajdhani", sans-serif;
@@ -176,6 +177,10 @@
       }
       .term-line.cmd {
         color: #fff;
+      }
+      .term-line.ai {
+        color: var(--neon-purple);
+        font-weight: bold;
       }
       .term-line.voice {
         color: var(--neon-gold);
@@ -338,7 +343,6 @@
         color: #fff;
       }
 
-      /* FILTERS */
       .filter-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -365,7 +369,6 @@
         background: rgba(0, 255, 100, 0.1);
       }
 
-      /* COUNTDOWN */
       .countdown-ring {
         position: absolute;
         top: 10px;
@@ -383,7 +386,7 @@
         font-size: 0.9rem;
       }
 
-      /* NEW: HELP OVERLAY */
+      /* HELP OVERLAY */
       #help-overlay {
         position: fixed;
         top: 0;
@@ -450,31 +453,28 @@
         <div class="help-col">
           <h4>SYSTEM CONTROL</h4>
           <ul>
-            <li><span class="cmd-key">scan</span> - Force data refresh</li>
-            <li><span class="cmd-key">status</span> - Situation report</li>
-            <li><span class="cmd-key">sats</span> - Toggle satellites</li>
-            <li><span class="cmd-key">mute</span> - Disable audio</li>
-            <li><span class="cmd-key">unmute</span> - Enable audio</li>
+            <li><span class="cmd-key">scan</span> - Refresh Data</li>
+            <li><span class="cmd-key">status</span> - Situation Report</li>
+            <li><span class="cmd-key">predict</span> - AI Heuristic Mode</li>
+            <li><span class="cmd-key">sats</span> - Toggle Satellites</li>
           </ul>
         </div>
         <div class="help-col">
           <h4>NAVIGATION</h4>
           <ul>
             <li><span class="cmd-key">vietnam</span> - Focus VN</li>
-            <li><span class="cmd-key">usa</span> - Focus USA</li>
-            <li><span class="cmd-key">japan</span> - Focus Japan</li>
-            <li><span class="cmd-key">europe</span> - Focus Europe</li>
-            <li><span class="cmd-key">asia / africa</span> - Continents</li>
+            <li><span class="cmd-key">usa / japan</span> - Focus Key Areas</li>
+            <li><span class="cmd-key">europe</span> - Focus EU</li>
+            <li><span class="cmd-key">global</span> - Reset View</li>
           </ul>
         </div>
         <div class="help-col">
-          <h4>TACTICAL FILTERS</h4>
+          <h4>TACTICAL</h4>
           <ul>
-            <li><span class="cmd-key">show all</span> - Show everything</li>
-            <li><span class="cmd-key">hide all</span> - Stealth mode</li>
-            <li><span class="cmd-key">show quakes</span> - Toggle Quakes</li>
-            <li><span class="cmd-key">show fires</span> - Toggle Fires</li>
-            <li><span class="cmd-key">show storms</span> - Toggle Storms</li>
+            <li><span class="cmd-key">show all</span> - Reveal Map</li>
+            <li><span class="cmd-key">hide all</span> - Stealth Mode</li>
+            <li><span class="cmd-key">show quakes</span> - Filter Quakes</li>
+            <li><span class="cmd-key">mute / unmute</span> - Audio Control</li>
           </ul>
         </div>
         <div
@@ -507,8 +507,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Sentinel Prime Kernel v22.0 loaded.</div>
-        <div class="term-line sys">Press 'H' for Command List.</div>
+        <div class="term-line sys">Sentinel Prime Kernel v23.1 loaded.</div>
+        <div class="term-line sys">Heuristic Logic Module: Online.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -566,7 +566,7 @@
 
     <div class="hud-overlay">
       <div class="panel">
-        <h3>Global Threat</h3>
+        <h3>Global Risk</h3>
         <div
           style="
             text-align: center;
@@ -577,7 +577,7 @@
           "
         >
           <div id="val-prob" class="big-stat">--</div>
-          <div class="sub-stat">ACTIVE EVENTS</div>
+          <div class="sub-stat">EVENTS & PREDICTIONS</div>
         </div>
       </div>
       <div class="panel">
@@ -601,7 +601,7 @@
         </div>
       </div>
       <div class="panel">
-        <h3>Multi-Hazard Radar</h3>
+        <h3>Hazard Distribution</h3>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="radarChart"></canvas>
         </div>
@@ -676,11 +676,12 @@
             [x] STORMS
           </button>
           <button
-            id="btn-fire"
-            class="filter-btn active"
-            onclick="toggleFilter('FIRE', this)"
+            id="btn-predict"
+            class="filter-btn"
+            style="border-color: var(--neon-purple); color: var(--neon-purple)"
+            onclick="togglePrediction()"
           >
-            [x] FIRES
+            [ ] AI SMART
           </button>
         </div>
 
@@ -694,7 +695,7 @@
             overflow: hidden;
           "
         >
-          > AUTO_PILOT: <span id="status-auto">READY</span><br />
+          > AI_CORE: <span id="status-auto">READY</span><br />
           > SAT_LINK: <span id="status-sat">STANDBY</span>
         </div>
 
@@ -703,6 +704,7 @@
     </div>
 
     <script>
+      // --- ERROR SUPPRESSION ---
       const originalError = console.error;
       console.error = function (...args) {
         if (
@@ -714,6 +716,7 @@
         originalError.apply(console, args);
       };
 
+      // --- AUDIO SYNTH ---
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -741,6 +744,9 @@
         playScan() {
           this.playTone(1200, "square", 0.05, 0.02);
         }
+        playPredict() {
+          this.playTone(600, "triangle", 0.3, 0.05);
+        }
         playAlarm() {
           if (this.muted) return;
           const osc = this.ctx.createOscillator();
@@ -760,6 +766,7 @@
       }
       const sfx = new AudioSynth();
 
+      // --- TERMINAL ---
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -799,9 +806,7 @@
         if (recognition) recognition.start();
       }
 
-      // --- GLOBAL KEY LISTENER FOR HELP (H) ---
       document.addEventListener("keydown", (e) => {
-        // Nếu đang gõ trong input thì không bật help
         if (document.activeElement === termIn) {
           if (e.key === "Enter") {
             const cmd = termIn.value.trim().toLowerCase();
@@ -812,8 +817,6 @@
           }
           return;
         }
-
-        // Phím H để toggle Help Overlay
         if (e.key.toLowerCase() === "h") {
           const help = document.getElementById("help-overlay");
           const isHidden =
@@ -843,6 +846,11 @@
           return;
         }
 
+        if (cmd.includes("predict") || cmd.includes("dự đoán")) {
+          togglePrediction();
+          return;
+        }
+
         if (cmd.includes("mute")) {
           sfx.muted = true;
           printTerm("Audio Muted.", "sys");
@@ -866,6 +874,7 @@
           russia: { lat: 60.0, lng: 100.0, alt: 1.2 },
           india: { lat: 20.0, lng: 77.0, alt: 1.0 },
           indonesia: { lat: -5.0, lng: 120.0, alt: 0.8 },
+          global: { lat: 0, lng: 0, alt: 2.5 },
         };
         for (const [key, val] of Object.entries(locs)) {
           if (cmd.includes(key)) {
@@ -955,7 +964,9 @@
         STORM: true,
         FIRE: true,
         ICE: true,
+        PREDICT: false,
       };
+      let predictionEvents = [];
 
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
@@ -978,8 +989,102 @@
         applyFilters();
       };
 
+      // --- SMART HEURISTIC AI ---
+      window.togglePrediction = () => {
+        activeFilters["PREDICT"] = !activeFilters["PREDICT"];
+        const btn = document.getElementById("btn-predict");
+
+        if (activeFilters["PREDICT"]) {
+          btn.classList.add("active");
+          btn.innerText = "[x] AI SMART";
+          btn.style.backgroundColor = "rgba(189, 0, 255, 0.2)";
+          runSmartHeuristics();
+        } else {
+          btn.classList.remove("active");
+          btn.innerText = "[ ] AI SMART";
+          btn.style.backgroundColor = "transparent";
+          predictionEvents = [];
+          applyFilters();
+          printTerm("AI Analysis deactivated.", "sys");
+        }
+      };
+
+      function runSmartHeuristics() {
+        if (allEventsCache.length === 0) {
+          printTerm("No data for analysis.", "err");
+          return;
+        }
+        printTerm("Running Density-Based Spatial Clustering...", "ai");
+
+        let highRiskZones = [];
+        // Simple Density Algorithm: Check every event against every other event
+        // O(N^2) but fine for ~100 events
+
+        for (let i = 0; i < allEventsCache.length; i++) {
+          let neighbors = 0;
+          let centerLat = allEventsCache[i].lat;
+          let centerLng = allEventsCache[i].lng;
+
+          // Only analyze major categories
+          if (
+            !allEventsCache[i].type.includes("QUAKE") &&
+            !allEventsCache[i].type.includes("VOLCANO")
+          )
+            continue;
+
+          for (let j = 0; j < allEventsCache.length; j++) {
+            if (i === j) continue;
+            // Calc Distance (Approx)
+            let dLat = allEventsCache[j].lat - centerLat;
+            let dLng = allEventsCache[j].lng - centerLng;
+            let dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+            if (dist < 5.0) {
+              // Within ~500km
+              neighbors++;
+            }
+          }
+
+          // If clustered (more than 2 neighbors) AND not already added nearby
+          if (neighbors >= 2) {
+            let alreadyExists = highRiskZones.some((z) => {
+              let d = Math.sqrt(
+                Math.pow(z.lat - centerLat, 2) + Math.pow(z.lng - centerLng, 2)
+              );
+              return d < 2.0; // Don't duplicate nearby predictions
+            });
+
+            if (!alreadyExists) {
+              highRiskZones.push({
+                lat: centerLat,
+                lng: centerLng,
+                alt: 0.05,
+                color: "#ffffff",
+                type: "AI CLUSTER DETECTED",
+                place: `High Density Zone (${neighbors + 1} events)`,
+                value: neighbors, // Use density as value
+                desc: "Anomaly: Multiple seismic events in close proximity.",
+                maxR: 8,
+                propagationSpeed: 3,
+                repeatPeriod: 600,
+              });
+            }
+          }
+        }
+
+        predictionEvents = highRiskZones;
+        printTerm(
+          `AI Result: ${predictionEvents.length} clusters identified.`,
+          "ai"
+        );
+        if (predictionEvents.length > 0)
+          printTerm("Advisory: Monitor White Zones for instability.", "ai");
+        sfx.playPredict();
+        applyFilters();
+      }
+
       function applyFilters() {
-        const filteredData = allEventsCache.filter((d) => {
+        let filteredData = allEventsCache.filter((d) => {
           if (d.type.includes("QUAKE") && !activeFilters["QUAKE"]) return false;
           if (d.type.includes("VOLCANO") && !activeFilters["VOLCANO"])
             return false;
@@ -989,6 +1094,11 @@
           if (d.type.includes("ICE") && !activeFilters["ICE"]) return false;
           return true;
         });
+
+        if (activeFilters["PREDICT"]) {
+          filteredData = filteredData.concat(predictionEvents);
+        }
+
         if (world) {
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
@@ -1017,7 +1127,6 @@
         const body = document.body;
         let level = 5;
         let color = "var(--defcon-5)";
-
         if (score > 15) {
           level = 4;
           color = "var(--defcon-4)";
@@ -1034,7 +1143,6 @@
           level = 1;
           color = "var(--defcon-1)";
         }
-
         if (level !== currentDefcon) {
           currentDefcon = level;
           el.innerText = `DEFCON ${level}`;
@@ -1078,8 +1186,9 @@
           .pointsMerge(false)
           .ringColor("color")
           .ringMaxRadius("maxR")
-          .ringPropagationSpeed(5)
-          .ringRepeatPeriod(800)
+          .ringPropagationSpeed("propagationSpeed")
+          .ringRepeatPeriod("repeatPeriod")
+
           .customLayerData(satData)
           .customThreeObject((d) => {
             const geometry = new THREE.TetrahedronGeometry(1.2);
@@ -1211,6 +1320,8 @@
               value: mag,
               desc: "Seismic Activity",
               maxR: mag > 5 ? mag * 5 : 0,
+              propagationSpeed: 5,
+              repeatPeriod: 800,
             });
           });
         }
@@ -1255,12 +1366,14 @@
               value: 5.0,
               desc: "Active NASA Event",
               maxR: 0,
+              propagationSpeed: 5,
+              repeatPeriod: 800,
             });
           });
         }
 
         allEventsCache = combinedEvents;
-        currentNodeCount = combinedEvents.length; // FIX COUNT
+        currentNodeCount = combinedEvents.length;
         statsCache = counts;
 
         document.getElementById("val-prob").innerText = combinedEvents.length;
@@ -1284,7 +1397,11 @@
           counts.ICE,
         ];
         radarChart.update();
-        applyFilters();
+
+        if (activeFilters["PREDICT"])
+          runSmartHeuristics(); // Update AI analysis if on
+        else applyFilters();
+
         printTerm(`Synced ${combinedEvents.length} global events.`);
       }
 
@@ -1295,7 +1412,14 @@
         else if (d.type.includes("VOLCANO")) icon = "🌋";
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
-        else if (d.type.includes("ICE")) icon = "🧊";
+        else if (d.type.includes("CLUSTER")) icon = "🧠";
+
+        const isPredict = d.type.includes("CLUSTER");
+        const statusText = isPredict
+          ? "AI DENSITY ALERT"
+          : "LIVE DATA CONFIRMED";
+        const borderColor = isPredict ? "var(--neon-white)" : d.color;
+
         document.getElementById("inspector-content").innerHTML = `
                 <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
                   d.color
@@ -1309,9 +1433,7 @@
                 <div class="insp-row"><span class="insp-lbl">INTENSITY</span> <span class="insp-val" style="font-size:1.5rem; color:${
                   d.color
                 }">${d.value.toFixed(1)}</span></div>
-                <div class="status-box" style="border: 1px solid ${
-                  d.color
-                }; color:${d.color}">LIVE DATA CONFIRMED</div>
+                <div class="status-box" style="border: 1px solid ${borderColor}; color:${borderColor}">${statusText}</div>
             `;
         printTerm(`Report: ${d.type} at ${d.place}`);
       };
