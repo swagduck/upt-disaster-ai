@@ -3,9 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HOLOGRAPHIC V10.4 FINAL</title>
+    <title>UPT HOLOGRAPHIC V10.5 STABLE</title>
 
-    <script src="//unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="//unpkg.com/globe.gl"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -255,7 +254,7 @@
           `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
       }
 
-      // --- 3. KHỞI TẠO GLOBE (ĐÃ FIX LỖI IMPORT) ---
+      // --- 3. KHỞI TẠO GLOBE (ĐÃ XÓA THREE.JS ĐỂ TRÁNH XUNG ĐỘT) ---
       try {
         globe = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -273,7 +272,7 @@
           .pointColor("color")
           .pointRadius(0.6)
           .pointsMerge(false)
-          .pointAltitudeTransition(1500) // Đã fix lỗi nhờ load đúng thư viện
+          .pointAltitudeTransition(1500)
           .pointColorTransition(1500)
           .pointRadiusTransition(1500)
 
