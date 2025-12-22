@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V17.2 (STABLE CORE)</title>
+    <title>UPT COMMANDER V17.3 (BIGGER SATS)</title>
 
     <link
       rel="icon"
@@ -343,7 +343,7 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Engine: Three.js r124 (Legacy Core)</div>
+        <div class="term-line sys">Engine: Three.js r124</div>
         <div class="term-line">Satellites: Tracking (150)</div>
       </div>
       <div id="term-input-line">
@@ -676,10 +676,10 @@
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
 
-          // SATELLITES (Now works perfectly with Three.js r124)
+          // SATELLITES (BIG SIZE 1.2)
           .customLayerData(satData)
           .customThreeObject((d) => {
-            const geometry = new THREE.TetrahedronGeometry(0.3);
+            const geometry = new THREE.TetrahedronGeometry(1.2);
             const material = new THREE.MeshLambertMaterial({ color: d.color });
             return new THREE.Mesh(geometry, material);
           })
