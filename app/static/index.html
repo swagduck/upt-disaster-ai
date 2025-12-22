@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V26.4 (COLOR FIXED)</title>
+    <title>UPT SENTINEL V27.0 (AETHER UI)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💠</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -16,46 +16,40 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
 
     <style>
       :root {
-        --neon-blue: #00f3ff;
-        --neon-red: #ff003c;
-        --neon-gold: #ffd700;
-        --neon-green: #00ff66;
-        --neon-orange: #ff6600;
-        --neon-purple: #bd00ff;
-        --neon-white: #ffffff;
-        --neon-toxic: #ccff00;
-        --glass-bg: rgba(8, 15, 25, 0.9);
-        --glass-border: rgba(0, 243, 255, 0.3);
-        --tech-font: "Orbitron", sans-serif;
-        --data-font: "Rajdhani", sans-serif;
-        --code-font: "VT323", monospace;
-        --defcon-1: #ff0000;
-        --defcon-2: #ff4400;
-        --defcon-3: #ffcc00;
-        --defcon-4: #00ff66;
-        --defcon-5: #0088ff;
+        --primary: #00f3ff;
+        --accent: #ff003c;
+        --warning: #ffd700;
+        --success: #00ff66;
+        --toxic: #ccff00;
+        --glass: rgba(10, 15, 20, 0.65);
+        --border: rgba(0, 243, 255, 0.2);
+        --glow: 0 0 10px rgba(0, 243, 255, 0.5);
+        --font-head: "Orbitron", sans-serif;
+        --font-body: "Rajdhani", sans-serif;
+        --font-code: "JetBrains Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
-        background-color: #000;
-        color: var(--neon-blue);
-        font-family: var(--data-font);
+        background-color: #050505;
+        color: var(--primary);
+        font-family: var(--font-body);
         overflow: hidden;
         height: 100vh;
         user-select: none;
-        transition: box-shadow 1s ease;
-      }
-      body.alert-mode {
-        box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
       }
 
+      /* --- VISUAL FX --- */
       .scanlines {
         position: fixed;
         top: 0;
@@ -68,11 +62,25 @@
           to bottom,
           rgba(255, 255, 255, 0),
           rgba(255, 255, 255, 0) 50%,
-          rgba(0, 0, 0, 0.1) 50%,
-          rgba(0, 0, 0, 0.1)
+          rgba(0, 0, 0, 0.2) 50%,
+          rgba(0, 0, 0, 0.2)
         );
-        background-size: 100% 4px;
-        opacity: 0.1;
+        background-size: 100% 3px;
+        opacity: 0.3;
+      }
+      .vignette {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2;
+        background: radial-gradient(
+          circle,
+          rgba(0, 0, 0, 0) 60%,
+          rgba(0, 0, 0, 0.8) 100%
+        );
       }
 
       #globe-viz {
@@ -84,56 +92,71 @@
         z-index: 0;
       }
 
-      /* DEFCON BAR */
-      #defcon-bar {
+      /* --- TOP BAR --- */
+      #top-bar {
         position: absolute;
         top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 400px;
-        height: 60px;
-        z-index: 20;
-        background: rgba(0, 0, 0, 0.8);
-        border: 2px solid var(--neon-blue);
-        border-top: none;
-        clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
-        transition: 0.5s;
-      }
-      #defcon-level {
-        font-family: var(--tech-font);
-        font-size: 2rem;
-        font-weight: 900;
-        letter-spacing: 5px;
-        color: var(--defcon-5);
-        text-shadow: 0 0 15px currentColor;
-      }
-
-      /* AI TICKER */
-      #ai-ticker {
-        position: absolute;
-        top: 65px;
         left: 0;
         width: 100%;
-        height: 30px;
-        z-index: 15;
-        background: rgba(0, 20, 40, 0.9);
-        border-top: 1px solid var(--neon-blue);
-        border-bottom: 1px solid var(--neon-blue);
+        height: 80px;
+        z-index: 20;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 10px 20px;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+      }
+
+      #defcon-widget {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid var(--border);
+        padding: 5px 20px;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        border-radius: 0 0 15px 15px;
+        border-top: none;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+      }
+      #defcon-lvl {
+        font-family: var(--font-head);
+        font-size: 2rem;
+        font-weight: 900;
+        letter-spacing: 3px;
+        color: #0088ff;
+        text-shadow: 0 0 15px currentColor;
+      }
+      .label-tiny {
+        font-size: 0.7rem;
+        letter-spacing: 2px;
+        color: #666;
+        font-weight: 700;
+      }
+
+      /* --- TICKER --- */
+      #ticker-wrap {
+        position: absolute;
+        top: 85px;
+        left: 0;
+        width: 100%;
+        height: 24px;
+        z-index: 10;
+        background: rgba(0, 10, 20, 0.8);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         overflow: hidden;
-        white-space: nowrap;
+        backdrop-filter: blur(2px);
       }
-      #ai-ticker-text {
-        font-family: var(--code-font);
-        font-size: 1.2rem;
-        color: var(--neon-gold);
+      #ticker-text {
+        font-family: var(--font-code);
+        font-size: 0.9rem;
+        color: var(--warning);
+        white-space: nowrap;
         padding-left: 100%;
-        animation: ticker 20s linear infinite;
+        animation: ticker 30s linear infinite;
       }
       @keyframes ticker {
         0% {
@@ -144,378 +167,380 @@
         }
       }
 
-      /* TERMINAL */
+      /* --- TERMINAL --- */
       #terminal {
         position: absolute;
-        top: 110px;
+        top: 130px;
         left: 20px;
-        width: 350px;
+        width: 320px;
         height: 35vh;
-        background: rgba(0, 10, 10, 0.9);
-        border: 1px solid #333;
-        border-left: 3px solid var(--neon-green);
-        font-family: var(--code-font);
-        font-size: 1.1rem;
-        color: var(--neon-green);
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        backdrop-filter: blur(15px);
         display: flex;
         flex-direction: column;
         z-index: 20;
-        box-shadow: 0 0 15px rgba(0, 255, 100, 0.1);
-        backdrop-filter: blur(5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        transition: 0.3s;
       }
+      #terminal:hover {
+        border-color: var(--primary);
+        box-shadow: var(--glow);
+      }
+
+      .term-header {
+        padding: 8px 12px;
+        background: rgba(0, 243, 255, 0.1);
+        border-bottom: 1px solid var(--border);
+        font-family: var(--font-head);
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        color: var(--primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .dots span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        background: #444;
+      }
+      .dots span:nth-child(1) {
+        background: var(--accent);
+      }
+      .dots span:nth-child(2) {
+        background: var(--warning);
+      }
+
       #term-output {
         flex: 1;
         padding: 10px;
         overflow-y: auto;
+        font-family: var(--font-code);
+        font-size: 0.85rem;
         scrollbar-width: none;
       }
       .term-line {
-        margin-bottom: 2px;
+        margin-bottom: 4px;
+        line-height: 1.3;
       }
-      .term-line.sys {
-        color: #888;
+      .sys {
+        color: #889;
       }
-      .term-line.err {
-        color: var(--neon-red);
+      .err {
+        color: var(--accent);
       }
-      .term-line.cmd {
+      .cmd {
         color: #fff;
-      }
-      .term-line.ai {
-        color: var(--neon-purple);
         font-weight: bold;
       }
-      .term-line.tf {
-        color: var(--neon-orange);
+      .ai {
+        color: #bd00ff;
       }
-      .term-line.voice {
-        color: var(--neon-gold);
+      .nuke {
+        color: var(--toxic);
+      }
+      .voice {
+        color: var(--warning);
         font-style: italic;
       }
+
       #term-input-line {
         display: flex;
-        border-top: 1px solid #333;
-        padding: 5px;
-        background: rgba(0, 255, 100, 0.05);
+        padding: 8px;
+        border-top: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.3);
       }
       #term-input {
         background: transparent;
         border: none;
         color: #fff;
-        font-family: var(--code-font);
-        font-size: 1.1rem;
+        font-family: var(--font-code);
         flex: 1;
         outline: none;
-        margin-left: 5px;
-        text-transform: lowercase;
+        margin-left: 8px;
       }
       #mic-btn {
-        background: transparent;
+        background: none;
         border: none;
-        color: #888;
+        color: #666;
         cursor: pointer;
-        font-size: 1.2rem;
         transition: 0.3s;
-        margin-right: 5px;
       }
       #mic-btn:hover {
         color: #fff;
       }
       #mic-btn.listening {
-        color: var(--neon-red);
-        animation: pulseRed 1s infinite;
+        color: var(--accent);
+        animation: pulse 1s infinite;
       }
 
-      /* INSPECTOR */
+      /* --- INSPECTOR (Right Side) --- */
       #inspector {
         position: absolute;
-        top: 110px;
-        right: -400px;
-        width: 350px;
-        background: rgba(5, 10, 15, 0.95);
-        border: 1px solid var(--neon-blue);
-        border-left: 4px solid var(--neon-blue);
+        top: 130px;
+        right: 20px;
+        width: 300px;
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 10px;
         padding: 20px;
         z-index: 20;
-        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-        clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
-        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(15px);
+        transform: translateX(120%);
+        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
       #inspector.active {
-        right: 20px;
+        transform: translateX(0);
       }
+
       .insp-row {
         display: flex;
         justify-content: space-between;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 6px 0;
+        padding: 8px 0;
         font-size: 0.9rem;
       }
       .insp-lbl {
         color: #888;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         letter-spacing: 1px;
+        text-transform: uppercase;
       }
       .insp-val {
         color: #fff;
-        font-weight: 700;
+        font-weight: 600;
         text-align: right;
       }
-      .insp-code {
-        font-family: var(--code-font);
-        color: var(--neon-gold);
-        font-size: 1rem;
-      }
-      .status-box {
-        margin-top: 10px;
-        padding: 8px;
-        text-align: center;
-        font-weight: bold;
-        letter-spacing: 1px;
-        background: rgba(255, 255, 255, 0.05);
-        font-size: 0.9rem;
-      }
 
-      /* HUD */
-      .hud-overlay {
+      /* --- CONTROL DECK (Bottom) --- */
+      .control-deck {
         position: absolute;
-        bottom: 15px;
-        left: 15px;
-        right: 15px;
-        height: 28vh;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        height: 260px;
         display: grid;
-        grid-template-columns: 0.8fr 1.5fr 1fr 1.2fr;
-        gap: 10px;
-        z-index: 10;
+        grid-template-columns: 200px 1fr 1fr 300px;
+        gap: 15px;
+        z-index: 20;
         pointer-events: none;
       }
-      .panel {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
-        border: 1px solid var(--glass-border);
-        padding: 12px;
+      .deck-panel {
+        background: var(--glass);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 15px;
         display: flex;
         flex-direction: column;
         pointer-events: auto;
-        clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
+        backdrop-filter: blur(20px);
         transition: 0.3s;
-        min-height: 0;
+        position: relative;
+        overflow: hidden;
       }
-      .panel:hover {
-        border-color: rgba(0, 243, 255, 0.8);
-        box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+      .deck-panel:hover {
+        border-color: var(--primary);
+        box-shadow: 0 5px 30px rgba(0, 243, 255, 0.15);
       }
-      h3 {
-        margin: 0 0 8px 0;
-        font-family: var(--tech-font);
+
+      .panel-head {
+        font-family: var(--font-head);
         font-size: 0.7rem;
-        letter-spacing: 1px;
-        color: rgba(255, 255, 255, 0.7);
-        text-transform: uppercase;
-        white-space: nowrap;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
       }
-      .big-stat {
-        font-family: var(--tech-font);
-        font-size: 2.5rem;
-        font-weight: 700;
+
+      .big-num {
+        font-family: var(--font-head);
+        font-size: 2.8rem;
         color: #fff;
-        text-shadow: 0 0 20px var(--neon-blue);
         line-height: 1;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
       }
-      .sub-stat {
-        font-size: 0.7rem;
-        color: #888;
-        text-transform: uppercase;
+      .sub-text {
+        font-size: 0.75rem;
+        color: var(--primary);
         letter-spacing: 1px;
         margin-top: 5px;
       }
 
-      .btn-link {
-        background: rgba(0, 243, 255, 0.1);
-        border: 1px solid var(--neon-blue);
-        color: var(--neon-blue);
-        padding: 10px;
-        font-size: 0.9rem;
-        font-family: var(--tech-font);
-        font-weight: bold;
-        cursor: pointer;
-        margin-top: auto;
-        transition: 0.3s;
-        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
-      }
-      .btn-link.active {
-        background: var(--neon-red);
-        border-color: var(--neon-red);
-        color: #fff;
-      }
-
-      .filter-grid {
+      /* BUTTONS */
+      .btn-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 5px;
-        margin-top: 5px;
+        gap: 8px;
+        margin-top: auto;
       }
-      .filter-btn {
-        background: transparent;
+      .cyber-btn {
+        background: rgba(0, 0, 0, 0.4);
         border: 1px solid #444;
-        color: #666;
+        color: #888;
+        padding: 8px;
+        font-family: var(--font-code);
+        font-size: 0.75rem;
         cursor: pointer;
-        padding: 5px;
-        font-family: var(--code-font);
-        font-size: 0.8rem;
+        border-radius: 4px;
         transition: 0.2s;
+        text-align: left;
       }
-      .filter-btn:hover {
+      .cyber-btn:hover {
         border-color: #fff;
         color: #fff;
-      }
-      .filter-btn.active {
-        border-color: var(--neon-green);
-        color: var(--neon-green);
-        background: rgba(0, 255, 100, 0.1);
-      }
-
-      .countdown-ring {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 40px;
-        height: 40px;
-      }
-      .countdown-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-family: var(--code-font);
-        color: #fff;
-        font-size: 0.9rem;
-      }
-
-      /* HELP OVERLAY */
-      #help-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1000;
-        background: rgba(0, 5, 10, 0.9);
-        backdrop-filter: blur(8px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-      }
-      .help-box {
-        width: 70%;
-        max-width: 900px;
-        background: rgba(10, 20, 30, 0.9);
-        border: 2px solid var(--neon-blue);
-        padding: 30px;
-        font-family: var(--code-font);
-        color: #ccc;
-        box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 20px;
-      }
-      .help-col h4 {
-        color: var(--neon-gold);
-        border-bottom: 1px solid #444;
-        padding-bottom: 5px;
-        margin-top: 0;
-        font-family: var(--tech-font);
-      }
-      .help-col ul {
-        list-style: none;
-        padding: 0;
-      }
-      .help-col li {
-        margin-bottom: 8px;
-        font-size: 1rem;
-      }
-      .cmd-key {
-        color: #fff;
-        font-weight: bold;
         background: rgba(255, 255, 255, 0.1);
-        padding: 2px 5px;
+      }
+      .cyber-btn.active {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(0, 243, 255, 0.1);
+        box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
+      }
+      .cyber-btn.danger.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(255, 0, 60, 0.1);
+      }
+      .cyber-btn.toxic.active {
+        border-color: var(--toxic);
+        color: var(--toxic);
+        background: rgba(204, 255, 0, 0.1);
+      }
+      .cyber-btn.ai-mode.active {
+        border-color: #bd00ff;
+        color: #bd00ff;
+        background: rgba(189, 0, 255, 0.1);
+      }
+
+      .main-action {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        background: linear-gradient(
+          90deg,
+          rgba(0, 243, 255, 0.1),
+          rgba(0, 243, 255, 0.2)
+        );
+        border: 1px solid var(--primary);
+        color: var(--primary);
+        font-family: var(--font-head);
+        font-weight: bold;
+        cursor: pointer;
+        clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+        transition: 0.3s;
+        text-align: center;
+      }
+      .main-action:hover {
+        background: var(--primary);
+        color: #000;
+        box-shadow: 0 0 20px var(--primary);
+      }
+      .main-action.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      /* UTILS */
+      .blink {
+        animation: blink 1s infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
       }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
+    <div class="vignette"></div>
     <div id="globe-viz"></div>
 
-    <div id="defcon-bar"><div id="defcon-level">DEFCON 5</div></div>
+    <div id="top-bar">
+      <div style="display: flex; align-items: center">
+        <div
+          style="
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            box-shadow: var(--glow);
+          "
+        >
+          <span style="font-size: 1.5rem">🛡️</span>
+        </div>
+        <div>
+          <div
+            style="
+              font-family: var(--font-head);
+              font-weight: 900;
+              font-size: 1.2rem;
+              letter-spacing: 2px;
+            "
+          >
+            UPT SENTINEL
+          </div>
+          <div
+            style="
+              font-family: var(--font-code);
+              font-size: 0.8rem;
+              color: #666;
+            "
+          >
+            V27.0 // AETHER BUILD
+          </div>
+        </div>
+      </div>
 
-    <div id="ai-ticker">
-      <div id="ai-ticker-text">
-        INITIALIZING GUARDIAN PROTOCOL... ATOMIC WATCH ONLINE...
+      <div id="defcon-widget">
+        <div class="label-tiny">THREAT LEVEL</div>
+        <div id="defcon-level">DEFCON 5</div>
       </div>
     </div>
 
-    <div id="help-overlay">
-      <div class="help-box">
-        <div class="help-col">
-          <h4>GUARDIAN OPS</h4>
-          <ul>
-            <li><span class="cmd-key">locate</span> - FIND ME (GPS)</li>
-            <li><span class="cmd-key">scan</span> - Refresh Data</li>
-            <li><span class="cmd-key">train</span> - Force Retrain</li>
-            <li><span class="cmd-key">sats</span> - Toggle Satellites</li>
-          </ul>
-        </div>
-        <div class="help-col">
-          <h4>NAVIGATION</h4>
-          <ul>
-            <li><span class="cmd-key">vietnam</span> - Focus VN</li>
-            <li><span class="cmd-key">usa / japan</span> - Focus Key Areas</li>
-            <li><span class="cmd-key">europe</span> - Focus EU</li>
-            <li><span class="cmd-key">global</span> - Reset View</li>
-          </ul>
-        </div>
-        <div class="help-col">
-          <h4>TACTICAL</h4>
-          <ul>
-            <li><span class="cmd-key">show all</span> - Reveal Map</li>
-            <li><span class="cmd-key">show nukes</span> - Nuclear Plants</li>
-            <li><span class="cmd-key">predict</span> - Toggle AI Viz</li>
-            <li><span class="cmd-key">mute / unmute</span> - Audio Control</li>
-          </ul>
-        </div>
-        <div
-          style="
-            grid-column: 1 / -1;
-            text-align: center;
-            margin-top: 20px;
-            color: var(--neon-blue);
-            border-top: 1px solid #333;
-            padding-top: 10px;
-          "
-        >
-          PRESS
-          <span class="cmd-key" style="border-color: var(--neon-blue)">H</span>
-          TO CLOSE
-        </div>
+    <div id="ticker-wrap">
+      <div id="ai-ticker-text">
+        INITIALIZING SYSTEM... CONNECTING TO SATELLITE NETWORK... WAITING FOR
+        DATA STREAM...
       </div>
     </div>
 
     <div id="terminal">
-      <div
-        style="
-          background: var(--neon-green);
-          padding: 5px;
-          font-size: 0.9rem;
-          color: #000;
-          font-weight: bold;
-        "
-      >
-        root@upt-commander:~#
+      <div class="term-header">
+        <span>>_ COMMAND.EXE</span>
+        <div class="dots"><span></span><span></span></div>
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v26.4 loaded.</div>
-        <div class="term-line sys">Module: COLOR FIX [APPLIED]</div>
-        <div class="term-line">Ready.</div>
+        <div class="term-line sys">Kernel loaded successfully.</div>
+        <div class="term-line sys">
+          TensorFlow.js GPU Acceleration: ENABLED.
+        </div>
+        <div class="term-line">System Ready.</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -526,31 +551,21 @@
           type="text"
           id="term-input"
           autocomplete="off"
-          placeholder="_"
+          placeholder="Enter command..."
         />
       </div>
     </div>
 
     <div id="inspector">
-      <h2
-        style="
-          font-family: var(--tech-font);
-          color: var(--neon-blue);
-          margin: 0 0 5px 0;
-          font-size: 1rem;
-        "
-      >
-        TARGET ANALYSIS
-      </h2>
       <div
         style="
-          width: 100%;
-          height: 1px;
-          background: var(--neon-blue);
-          margin-bottom: 15px;
-          opacity: 0.5;
+          border-bottom: 1px solid var(--border);
+          padding-bottom: 10px;
+          margin-bottom: 10px;
         "
-      ></div>
+      >
+        <h3 style="color: var(--primary); margin: 0">TARGET DATA</h3>
+      </div>
       <div id="inspector-content">Selecting...</div>
       <button
         onclick="window.closeInspector()"
@@ -558,42 +573,51 @@
           width: 100%;
           margin-top: 20px;
           background: transparent;
-          border: 1px solid #555;
+          border: 1px solid #444;
           color: #888;
           padding: 8px;
           cursor: pointer;
-          font-family: var(--tech-font);
+          font-family: var(--font-code);
           font-size: 0.8rem;
         "
       >
-        // DISMISS
+        [ CLOSE PANEL ]
       </button>
     </div>
 
-    <div class="hud-overlay">
-      <div class="panel">
-        <h3>Nearest Threat</h3>
+    <div class="control-deck">
+      <div class="deck-panel" style="border-color: rgba(255, 0, 60, 0.3)">
+        <div class="panel-head">
+          <span>PROXIMITY</span><span class="blink">●</span>
+        </div>
         <div
           style="
-            text-align: center;
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            text-align: center;
           "
         >
-          <div id="val-prob" class="big-stat" style="font-size: 2rem">--</div>
-          <div class="sub-stat" id="lbl-prob">DISTANCE (KM)</div>
+          <div id="val-prob" class="big-num" style="font-size: 2.2rem">--</div>
+          <div class="sub-text" id="lbl-prob">DISTANCE (KM)</div>
           <div
             id="nearest-name"
-            style="font-size: 0.7rem; color: #fff; margin-top: 5px"
+            style="
+              font-size: 0.7rem;
+              color: #888;
+              margin-top: 10px;
+              border-top: 1px solid #333;
+              padding-top: 5px;
+            "
           >
-            AWAITING GPS
+            WAITING FOR GPS
           </div>
         </div>
       </div>
-      <div class="panel">
-        <h3>Machine Learning Loss</h3>
+
+      <div class="deck-panel">
+        <div class="panel-head"><span>AI LEARNING</span><span>TF.JS</span></div>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="waveChart"></canvas>
         </div>
@@ -602,7 +626,7 @@
             display: flex;
             justify-content: space-between;
             margin-top: 5px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #666;
           "
         >
@@ -610,150 +634,100 @@
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
-      <div class="panel">
-        <h3>Hazard Distribution</h3>
+
+      <div class="deck-panel">
+        <div class="panel-head"><span>HAZARD TYPE</span><span>SCAN</span></div>
         <div style="flex: 1; width: 100%; min-height: 0">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
-      <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <h3 style="color: var(--neon-red); margin: 0">Tactical Ops</h3>
-          <div style="position: relative; width: 30px; height: 30px">
-            <svg
-              viewBox="0 0 36 36"
-              style="width: 100%; height: 100%; transform: rotate(-90deg)"
-            >
-              <path
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="#333"
-                stroke-width="4"
-              />
-              <path
-                id="scan-circle"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="var(--neon-green)"
-                stroke-width="4"
-                stroke-dasharray="100, 100"
-              />
-            </svg>
-            <div
-              id="scan-text"
-              style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-family: 'VT323';
-                color: #fff;
-                font-size: 0.8rem;
-              "
-            >
-              60
-            </div>
-          </div>
+      <div class="deck-panel">
+        <div class="panel-head">
+          <span>TACTICAL OPS</span><span id="scan-countdown">60</span>
         </div>
 
-        <div class="filter-grid">
+        <div class="btn-grid">
           <button
             id="btn-gps"
-            class="filter-btn"
-            style="
-              border-color: var(--neon-blue);
-              color: var(--neon-blue);
-              grid-column: span 2;
-            "
+            class="cyber-btn"
+            style="grid-column: span 2"
             onclick="locateUser()"
           >
-            [ ] LOCATE ME (GPS)
+            ◎ LOCATE ME (GPS)
           </button>
-
           <button
             id="btn-quake"
-            class="filter-btn active"
+            class="cyber-btn active"
             onclick="toggleFilter('QUAKE', this)"
           >
             [x] QUAKES
           </button>
           <button
             id="btn-volcano"
-            class="filter-btn active"
+            class="cyber-btn active"
             onclick="toggleFilter('VOLCANO', this)"
           >
             [x] VOLCANO
           </button>
           <button
             id="btn-storm"
-            class="filter-btn active"
+            class="cyber-btn active"
             onclick="toggleFilter('STORM', this)"
           >
             [x] STORMS
           </button>
           <button
             id="btn-fire"
-            class="filter-btn active"
+            class="cyber-btn active"
             onclick="toggleFilter('FIRE', this)"
           >
             [x] FIRES
           </button>
           <button
+            id="btn-nuke"
+            class="cyber-btn toxic active"
+            onclick="toggleFilter('NUKE', this)"
+          >
+            [x] NUKES
+          </button>
+          <button
             id="btn-other"
-            class="filter-btn active"
+            class="cyber-btn active"
             onclick="toggleFilter('OTHER', this)"
           >
             [x] OTHERS
           </button>
           <button
-            id="btn-nuke"
-            class="filter-btn active"
-            style="border-color: var(--neon-toxic); color: var(--neon-toxic)"
-            onclick="toggleFilter('NUKE', this)"
-          >
-            [x] NUKES
-          </button>
-
-          <button
             id="btn-predict"
-            class="filter-btn"
-            style="
-              border-color: var(--neon-purple);
-              color: var(--neon-purple);
-              grid-column: span 2;
-            "
+            class="cyber-btn ai-mode"
+            style="grid-column: span 2; text-align: center"
             onclick="togglePrediction()"
           >
-            [ ] NEURAL AI
+            🧠 NEURAL PREDICTION
           </button>
         </div>
 
         <div
           style="
-            font-family: var(--code-font);
-            color: #888;
-            flex: 1;
-            font-size: 0.8rem;
-            padding: 5px;
-            overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-code);
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 5px;
           "
         >
-          > TF_MODEL: <span id="status-model">UNTRAINED</span><br />
-          > USER_LOC: <span id="status-loc">UNKNOWN</span>
+          <span>AI: <span id="status-model">IDLE</span></span>
+          <span>GPS: <span id="status-loc">OFF</span></span>
         </div>
 
-        <button id="btn-link" class="btn-link">ACTIVATE GUARDIAN</button>
+        <button id="btn-link" class="main-action">INITIALIZE LINK</button>
       </div>
     </div>
 
     <script>
+      /* --- ERROR HANDLER --- */
       const originalError = console.error;
       console.error = function (...args) {
         if (
@@ -765,6 +739,7 @@
         originalError.apply(console, args);
       };
 
+      /* --- AUDIO --- */
       class AudioSynth {
         constructor() {
           this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -787,23 +762,20 @@
           osc.stop(this.ctx.currentTime + duration);
         }
         playBeep() {
-          this.playTone(800, "sine", 0.1, 0.05);
+          this.playTone(1000, "sine", 0.05, 0.05);
         }
         playScan() {
-          this.playTone(1200, "square", 0.05, 0.02);
-        }
-        playPredict() {
-          this.playTone(600, "triangle", 0.3, 0.05);
+          this.playTone(400, "square", 0.05, 0.02);
         }
         playAlarm() {
           if (this.muted) return;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+          osc.frequency.setValueAtTime(200, this.ctx.currentTime);
           osc.frequency.linearRampToValueAtTime(
-            600,
-            this.ctx.currentTime + 0.3
+            100,
+            this.ctx.currentTime + 0.5
           );
           gain.gain.value = 0.1;
           osc.connect(gain);
@@ -814,6 +786,7 @@
       }
       const sfx = new AudioSynth();
 
+      /* --- TERMINAL --- */
       const termOut = document.getElementById("term-output");
       const termIn = document.getElementById("term-input");
       const micBtn = document.getElementById("mic-btn");
@@ -834,7 +807,6 @@
         recognition.interimResults = false;
         recognition.onstart = function () {
           micBtn.classList.add("listening");
-          printTerm("Listening...", "voice");
         };
         recognition.onend = function () {
           micBtn.classList.remove("listening");
@@ -846,7 +818,6 @@
         };
       } else {
         micBtn.style.display = "none";
-        printTerm("Voice API not supported.", "err");
       }
 
       function toggleVoice() {
@@ -854,168 +825,21 @@
       }
 
       document.addEventListener("keydown", (e) => {
-        if (document.activeElement === termIn) {
-          if (e.key === "Enter") {
-            const cmd = termIn.value.trim().toLowerCase();
-            printTerm(cmd, "cmd");
-            processCommand(cmd);
-            termIn.value = "";
-            sfx.playBeep();
-          }
-          return;
-        }
-        if (e.key.toLowerCase() === "h") {
-          const help = document.getElementById("help-overlay");
-          const isHidden =
-            help.style.display === "none" || help.style.display === "";
-          help.style.display = isHidden ? "flex" : "none";
+        if (document.activeElement === termIn && e.key === "Enter") {
+          const cmd = termIn.value.trim().toLowerCase();
+          printTerm(cmd, "cmd");
+          processCommand(cmd);
+          termIn.value = "";
           sfx.playBeep();
         }
       });
 
-      // --- COMMANDS ---
-      function processCommand(cmd) {
-        if (cmd.includes("scan")) {
-          printTerm("Manual scan...", "sys");
-          fetchAllData();
-          return;
-        }
-        if (cmd.includes("train")) {
-          printTerm("Force Retraining...", "tf");
-          trainModel();
-          return;
-        }
-        if (cmd.includes("locate") || cmd.includes("gps")) {
-          locateUser();
-          return;
-        }
-
-        if (cmd.includes("status")) {
-          printTerm(`--- SYSTEM REPORT ---`, "sys");
-          printTerm(`DEFCON LEVEL: ${currentDefcon}`, "sys");
-          printTerm(`TOTAL EVENTS: ${currentNodeCount}`, "sys");
-          if (userLat !== null) {
-            printTerm(
-              `USER COORDS: ${userLat.toFixed(2)}, ${userLng.toFixed(2)}`,
-              "sys"
-            );
-          }
-          return;
-        }
-
-        if (cmd.includes("predict")) {
-          togglePrediction();
-          return;
-        }
-        if (cmd.includes("mute")) {
-          sfx.muted = true;
-          printTerm("Audio Muted.", "sys");
-          return;
-        }
-        if (cmd.includes("unmute")) {
-          sfx.muted = false;
-          printTerm("Audio Enabled.", "sys");
-          return;
-        }
-
-        const locs = {
-          vietnam: { lat: 14.0, lng: 108.0, alt: 0.8 },
-          usa: { lat: 37.0, lng: -95.0, alt: 1.0 },
-          japan: { lat: 36.0, lng: 138.0, alt: 0.8 },
-          europe: { lat: 54.0, lng: 15.0, alt: 1.2 },
-          asia: { lat: 34.0, lng: 100.0, alt: 1.5 },
-          africa: { lat: 0.0, lng: 20.0, alt: 1.5 },
-          australia: { lat: -25.0, lng: 133.0, alt: 1.0 },
-          china: { lat: 35.0, lng: 105.0, alt: 1.0 },
-          russia: { lat: 60.0, lng: 100.0, alt: 1.2 },
-          india: { lat: 20.0, lng: 77.0, alt: 1.0 },
-          indonesia: { lat: -5.0, lng: 120.0, alt: 0.8 },
-          global: { lat: 0, lng: 0, alt: 2.5 },
-        };
-        for (const [key, val] of Object.entries(locs)) {
-          if (cmd.includes(key)) {
-            world.pointOfView(
-              { lat: val.lat, lng: val.lng, altitude: val.alt },
-              2000
-            );
-            printTerm(`Moving to ${key.toUpperCase()}`, "sys");
-            return;
-          }
-        }
-
-        if (cmd === "sats") {
-          showSats = !showSats;
-          world.customLayerData(showSats ? satData : []);
-          printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
-          return;
-        }
-        if (cmd.includes("show all")) {
-          setAllFilters(true);
-          printTerm("All filters ENGAGED.", "sys");
-          return;
-        }
-        if (cmd.includes("hide all")) {
-          setAllFilters(false);
-          printTerm("All filters DISENGAGED.", "sys");
-          return;
-        }
-
-        const filterMap = {
-          quake: "QUAKE",
-          fire: "FIRE",
-          storm: "STORM",
-          volcano: "VOLCANO",
-          nuke: "NUKE",
-        };
-        for (const [key, type] of Object.entries(filterMap)) {
-          if (cmd.includes(key)) {
-            activeFilters[type] = !activeFilters[type];
-            updateFilterBtnUI(type, activeFilters[type]);
-            printTerm(
-              `Filter ${type}: ${activeFilters[type] ? "ON" : "OFF"}`,
-              "sys"
-            );
-            applyFilters();
-            return;
-          }
-        }
-
-        if (cmd === "help")
-          printTerm("Press 'H' for full command list.", "sys");
-        else printTerm("Command not recognized.", "err");
-      }
-
-      function setAllFilters(state) {
-        ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER", "NUKE"].forEach(
-          (type) => {
-            activeFilters[type] = state;
-            updateFilterBtnUI(type, state);
-          }
-        );
-        applyFilters();
-      }
-      function updateFilterBtnUI(type, isActive) {
-        const btn = document.getElementById(`btn-${type.toLowerCase()}`);
-        if (btn) {
-          if (isActive) {
-            btn.classList.add("active");
-            btn.innerText = `[x] ${type}S`;
-          } else {
-            btn.classList.remove("active");
-            btn.innerText = `[ ] ${type}S`;
-          }
-        }
-      }
-
-      // --- GLOBAL VARS ---
+      /* --- LOGIC CORE --- */
       let isLive = false;
       let timer = null;
       let world;
       let currentDefcon = 5;
-      let currentNodeCount = 0;
-      let showSats = true;
       let allEventsCache = [];
-      let statsCache = null;
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
@@ -1033,6 +857,37 @@
       let userLng = null;
       let userEventMarker = null;
 
+      const nuclearPlants = [
+        {
+          name: "Fukushima Daiichi",
+          lat: 37.421,
+          lng: 141.033,
+          desc: "Japan - High Risk",
+        },
+        {
+          name: "Zaporizhzhia",
+          lat: 47.512,
+          lng: 34.586,
+          desc: "Ukraine - Active Zone",
+        },
+        {
+          name: "Diablo Canyon",
+          lat: 35.211,
+          lng: -120.855,
+          desc: "USA - Fault Line",
+        },
+        {
+          name: "Kashiwazaki",
+          lat: 37.429,
+          lng: 138.596,
+          desc: "Japan - Largest",
+        },
+        { name: "Hanul", lat: 37.094, lng: 129.385, desc: "South Korea" },
+        { name: "Gravelines", lat: 51.012, lng: 2.136, desc: "France" },
+        { name: "Bruce", lat: 44.326, lng: -81.599, desc: "Canada" },
+        { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China" },
+      ];
+
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
@@ -1042,421 +897,7 @@
         type: "SATELLITE",
       }));
 
-      // NUCLEAR PLANTS
-      const nuclearPlants = [
-        {
-          name: "Fukushima Daiichi",
-          lat: 37.421,
-          lng: 141.033,
-          desc: "Japan - High Seismic Risk",
-        },
-        {
-          name: "Zaporizhzhia",
-          lat: 47.512,
-          lng: 34.586,
-          desc: "Ukraine - Active Conflict Zone",
-        },
-        {
-          name: "Kashiwazaki-Kariwa",
-          lat: 37.429,
-          lng: 138.596,
-          desc: "Japan - World's Largest",
-        },
-        { name: "Hanul", lat: 37.094, lng: 129.385, desc: "South Korea" },
-        {
-          name: "Diablo Canyon",
-          lat: 35.211,
-          lng: -120.855,
-          desc: "USA (California) - Fault Line",
-        },
-        {
-          name: "Gravelines",
-          lat: 51.012,
-          lng: 2.136,
-          desc: "France - Western Europe",
-        },
-        {
-          name: "Bruce",
-          lat: 44.326,
-          lng: -81.599,
-          desc: "Canada - North America",
-        },
-        { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China - Coastal" },
-      ];
-
-      window.toggleFilter = (type, btn) => {
-        activeFilters[type] = !activeFilters[type];
-        if (activeFilters[type]) {
-          btn.classList.add("active");
-          btn.innerText = `[x] ${type}S`;
-        } else {
-          btn.classList.remove("active");
-          btn.innerText = `[ ] ${type}S`;
-        }
-        sfx.playBeep();
-        applyFilters();
-      };
-
-      // --- GPS LOGIC ---
-      window.locateUser = () => {
-        const btn = document.getElementById("btn-gps");
-        const statusLoc = document.getElementById("status-loc");
-
-        if (navigator.geolocation) {
-          printTerm("Triangulating user position...", "sys");
-          btn.innerText = "[...] LOCATING";
-
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              userLat = position.coords.latitude;
-              userLng = position.coords.longitude;
-
-              btn.innerText = "[x] GPS LOCKED";
-              btn.classList.add("active");
-              statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(
-                2
-              )}`;
-              statusLoc.style.color = "var(--neon-blue)";
-
-              printTerm(
-                `GPS Locked: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`,
-                "sys"
-              );
-              sfx.playBeep();
-
-              userEventMarker = {
-                lat: userLat,
-                lng: userLng,
-                alt: 0.02,
-                color: "#00f3ff",
-                type: "USER_LOC",
-                place: "HOME BASE",
-                value: 0,
-                desc: "Current User Location",
-                maxR: 5,
-                propagationSpeed: 1,
-                repeatPeriod: 2000,
-              };
-
-              world.pointOfView(
-                { lat: userLat, lng: userLng, altitude: 1.5 },
-                2000
-              );
-              applyFilters();
-              calcNearestThreat();
-            },
-            (error) => {
-              printTerm("GPS Access Denied or Failed.", "err");
-              btn.innerText = "[!] GPS FAIL";
-            }
-          );
-        } else {
-          printTerm("Geolocation not supported.", "err");
-        }
-      };
-
-      function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = ((lat2 - lat1) * Math.PI) / 180;
-        const dLon = ((lon2 - lon1) * Math.PI) / 180;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-      }
-
-      function calcNearestThreat() {
-        if (userLat === null || allEventsCache.length === 0) return;
-
-        let minDist = 999999;
-        let nearestEvent = null;
-
-        allEventsCache.forEach((e) => {
-          if (e.type === "USER_LOC") return;
-          const dist = getDistance(userLat, userLng, e.lat, e.lng);
-          if (dist < minDist) {
-            minDist = dist;
-            nearestEvent = e;
-          }
-        });
-
-        const distEl = document.getElementById("val-prob");
-        const nameEl = document.getElementById("nearest-name");
-
-        if (nearestEvent) {
-          distEl.innerText = Math.round(minDist).toLocaleString();
-          nameEl.innerText = `${nearestEvent.type} - ${nearestEvent.place}`;
-
-          if (minDist < 100) {
-            distEl.style.color = "var(--neon-red)";
-            sfx.playAlarm();
-          } else if (minDist < 500) {
-            distEl.style.color = "var(--neon-gold)";
-          } else {
-            distEl.style.color = "var(--neon-green)";
-          }
-        }
-      }
-
-      // --- TENSORFLOW AI ---
-      async function initModel() {
-        model = tf.sequential();
-        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-        model.compile({
-          loss: "meanSquaredError",
-          optimizer: tf.train.adam(0.1),
-        });
-        printTerm("Neural Network: ADAM Optimized.", "tf");
-      }
-
-      async function trainModel() {
-        if (isTraining) {
-          printTerm("Training in progress...", "err");
-          return;
-        }
-        if (trainingData.length < 5) return;
-
-        isTraining = true;
-        document.getElementById("status-model").innerText = "LEARNING...";
-        document.getElementById("status-model").style.color =
-          "var(--neon-orange)";
-
-        const inputs = trainingData.map((d) => d.x * 0.01);
-        const labels = trainingData.map((d) => d.y);
-        const inputTensor = tf.tensor2d(inputs, [inputs.length, 1]);
-        const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
-
-        try {
-          await model.fit(inputTensor, labelTensor, {
-            epochs: 20,
-            callbacks: {
-              onEpochEnd: (epoch, logs) => {
-                if (epoch === 19) {
-                  printTerm(`Final Loss: ${logs.loss.toFixed(4)}`, "tf");
-                  waveChart.data.datasets[0].data.push(logs.loss);
-                  waveChart.data.datasets[0].data.shift();
-                  waveChart.update();
-                  document.getElementById("val-res").innerText =
-                    logs.loss.toFixed(4);
-                }
-              },
-            },
-          });
-          document.getElementById("status-model").innerText = "STABLE";
-          document.getElementById("status-model").style.color =
-            "var(--neon-green)";
-          printTerm("Neural Weights Updated.", "tf");
-        } catch (e) {
-          console.error(e);
-          printTerm("Training Error.", "err");
-        } finally {
-          isTraining = false;
-          inputTensor.dispose();
-          labelTensor.dispose();
-        }
-      }
-
-      window.togglePrediction = () => {
-        activeFilters["PREDICT"] = !activeFilters["PREDICT"];
-        const btn = document.getElementById("btn-predict");
-
-        if (activeFilters["PREDICT"]) {
-          btn.classList.add("active");
-          btn.innerText = "[x] NEURAL AI";
-          btn.style.backgroundColor = "rgba(189, 0, 255, 0.2)";
-          runNeuralPrediction();
-        } else {
-          btn.classList.remove("active");
-          btn.innerText = "[ ] NEURAL AI";
-          btn.style.backgroundColor = "transparent";
-          predictionEvents = [];
-          applyFilters();
-          printTerm("Neural Viz deactivated.", "sys");
-        }
-      };
-
-      function runNeuralPrediction() {
-        if (!model || trainingData.length === 0) {
-          printTerm("AI needs more data to predict.", "err");
-          return;
-        }
-
-        const nextStep = (trainingData.length + 1) * 0.01;
-        const predictionTensor = model.predict(tf.tensor2d([nextStep], [1, 1]));
-        const predictedMag = predictionTensor.dataSync()[0];
-        predictionTensor.dispose();
-
-        printTerm(
-          `AI Forecast: Trending Magnitude ~${predictedMag.toFixed(1)}`,
-          "ai"
-        );
-
-        let highRiskZones = [];
-        for (let i = 0; i < allEventsCache.length; i++) {
-          let neighbors = 0;
-          let centerLat = allEventsCache[i].lat;
-          let centerLng = allEventsCache[i].lng;
-
-          if (!allEventsCache[i].type.includes("QUAKE")) continue;
-
-          for (let j = 0; j < allEventsCache.length; j++) {
-            if (i === j) continue;
-            let d = Math.sqrt(
-              Math.pow(allEventsCache[j].lat - centerLat, 2) +
-                Math.pow(allEventsCache[j].lng - centerLng, 2)
-            );
-            if (d < 5.0) neighbors++;
-          }
-
-          if (neighbors >= 2) {
-            let alreadyExists = highRiskZones.some((z) => {
-              let d = Math.sqrt(
-                Math.pow(z.lat - centerLat, 2) + Math.pow(z.lng - centerLng, 2)
-              );
-              return d < 2.0;
-            });
-
-            if (!alreadyExists) {
-              highRiskZones.push({
-                lat: centerLat,
-                lng: centerLng,
-                alt: 0.05,
-                color: "#ffffff",
-                type: "NEURAL PREDICTION",
-                place: `High Probability Zone`,
-                value: predictedMag,
-                desc: `AI Model Confidence: ${(Math.random() * 10 + 85).toFixed(
-                  1
-                )}%`,
-                maxR: 12,
-                propagationSpeed: 2,
-                repeatPeriod: 1200,
-              });
-            }
-          }
-        }
-
-        predictionEvents = highRiskZones;
-        sfx.playPredict();
-        applyFilters();
-      }
-
-      function applyFilters() {
-        let filteredData = allEventsCache.filter((d) => {
-          if (d.type.includes("USER_LOC")) return true;
-          if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
-          if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
-          if (d.type.includes("STORM") && d.color === "#bd00ff")
-            return activeFilters["STORM"];
-          if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
-          if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
-          if (d.type.includes("OTHER EVENT")) return activeFilters["OTHER"];
-          return false;
-        });
-
-        if (activeFilters["PREDICT"])
-          filteredData = filteredData.concat(predictionEvents);
-        if (userEventMarker) filteredData.push(userEventMarker);
-
-        if (world) {
-          world.pointsData(filteredData);
-          world.ringsData(filteredData.filter((d) => d.maxR > 0));
-
-          // VISUAL FIX: USE BASIC MATERIAL FOR EVERYTHING & HEX COLOR
-          world.customThreeObject((d) => {
-            if (d.type === "NUCLEAR PLANT") {
-              // CYLINDER FOR NUKES (Solid Color)
-              const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
-              const material = new THREE.MeshLambertMaterial({
-                color: d.color,
-              });
-              return new THREE.Mesh(geometry, material);
-            } else if (d.type === "SATELLITE") {
-              const geometry = new THREE.SphereGeometry(0.5);
-              const material = new THREE.MeshBasicMaterial({ color: d.color });
-              return new THREE.Mesh(geometry, material);
-            } else if (d.type === "USER_LOC") {
-              const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
-              const material = new THREE.MeshBasicMaterial({ color: d.color });
-              return new THREE.Mesh(geometry, material);
-            } else {
-              const geometry = new THREE.TetrahedronGeometry(1.2);
-              const material = new THREE.MeshLambertMaterial({
-                color: d.color,
-              });
-              return new THREE.Mesh(geometry, material);
-            }
-          });
-        }
-      }
-
-      let countdownVal = 60;
-      let countdownTimer = null;
-      function startCountdown() {
-        countdownVal = 60;
-        const circle = document.getElementById("scan-circle");
-        const text = document.getElementById("scan-text");
-        if (countdownTimer) clearInterval(countdownTimer);
-        countdownTimer = setInterval(() => {
-          countdownVal--;
-          text.innerText = countdownVal;
-          const offset = 100 - (countdownVal / 60) * 100;
-          circle.style.strokeDashoffset = offset;
-          if (countdownVal <= 0) countdownVal = 60;
-        }, 1000);
-      }
-
-      function updateDefcon(score) {
-        const el = document.getElementById("defcon-level");
-        const bar = document.getElementById("defcon-bar");
-        const body = document.body;
-        let level = 5;
-        let color = "var(--defcon-5)";
-        if (score > 15) {
-          level = 4;
-          color = "var(--defcon-4)";
-        }
-        if (score > 30) {
-          level = 3;
-          color = "var(--defcon-3)";
-        }
-        if (score > 50) {
-          level = 2;
-          color = "var(--defcon-2)";
-        }
-        if (score > 80) {
-          level = 1;
-          color = "var(--defcon-1)";
-        }
-        if (level !== currentDefcon) {
-          currentDefcon = level;
-          el.innerText = `DEFCON ${level}`;
-          el.style.color = color;
-          bar.style.borderColor = color;
-          bar.style.boxShadow = `0 0 30px ${color}`;
-          if (level <= 2) {
-            body.classList.add("alert-mode");
-            sfx.playAlarm();
-            printTerm("!!! HIGH THREAT LEVEL !!!", "err");
-          } else body.classList.remove("alert-mode");
-        }
-      }
-
-      function updateTicker(maxMag, count) {
-        const ticker = document.getElementById("ai-ticker-text");
-        const msgs = [
-          `ATOMIC WATCH ACTIVE...`,
-          `NEURAL LINK: STABLE...`,
-          `MONITORING ${nuclearPlants.length} STRATEGIC ASSETS...`,
-          `REAL-TIME DATA: ${count} EVENTS...`,
-        ];
-        ticker.innerText = msgs.join(" /// ");
-      }
-
+      /* --- INIT GLOBE --- */
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -1468,7 +909,6 @@
           )
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
-          .showGraticules(true)
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
@@ -1492,11 +932,24 @@
             showInspector(d);
           });
 
-        // INITIAL OBJECT RENDERER
         world.customThreeObject((d) => {
-          const geometry = new THREE.TetrahedronGeometry(1.2);
-          const material = new THREE.MeshBasicMaterial({ color: d.color });
-          return new THREE.Mesh(geometry, material);
+          if (d.type === "NUCLEAR PLANT") {
+            const geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+            const material = new THREE.MeshBasicMaterial({ color: "#ccff00" });
+            return new THREE.Mesh(geometry, material);
+          } else if (d.type === "SATELLITE") {
+            const geometry = new THREE.SphereGeometry(0.3);
+            const material = new THREE.MeshBasicMaterial({ color: "#ffd700" });
+            return new THREE.Mesh(geometry, material);
+          } else if (d.type === "USER_LOC") {
+            const geometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 8);
+            const material = new THREE.MeshBasicMaterial({ color: "#00f3ff" });
+            return new THREE.Mesh(geometry, material);
+          } else {
+            const geometry = new THREE.TetrahedronGeometry(1.2);
+            const material = new THREE.MeshBasicMaterial({ color: d.color });
+            return new THREE.Mesh(geometry, material);
+          }
         });
 
         world.controls().autoRotate = true;
@@ -1505,6 +958,7 @@
         console.error(e);
       }
 
+      /* --- CHARTS --- */
       Chart.defaults.color = "#666";
       Chart.defaults.font.family = "Rajdhani";
       const waveChart = new Chart(document.getElementById("waveChart"), {
@@ -1515,11 +969,9 @@
             {
               data: Array(30).fill(0),
               borderColor: "#00f3ff",
-              borderWidth: 2,
+              borderWidth: 1,
+              tension: 0.4,
               pointRadius: 0,
-              tension: 0.5,
-              fill: true,
-              backgroundColor: "rgba(0,243,255,0.1)",
             },
           ],
         },
@@ -1527,17 +979,13 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: {
-            x: { display: false },
-            y: { display: false, min: 0, max: 10 },
-          },
-          animation: { duration: 0 },
+          scales: { x: { display: false }, y: { display: false } },
         },
       });
       const radarChart = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
-          labels: ["Quake", "Wildfire", "Volcano", "Storm", "Ice/Other"],
+          labels: ["Q", "F", "V", "S", "O"],
           datasets: [
             {
               data: [0, 0, 0, 0, 0],
@@ -1548,71 +996,128 @@
                 "#bd00ff",
                 "#ffffff",
               ],
-              borderWidth: 1,
-              borderColor: "#111",
+              borderWidth: 0,
             },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: "right",
-              labels: { color: "#ccc", boxWidth: 10, font: { size: 9 } },
-            },
-          },
-          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
+          plugins: { legend: { display: false } },
+          scales: { r: { ticks: { display: false }, grid: { color: "#333" } } },
         },
       });
 
+      /* --- FUNCTIONS --- */
+      window.toggleFilter = (type, btn) => {
+        activeFilters[type] = !activeFilters[type];
+        if (activeFilters[type]) btn.classList.add("active");
+        else btn.classList.remove("active");
+        sfx.playBeep();
+        applyFilters();
+      };
+
+      window.togglePrediction = () => {
+        activeFilters["PREDICT"] = !activeFilters["PREDICT"];
+        const btn = document.getElementById("btn-predict");
+        if (activeFilters["PREDICT"]) {
+          btn.classList.add("active");
+          runNeuralPrediction();
+        } else {
+          btn.classList.remove("active");
+          predictionEvents = [];
+          applyFilters();
+        }
+      };
+
+      window.locateUser = () => {
+        if (navigator.geolocation) {
+          document.getElementById("btn-gps").innerText = "◎ LOCATING...";
+          navigator.geolocation.getCurrentPosition((pos) => {
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+            document.getElementById("btn-gps").innerText = "◎ GPS LOCKED";
+            document.getElementById("btn-gps").classList.add("active");
+            document.getElementById("status-loc").innerText = "LOCKED";
+            document.getElementById("status-loc").style.color =
+              "var(--primary)";
+
+            userEventMarker = {
+              lat: userLat,
+              lng: userLng,
+              alt: 0.02,
+              color: "#00f3ff",
+              type: "USER_LOC",
+              place: "HOME BASE",
+              value: 0,
+              desc: "Your Location",
+              maxR: 8,
+              propagationSpeed: 1,
+              repeatPeriod: 2000,
+            };
+            world.pointOfView(
+              { lat: userLat, lng: userLng, altitude: 1.5 },
+              2000
+            );
+            applyFilters();
+            calcNearestThreat();
+          });
+        } else printTerm("GPS unavailable.", "err");
+      };
+
+      function applyFilters() {
+        let filtered = allEventsCache.filter((d) => {
+          if (d.type.includes("USER_LOC")) return true;
+          if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
+          if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
+          if (d.type.includes("STORM") && d.color === "#bd00ff")
+            return activeFilters["STORM"];
+          if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
+          if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
+          if (d.type.includes("OTHER")) return activeFilters["OTHER"];
+          return false;
+        });
+        if (activeFilters["PREDICT"])
+          filtered = filtered.concat(predictionEvents);
+        if (userEventMarker) filtered.push(userEventMarker);
+        world.pointsData(filtered);
+        world.ringsData(filtered.filter((d) => d.maxR > 0));
+      }
+
+      /* --- DATA LOOP --- */
       async function fetchAllData() {
-        const start = Date.now();
         try {
-          const quakePromise = fetch(
-            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
-          ).then((r) => r.json());
-          const nasaPromise = fetch(
-            "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
-          ).then((r) => r.json());
-          const [quakeData, nasaData] = await Promise.all([
-            quakePromise,
-            nasaPromise,
+          const [qData, nData] = await Promise.all([
+            fetch(
+              "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
+            ).then((r) => r.json()),
+            fetch(
+              "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
+            ).then((r) => r.json()),
           ]);
-          document.getElementById("val-ping").innerText =
-            Date.now() - start + "ms";
-          processMultiData(quakeData, nasaData);
-          startCountdown();
+          processData(qData, nData);
+          startTimer();
         } catch (e) {
           console.error(e);
-          printTerm("Data link unstable (API Error).", "err");
         }
       }
 
-      function processMultiData(quakeData, nasaData) {
-        let combinedEvents = [];
-        let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
-        let maxIntensity = 0;
-
+      function processData(qData, nData) {
+        let events = [];
+        let c = { Q: 0, F: 0, V: 0, S: 0, O: 0 };
         trainingData = [];
 
-        // 1. Quakes
-        if (quakeData.features) {
-          quakeData.features.forEach((f, index) => {
+        if (qData.features)
+          qData.features.forEach((f, i) => {
             const mag = f.properties.mag;
-            if (mag > maxIntensity) maxIntensity = mag;
-            counts.QUAKE++;
-            let color = "#00f3ff";
-            if (mag > 5) color = "#00ff66";
-            if (mag > 6) color = "#ffd700";
-            if (mag > 7) color = "#ff003c";
-
-            combinedEvents.push({
+            c.Q++;
+            let col = mag > 6 ? "#ff003c" : mag > 5 ? "#ffd700" : "#00f3ff";
+            events.push({
               lat: f.geometry.coordinates[1],
               lng: f.geometry.coordinates[0],
               alt: mag * 0.05,
-              color: color,
-              type: `QUAKE (M${mag.toFixed(1)})`,
+              color: col,
+              type: `QUAKE M${mag.toFixed(1)}`,
               place: f.properties.place,
               value: mag,
               desc: "Seismic Activity",
@@ -1620,77 +1125,49 @@
               propagationSpeed: 5,
               repeatPeriod: 800,
             });
-
-            if (index < 50) trainingData.push({ x: index, y: mag });
+            if (i < 50) trainingData.push({ x: i, y: mag });
           });
-        }
 
-        // 2. NASA Events
-        if (nasaData.events) {
-          nasaData.events.forEach((e) => {
-            const catId = e.categories[0].id;
-            const coords = e.geometry[0].coordinates;
-            let lat = coords[1];
-            let lng = coords[0];
-            let color = "#ffffff";
-            let type = e.title;
-            let alt = 0.2;
-            let isSpecial = false;
-
-            if (catId === "wildfires") {
-              counts.FIRE++;
-              color = "#ff6600";
-              type = "WILDFIRE";
-              alt = 0.3;
-              isSpecial = true;
-            } else if (catId === "volcanoes") {
-              counts.VOLCANO++;
-              color = "#ffd700";
-              type = "VOLCANO";
-              alt = 0.5;
-              isSpecial = true;
-            } else if (catId === "severeStorms") {
-              counts.STORM++;
-              color = "#bd00ff";
-              type = "STORM/CYCLONE";
-              alt = 0.4;
-              isSpecial = true;
-            } else if (catId === "seaLakeIce") {
-              counts.ICE++;
-              color = "#ffffff";
-              type = "ICEBERG";
-              alt = 0.2;
-              isSpecial = true;
-            }
-
-            if (!isSpecial) {
+        if (nData.events)
+          nData.events.forEach((e) => {
+            const cat = e.categories[0].id;
+            const geo = e.geometry[0].coordinates;
+            let col = "#fff",
               type = "OTHER EVENT";
-              color = "#aaaaaa";
-            }
+            if (cat === "wildfires") {
+              c.F++;
+              col = "#ff6600";
+              type = "WILDFIRE";
+            } else if (cat === "volcanoes") {
+              c.V++;
+              col = "#ffd700";
+              type = "VOLCANO";
+            } else if (cat === "severeStorms") {
+              c.S++;
+              col = "#bd00ff";
+              type = "STORM";
+            } else c.O++;
 
-            combinedEvents.push({
-              lat: lat,
-              lng: lng,
-              alt: alt,
-              color: color,
+            events.push({
+              lat: geo[1],
+              lng: geo[0],
+              alt: 0.2,
+              color: col,
               type: type,
               place: e.title,
-              value: 5.0,
-              desc: "Active NASA Event",
+              value: 5,
+              desc: "NASA Event",
               maxR: 0,
               propagationSpeed: 5,
               repeatPeriod: 800,
             });
           });
-        }
 
-        // 3. NUCLEAR PLANTS
         nuclearPlants.forEach((n) => {
-          combinedEvents.push({
+          events.push({
             lat: n.lat,
             lng: n.lng,
             alt: 0.1,
-            // COLOR FIX: USE HEX DIRECTLY
             color: "#ccff00",
             type: "NUCLEAR PLANT",
             place: n.name,
@@ -1702,111 +1179,177 @@
           });
         });
 
-        allEventsCache = combinedEvents;
-        currentNodeCount = combinedEvents.length;
-        statsCache = counts;
+        allEventsCache = events;
 
-        document.getElementById("val-prob").innerText = combinedEvents.length;
-        document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
-        const dangerScore =
-          maxIntensity * 2 +
-          counts.VOLCANO * 1 +
-          counts.STORM * 2 +
-          counts.FIRE * 0.1;
-        updateDefcon(dangerScore);
-        updateTicker(maxIntensity, combinedEvents.length);
-        sfx.playScan();
-
-        radarChart.data.datasets[0].data = [
-          counts.QUAKE,
-          counts.FIRE,
-          counts.VOLCANO,
-          counts.STORM,
-          counts.ICE,
-        ];
+        // Stats
+        radarChart.data.datasets[0].data = [c.Q, c.F, c.V, c.S, c.O];
         radarChart.update();
+        updateTicker(events.length);
 
         if (model) trainModel();
         calcNearestThreat();
-
         if (activeFilters["PREDICT"]) runNeuralPrediction();
         else applyFilters();
+      }
 
-        printTerm(`Synced ${combinedEvents.length} events. Learning...`);
+      /* --- AI --- */
+      async function initModel() {
+        model = tf.sequential();
+        model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+        model.compile({
+          loss: "meanSquaredError",
+          optimizer: tf.train.adam(0.1),
+        });
+      }
+
+      async function trainModel() {
+        if (isTraining || trainingData.length < 5) return;
+        isTraining = true;
+        document.getElementById("status-model").innerText = "TRAINING";
+        document.getElementById("status-model").style.color = "var(--warning)";
+
+        const xs = tf.tensor2d(
+          trainingData.map((d) => d.x * 0.01),
+          [trainingData.length, 1]
+        );
+        const ys = tf.tensor2d(
+          trainingData.map((d) => d.y),
+          [trainingData.length, 1]
+        );
+
+        await model.fit(xs, ys, { epochs: 20 });
+
+        document.getElementById("status-model").innerText = "ONLINE";
+        document.getElementById("status-model").style.color = "var(--success)";
+        isTraining = false;
+        xs.dispose();
+        ys.dispose();
+      }
+
+      function runNeuralPrediction() {
+        if (!model) return;
+        const pred = model
+          .predict(tf.tensor2d([(trainingData.length + 1) * 0.01], [1, 1]))
+          .dataSync()[0];
+        printTerm(`AI Forecast Magnitude: ${pred.toFixed(1)}`, "ai");
+
+        predictionEvents = [];
+        // Simple clustering visualizer
+        for (let i = 0; i < allEventsCache.length; i += 5) {
+          const e = allEventsCache[i];
+          if (e.type.includes("QUAKE")) {
+            predictionEvents.push({
+              lat: e.lat,
+              lng: e.lng,
+              alt: 0.05,
+              color: "#ffffff",
+              type: "NEURAL PREDICTION",
+              place: "AI High Risk Zone",
+              value: pred,
+              desc: "AI Forecast",
+              maxR: 15,
+              propagationSpeed: 2,
+              repeatPeriod: 1200,
+            });
+          }
+        }
+        applyFilters();
+      }
+
+      /* --- UTILS --- */
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const p = Math.PI / 180;
+        const a =
+          0.5 -
+          Math.cos((lat2 - lat1) * p) / 2 +
+          (Math.cos(lat1 * p) *
+            Math.cos(lat2 * p) *
+            (1 - Math.cos((lon2 - lon1) * p))) /
+            2;
+        return 2 * R * Math.asin(Math.sqrt(a));
+      }
+
+      function calcNearestThreat() {
+        if (!userLat) return;
+        let minD = 999999,
+          name = "";
+        allEventsCache.forEach((e) => {
+          if (e.type.includes("USER")) return;
+          const d = getDistance(userLat, userLng, e.lat, e.lng);
+          if (d < minD) {
+            minD = d;
+            name = e.type + " " + e.place;
+          }
+        });
+        document.getElementById("val-prob").innerText = Math.round(minD);
+        document.getElementById("nearest-name").innerText = name;
+        const col =
+          minD < 500
+            ? "var(--accent)"
+            : minD < 1500
+            ? "var(--warning)"
+            : "var(--success)";
+        document.getElementById("val-prob").style.color = col;
+      }
+
+      function updateTicker(count) {
+        document.getElementById(
+          "ai-ticker-text"
+        ).innerText = `SYSTEM ONLINE /// TRACKING ${count} GLOBAL EVENTS /// AI NEURAL NET ACTIVE /// GUARDIAN PROTOCOL ENGAGED`;
+      }
+
+      function startTimer() {
+        let t = 60;
+        const el = document.getElementById("scan-countdown");
+        if (window.scanInt) clearInterval(window.scanInt);
+        window.scanInt = setInterval(() => {
+          t--;
+          el.innerText = t;
+          if (t <= 0) t = 60;
+        }, 1000);
+      }
+
+      function processCommand(c) {
+        if (c.includes("scan")) fetchAllData();
+        else if (c.includes("locate")) locateUser();
+        else printTerm("Unknown command.", "err");
       }
 
       window.showInspector = (d) => {
-        document.getElementById("inspector").classList.add("active");
-        let icon = "📍";
-        if (d.type.includes("QUAKE")) icon = "📉";
-        else if (d.type.includes("VOLCANO")) icon = "🌋";
-        else if (d.type.includes("STORM")) icon = "🌀";
-        else if (d.type.includes("WILDFIRE")) icon = "🔥";
-        else if (d.type.includes("NEURAL")) icon = "👁️";
-        else if (d.type.includes("USER")) icon = "🏠";
-        else if (d.type.includes("NUCLEAR")) icon = "☢️";
-
-        const isPredict = d.type.includes("NEURAL");
-        const isNuke = d.type.includes("NUCLEAR");
-
-        let statusText = "LIVE DATA CONFIRMED";
-        let borderColor = d.color;
-
-        if (isPredict) {
-          statusText = "AI PREDICTION (UNVERIFIED)";
-          borderColor = "var(--neon-white)";
-        }
-        if (isNuke) {
-          statusText = "CRITICAL INFRASTRUCTURE";
-          borderColor = "var(--neon-toxic)";
-        }
-
+        const el = document.getElementById("inspector");
+        el.classList.add("active");
         document.getElementById("inspector-content").innerHTML = `
-                <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
+                <div class="insp-row"><span class="insp-lbl">TYPE</span><span class="insp-val" style="color:${
                   d.color
-                }">${icon} ${d.type}</strong></div>
-                <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem; max-width:180px;">${
+                }">${d.type}</span></div>
+                <div class="insp-row"><span class="insp-lbl">LOC</span><span class="insp-val" style="font-size:0.7rem">${
                   d.place
                 }</span></div>
-                <div class="insp-row"><span class="insp-lbl">DESC</span> <span class="insp-val" style="font-size:0.8rem">${
-                  d.desc
-                }</span></div>
-                <div class="insp-row"><span class="insp-lbl">INTENSITY</span> <span class="insp-val" style="font-size:1.5rem; color:${
-                  d.color
-                }">${d.value.toFixed(1)}</span></div>
-                <div class="status-box" style="border: 1px solid ${borderColor}; color:${borderColor}">${statusText}</div>
+                <div class="insp-row"><span class="insp-lbl">VAL</span><span class="insp-val">${d.value.toFixed(
+                  1
+                )}</span></div>
             `;
-        printTerm(`Report: ${d.type} at ${d.place}`);
       };
-      window.closeInspector = () => {
+      window.closeInspector = () =>
         document.getElementById("inspector").classList.remove("active");
-        if (world) world.pointOfView({ altitude: 2.5 }, 1500);
-      };
 
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
         if (isLive) {
-          sfx.ctx.resume();
           btn.classList.add("active");
-          btn.innerText = "ABORT UPLINK";
-          if (world) world.controls().autoRotate = false;
-          printTerm("Initializing Neural Link...");
-          sfx.playBeep();
+          btn.innerText = "LINK ESTABLISHED";
+          sfx.ctx.resume();
           initModel();
           fetchAllData();
           timer = setInterval(fetchAllData, 60000);
-
-          document.getElementById("status-model").innerText = "LOADING CORE";
+          world.controls().autoRotate = false;
         } else {
           btn.classList.remove("active");
-          btn.innerText = "ACTIVATE GUARDIAN";
+          btn.innerText = "INITIALIZE LINK";
           clearInterval(timer);
-          if (countdownTimer) clearInterval(countdownTimer);
-          if (world) world.controls().autoRotate = true;
-          printTerm("Uplink Terminated.");
-          document.getElementById("status-model").innerText = "OFFLINE";
-          document.getElementById("status-model").style.color = "#888";
+          world.controls().autoRotate = true;
         }
       });
     </script>
