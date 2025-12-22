@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V10.7 (STABLE)</title>
+    <title>UPT COMMANDER V10.8 (SAFE MODE)</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
@@ -244,7 +244,7 @@
       // --- 1. GLOBALS ---
       let isLive = false;
       let timer = null;
-      let world; // Globe instance
+      let world;
 
       // --- 2. HELPERS ---
       function log(msg) {
@@ -257,7 +257,6 @@
 
       // --- 3. UI FUNCTIONS ---
       window.showInspector = (d) => {
-        // Gán vào window để gọi được toàn cục
         const p = document.getElementById("inspector");
         p.classList.add("active");
 
@@ -293,10 +292,9 @@
         if (world) world.pointOfView({ altitude: 2.5 }, 2000);
       };
 
-      // Gắn sự kiện click cho nút Dismiss
       document.getElementById("btn-dismiss").onclick = window.closeInspector;
 
-      // --- 4. INIT GLOBE ---
+      // --- 4. INIT GLOBE (SAFE MODE: NO TRANSITIONS) ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -309,22 +307,18 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.15)
 
-          // Config Points & Transitions
+          // --- CẤU HÌNH AN TOÀN (BỎ TRANSITION) ---
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.6)
           .pointsMerge(false)
-          .pointAltitudeTransition(1500) // Đã hoạt động với bản ESM mới nhất
-          .pointColorTransition(1500)
-          .pointRadiusTransition(1500)
+          // Đã xóa các dòng .pointAltitudeTransition(...) gây lỗi
 
-          // Config Rings
           .ringColor("color")
           .ringMaxRadius("maxR")
           .ringPropagationSpeed(3)
           .ringRepeatPeriod(1000)
 
-          // Interactions
           .pointLabel((d) => `Target: ${d.place}`)
           .onPointClick((d) => {
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 2000);
@@ -471,7 +465,6 @@
       }
 
       // --- 7. BUTTON HANDLER ---
-      // Gắn sự kiện click cho nút Initialize bằng JS thuần
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
