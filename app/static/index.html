@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT HOLOGRAPHIC V10.3 STABLE</title>
+    <title>UPT HOLOGRAPHIC V10.4 FINAL</title>
 
-    <script src="//unpkg.com/three"></script>
+    <script src="//unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="//unpkg.com/globe.gl"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -242,10 +242,10 @@
     </div>
 
     <script>
-      // --- 1. KHAI BÁO BIẾN TOÀN CỤC TRƯỚC (QUAN TRỌNG ĐỂ SỬA LỖI ISLIVE) ---
+      // --- 1. KHAI BÁO BIẾN TOÀN CỤC ---
       let isLive = false;
       let timer = null;
-      let globe; // Khai báo trước
+      let globe;
 
       // --- 2. HÀM LOGGING ---
       function log(msg) {
@@ -255,7 +255,7 @@
           `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
       }
 
-      // --- 3. KHỞI TẠO GLOBE ---
+      // --- 3. KHỞI TẠO GLOBE (ĐÃ FIX LỖI IMPORT) ---
       try {
         globe = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -268,12 +268,12 @@
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.15)
 
-          // Cấu hình Cột & Transition (Đã sửa lỗi function not found bằng cách load đúng thư viện)
+          // Cấu hình Cột & Transition
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.6)
           .pointsMerge(false)
-          .pointAltitudeTransition(1500)
+          .pointAltitudeTransition(1500) // Đã fix lỗi nhờ load đúng thư viện
           .pointColorTransition(1500)
           .pointRadiusTransition(1500)
 
@@ -394,9 +394,7 @@
         globe.pointOfView({ altitude: 2.5 }, 2000);
       }
 
-      // Hàm này được gọi khi bấm nút
       async function toggleSystem() {
-        // Sửa lỗi ReferenceError: isLive đã được khai báo ở trên cùng
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
 
