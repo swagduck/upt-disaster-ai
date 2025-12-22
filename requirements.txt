@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 numpy
 requests
 python-telegram-bot
+httpx

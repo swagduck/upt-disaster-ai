@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER // V8.0 DATA VIZ</title>
+    <title>UPT HYPER-MONITOR V9.0</title>
 
     <link
       rel="stylesheet"
@@ -11,9 +11,7 @@
     />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
@@ -21,31 +19,30 @@
 
     <style>
       :root {
-        --primary: #00f3ff; /* Cyan */
-        --danger: #ff003c; /* Red */
-        --warn: #ffd700; /* Gold */
+        --primary: #00f3ff;
+        --danger: #ff003c;
+        --warn: #ffd700;
+        --storm: #bd00ff;
+        --fire: #ff6600;
+        --solar: #ffffff;
+        --tsunami: #0044ff;
         --bg: #020408;
-        --panel-bg: rgba(0, 20, 40, 0.6);
-        --border: 1px solid rgba(0, 243, 255, 0.3);
+        --panel-bg: rgba(0, 20, 40, 0.7);
       }
-
       body {
         margin: 0;
         background: var(--bg);
         color: var(--primary);
-        font-family: "Share Tech Mono", monospace;
+        font-family: "Share Tech Mono";
         overflow: hidden;
         height: 100vh;
       }
-
-      /* --- LAYOUT GRID --- */
       .grid-container {
         display: grid;
-        grid-template-rows: 55vh 45vh; /* Map 55%, Dashboard 45% */
+        grid-template-rows: 60vh 40vh;
         height: 100vh;
       }
 
-      /* --- MAP AREA --- */
       #map-wrapper {
         position: relative;
         border-bottom: 2px solid var(--primary);
@@ -71,45 +68,35 @@
         background-size: 40px 40px;
       }
 
-      /* --- DASHBOARD HUD --- */
       .hud {
         display: flex;
         gap: 10px;
         padding: 10px;
-        background: radial-gradient(circle at center, #0a1520 0%, #000 100%);
+        background: radial-gradient(circle, #0a1520 0%, #000 100%);
       }
-
       .panel {
-        border: var(--border);
+        border: 1px solid rgba(0, 243, 255, 0.3);
         background: var(--panel-bg);
         padding: 10px;
+        flex: 1;
         display: flex;
         flex-direction: column;
-        position: relative;
         backdrop-filter: blur(5px);
       }
-
       h3 {
         margin: 0 0 5px 0;
-        color: var(--primary);
         font-family: "Orbitron";
         font-size: 0.8rem;
         border-bottom: 1px dashed #333;
-        letter-spacing: 1px;
+        color: var(--primary);
       }
 
-      /* --- CHARTS --- */
-      .chart-container {
+      .chart-box {
         flex: 1;
         position: relative;
         width: 100%;
         overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
-
-      /* --- LOGS --- */
       #log-box {
         font-size: 0.7rem;
         overflow-y: auto;
@@ -122,48 +109,34 @@
         border-left: 2px solid #333;
         padding-left: 5px;
       }
-      .log-crit {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .log-sys {
-        border-color: var(--primary);
-        color: #ccc;
-      }
 
-      /* --- BUTTONS & CONTROLS --- */
       .btn-link {
         background: transparent;
         border: 1px solid var(--primary);
         color: var(--primary);
-        padding: 8px;
+        padding: 10px;
         font-family: "Orbitron";
         cursor: pointer;
         margin-top: auto;
-        text-transform: uppercase;
         font-weight: bold;
         transition: 0.2s;
-        font-size: 0.9rem;
       }
       .btn-link.active {
         background: var(--danger);
         border-color: var(--danger);
         color: white;
-        animation: pulse 1.5s infinite;
+        animation: flash 0.5s infinite alternate;
       }
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.7);
+      @keyframes flash {
+        from {
+          box-shadow: 0 0 10px var(--danger);
         }
-        70% {
-          box-shadow: 0 0 0 10px rgba(255, 0, 60, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(255, 0, 60, 0);
+        to {
+          box-shadow: 0 0 20px var(--danger);
         }
       }
 
-      /* --- INSPECTOR --- */
+      /* Inspector */
       #inspector {
         position: absolute;
         top: 0;
@@ -173,7 +146,7 @@
         background: rgba(0, 10, 20, 0.95);
         border-left: 2px solid var(--primary);
         z-index: 999;
-        transition: 0.4s;
+        transition: 0.3s;
         padding: 20px;
         box-sizing: border-box;
       }
@@ -183,18 +156,8 @@
       .row {
         display: flex;
         justify-content: space-between;
+        padding: 5px 0;
         border-bottom: 1px solid #333;
-        padding: 8px 0;
-      }
-      .lbl {
-        color: #888;
-        font-size: 0.8rem;
-      }
-      .val {
-        font-weight: bold;
-        color: #fff;
-        text-align: right;
-        font-size: 0.9rem;
       }
     </style>
   </head>
@@ -204,26 +167,20 @@
         <div class="grid-overlay"></div>
         <div id="map"></div>
         <div id="inspector">
-          <h2
-            style="
-              font-family: 'Orbitron';
-              color: var(--primary);
-              border-bottom: 2px solid var(--primary);
-            "
-          >
-            TARGET ANALYSIS
+          <h2 style="font-family: 'Orbitron'; color: var(--primary)">
+            DATA ANALYSIS
           </h2>
-          <div id="inspector-content">Waiting for selection...</div>
+          <div id="inspector-content">Select target...</div>
           <button
             onclick="document.getElementById('inspector').classList.remove('active')"
             style="
               width: 100%;
               margin-top: 20px;
-              padding: 10px;
               background: transparent;
               border: 1px solid #555;
-              color: #888;
+              color: #fff;
               cursor: pointer;
+              padding: 10px;
             "
           >
             CLOSE
@@ -232,114 +189,72 @@
       </div>
 
       <div class="hud">
-        <div class="panel" style="flex: 0.8">
-          <h3>// SYSTEM STATUS</h3>
+        <div class="panel" style="flex: 0.7">
+          <h3>// STATUS</h3>
           <div style="text-align: center; margin-top: 10px">
             <div
               id="val-prob"
-              style="
-                font-family: 'Orbitron';
-                font-size: 2.5rem;
-                color: #fff;
-                text-shadow: 0 0 10px var(--primary);
-              "
+              style="font-family: 'Orbitron'; font-size: 2.2rem; color: #fff"
             >
               --%
             </div>
-            <div style="font-size: 0.7rem; color: #888">
+            <div style="font-size: 0.6rem; color: #aaa">
               COLLAPSE PROBABILITY
             </div>
           </div>
-
-          <div
-            style="
-              margin-top: 15px;
-              border-top: 1px dashed #333;
-              padding-top: 10px;
-            "
-          >
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                font-size: 0.8rem;
-                margin-bottom: 5px;
-              "
-            >
+          <div style="margin-top: 15px; font-size: 0.8rem">
+            <div style="display: flex; justify-content: space-between">
               <span>RESONANCE:</span>
               <span id="val-res" style="color: var(--warn)">0.00</span>
             </div>
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                font-size: 0.8rem;
-              "
-            >
-              <span>STABILITY:</span>
-              <span id="val-stab" style="color: var(--primary)">1.00</span>
+            <div style="display: flex; justify-content: space-between">
+              <span>LATENCY:</span>
+              <span id="val-ping" style="color: var(--primary)">--ms</span>
             </div>
           </div>
-
           <button id="btn-link" class="btn-link" onclick="toggleSystem()">
-            CONNECT SATELLITE
+            CONNECT [3s]
           </button>
         </div>
 
         <div class="panel" style="flex: 1.5">
-          <h3>// UPT RESONANCE WAVE [R(t)]</h3>
-          <div class="chart-container">
-            <canvas id="waveChart"></canvas>
-          </div>
+          <h3>// RESONANCE WAVEFORM</h3>
+          <div class="chart-box"><canvas id="waveChart"></canvas></div>
         </div>
 
         <div class="panel" style="flex: 1">
-          <h3>// THREAT DISTRIBUTION</h3>
-          <div class="chart-container">
-            <canvas id="radarChart"></canvas>
-          </div>
+          <h3>// THREAT RADAR</h3>
+          <div class="chart-box"><canvas id="radarChart"></canvas></div>
         </div>
 
         <div class="panel" style="flex: 1">
           <h3>// LIVE FEED</h3>
-          <div id="log-box">
-            <div class="log-item">System V8.0 Loaded.</div>
-            <div class="log-item">Charts initialized.</div>
-          </div>
+          <div id="log-box"></div>
         </div>
       </div>
     </div>
 
     <script>
-      // --- 1. SETUP MAP ---
-      const map = L.map("map", {
-        zoomControl: false,
-        attributionControl: false,
-      }).setView([20, 0], 2);
+      const map = L.map("map", { zoomControl: false }).setView([20, 0], 2);
       L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       ).addTo(map);
-      let heatLayer = L.heatLayer([], { radius: 35, blur: 20 }).addTo(map);
       let markersGroup = L.layerGroup().addTo(map);
 
-      // --- 2. SETUP CHARTS (Chart.js) ---
-
-      // Chart 1: Line Chart (Sóng dao động)
-      const ctxWave = document.getElementById("waveChart").getContext("2d");
-      const waveChart = new Chart(ctxWave, {
+      // Chart Config
+      const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
-          labels: Array(20).fill(""), // Placeholder cho 20 điểm dữ liệu
+          labels: Array(30).fill(""),
           datasets: [
             {
-              label: "Resonance",
-              data: Array(20).fill(0),
+              data: Array(30).fill(0),
               borderColor: "#00f3ff",
-              backgroundColor: "rgba(0, 243, 255, 0.1)",
-              borderWidth: 2,
-              tension: 0.4, // Làm mềm đường cong
+              borderWidth: 1.5,
               pointRadius: 0,
+              tension: 0.4,
               fill: true,
+              backgroundColor: "rgba(0,243,255,0.1)",
             },
           ],
         },
@@ -348,36 +263,28 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { display: false }, // Ẩn trục X
-            y: {
-              display: true,
-              grid: { color: "#333" },
-              ticks: { color: "#888", font: { family: "Share Tech Mono" } },
-              min: 0,
-              max: 1.0,
-            },
+            x: { display: false },
+            y: { display: true, min: 0, max: 1, grid: { color: "#222" } },
           },
-          animation: { duration: 0 }, // Tắt animation mượt để tạo cảm giác realtime giật cục
+          animation: { duration: 0 },
         },
       });
 
-      // Chart 2: Radar Chart (Phân bố mối nguy)
-      const ctxRadar = document.getElementById("radarChart").getContext("2d");
-      const radarChart = new Chart(ctxRadar, {
-        type: "polarArea", // Dạng biểu đồ cực (trông như radar)
+      const radarChart = new Chart(document.getElementById("radarChart"), {
+        type: "polarArea",
         data: {
-          labels: ["Quake", "Volcano", "Storm", "Fire"],
+          labels: ["Quake", "Volcano", "Storm", "Solar", "Tsunami"],
           datasets: [
             {
-              data: [0, 0, 0, 0],
+              data: [0, 0, 0, 0, 0],
               backgroundColor: [
-                "rgba(0, 243, 255, 0.5)", // Cyan
-                "rgba(255, 215, 0, 0.5)", // Gold
-                "rgba(189, 0, 255, 0.5)", // Purple
-                "rgba(255, 102, 0, 0.5)", // Orange
+                "#00f3ff",
+                "#ffd700",
+                "#bd00ff",
+                "#ffffff",
+                "#0044ff",
               ],
-              borderWidth: 1,
-              borderColor: "#000",
+              borderWidth: 0,
             },
           ],
         },
@@ -387,177 +294,145 @@
           plugins: {
             legend: {
               position: "right",
-              labels: {
-                color: "#fff",
-                font: { family: "Share Tech Mono", size: 10 },
-              },
+              labels: { color: "#fff", font: { size: 9 } },
             },
           },
-          scales: {
-            r: {
-              grid: { color: "#444" },
-              ticks: { display: false, backdropColor: "transparent" },
-              angleLines: { color: "#444" },
-            },
-          },
+          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
         },
       });
 
-      // --- 3. LOGIC HỆ THỐNG ---
-      let isLive = false;
-      let updateTimer = null;
-
-      function log(msg, type = "log-sys") {
-        const box = document.getElementById("log-box");
-        const time = new Date().toLocaleTimeString("en-US", { hour12: false });
-        box.innerHTML =
-          `<div class="log-item ${type}">[${time}] ${msg}</div>` +
-          box.innerHTML;
-      }
+      let isLive = false,
+        timer = null;
 
       async function toggleSystem() {
-        const btn = document.getElementById("btn-link");
         isLive = !isLive;
+        const btn = document.getElementById("btn-link");
         if (isLive) {
           btn.classList.add("active");
-          btn.innerText = "ABORT LINK";
-          log("Satellite Uplink Established.", "log-sys");
+          btn.innerText = "ABORT [3s SCAN]";
+          log("Hyper-speed uplink initialized.");
           fetchData();
-          updateTimer = setInterval(fetchData, 8000); // 8s update
+          timer = setInterval(fetchData, 3000); // 3 GIÂY QUÉT 1 LẦN
         } else {
           btn.classList.remove("active");
-          btn.innerText = "CONNECT SATELLITE";
-          clearInterval(updateTimer);
-          log("Connection Terminated.", "log-crit");
+          btn.innerText = "CONNECT [3s]";
+          clearInterval(timer);
+          log("Uplink terminated.");
         }
       }
 
       async function fetchData() {
+        const start = Date.now();
         try {
           const res = await fetch("/api/v1/disaster/realtime/usgs");
           const data = await res.json();
+          const latency = Date.now() - start;
+          document.getElementById("val-ping").innerText = latency + "ms";
 
-          if (data.upt_metrics) {
-            updateDashboard(data);
-            renderMap(data.raw_sensors);
-          }
+          if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          console.error(e);
+          log("Connection dropped.");
         }
       }
 
-      function updateDashboard(data) {
-        // 1. Text Metrics
+      function updateUI(data) {
+        // Stats
         const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
         const probEl = document.getElementById("val-prob");
         probEl.innerText = prob + "%";
-
-        // Đổi màu cảnh báo
-        if (prob > 70) {
-          probEl.style.color = "var(--danger)";
-          probEl.style.textShadow = "0 0 20px red";
-        } else if (prob > 40) {
-          probEl.style.color = "var(--warn)";
-          probEl.style.textShadow = "none";
-        } else {
-          probEl.style.color = "#fff";
-          probEl.style.textShadow = "0 0 10px var(--primary)";
-        }
-
+        probEl.style.color = prob > 60 ? "var(--danger)" : "#fff";
         document.getElementById("val-res").innerText =
           data.upt_metrics.network_resonance.toFixed(3);
-        document.getElementById("val-stab").innerText =
-          data.upt_metrics.stability_score.toFixed(3);
 
-        // 2. Update Wave Chart (Đẩy dữ liệu mới vào, xóa dữ liệu cũ)
-        const newResonance = data.upt_metrics.network_resonance;
-        waveChart.data.datasets[0].data.push(newResonance); // Thêm vào cuối
-        waveChart.data.datasets[0].data.shift(); // Xóa đầu
+        // Chart Wave
+        waveChart.data.datasets[0].data.push(
+          data.upt_metrics.network_resonance
+        );
+        waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // 3. Update Radar Chart (Đếm số lượng sự kiện)
-        let counts = { EARTHQUAKE: 0, VOLCANO: 0, STORM: 0, WILDFIRE: 0 };
-        data.raw_sensors.forEach((s) => {
-          if (counts[s.type] !== undefined) counts[s.type]++;
-        });
-        radarChart.data.datasets[0].data = [
-          counts["EARTHQUAKE"],
-          counts["VOLCANO"],
-          counts["STORM"],
-          counts["WILDFIRE"],
-        ];
-        radarChart.update();
-      }
-
-      function renderMap(sensors) {
+        // Map & Radar
         markersGroup.clearLayers();
-        let heatPoints = [];
+        let counts = {
+          EARTHQUAKE: 0,
+          VOLCANO: 0,
+          STORM: 0,
+          SOLAR_FLARE: 0,
+          TSUNAMI: 0,
+        };
 
-        sensors.forEach((s) => {
-          let color = "#00f3ff";
-          let radius = s.energy_level * 15;
-          let icon = "📍";
-
+        data.raw_sensors.forEach((s) => {
+          let color = "#00f3ff",
+            icon = "📍",
+            radius = s.energy_level * 15;
           if (s.type === "EARTHQUAKE") {
-            color = s.energy_level > 0.6 ? "#ff003c" : "#00f3ff";
+            color = "#00f3ff";
             icon = "📉";
-            heatPoints.push([s.lat, s.lon, s.energy_level]);
+          } else if (s.type === "TSUNAMI") {
+            color = "var(--tsunami)";
+            icon = "🌊";
+            radius = 50;
           } else if (s.type === "WILDFIRE") {
-            color = "#ff6600";
+            color = "var(--fire)";
             icon = "🔥";
-            heatPoints.push([s.lat, s.lon, 0.8]);
           } else if (s.type === "VOLCANO") {
-            color = "#ffd700";
+            color = "var(--warn)";
             icon = "🌋";
-            radius = 25;
-            heatPoints.push([s.lat, s.lon, 1]);
           } else if (s.type === "STORM") {
-            color = "#bd00ff";
+            color = "var(--storm)";
             icon = "🌀";
             radius = 30;
+          } else if (s.type === "SOLAR_FLARE") {
+            color = "var(--solar)";
+            icon = "☀️";
+            radius = 100;
           }
+
+          if (counts[s.type] !== undefined) counts[s.type]++;
+          else counts["EARTHQUAKE"]++; // Fallback
 
           L.circleMarker([s.lat, s.lon], {
             radius: radius,
             color: color,
             fillColor: color,
-            fillOpacity: 0.4,
+            fillOpacity: 0.5,
             weight: 1,
           })
             .addTo(markersGroup)
             .on("click", () => showInspector(s, icon));
         });
-        heatLayer.setLatLngs(heatPoints);
-        log(`Synced: ${sensors.length} objects active.`, "log-sys");
+
+        radarChart.data.datasets[0].data = [
+          counts["EARTHQUAKE"],
+          counts["VOLCANO"],
+          counts["STORM"],
+          counts["SOLAR_FLARE"],
+          counts["TSUNAMI"],
+        ];
+        radarChart.update();
+
+        log(`Synced ${data.raw_sensors.length} events.`);
       }
 
-      function showInspector(data, icon) {
-        const p = document.getElementById("inspector");
-        p.classList.add("active");
+      function log(msg) {
+        const box = document.getElementById("log-box");
+        const t = new Date().toLocaleTimeString("en-US", { hour12: false });
+        box.innerHTML =
+          `<div class="log-item">[${t}] ${msg}</div>` + box.innerHTML;
+      }
+
+      function showInspector(d, icon) {
+        document.getElementById("inspector").classList.add("active");
         document.getElementById("inspector-content").innerHTML = `
-                <div class="row"><span class="lbl">TYPE</span> <span class="val" style="color:var(--primary); font-size:1.1rem">${icon} ${
-          data.type
-        }</span></div>
-                <div class="row"><span class="lbl">LOCATION</span> <span class="val">${data.place.substring(
-                  0,
-                  25
+                <div class="row"><span style="color:#888">TYPE</span> <strong style="color:var(--primary)">${icon} ${
+          d.type
+        }</strong></div>
+                <div class="row"><span style="color:#888">PLACE</span> <span>${
+                  d.place
+                }</span></div>
+                <div class="row"><span style="color:#888">ENERGY</span> <span style="color:var(--warn)">${d.energy_level.toFixed(
+                  2
                 )}</span></div>
-                <div class="row"><span class="lbl">ENERGY INDEX</span> <span class="val" style="color:var(--warn)">${data.energy_level.toFixed(
-                  3
-                )}</span></div>
-                <div class="row"><span class="lbl">ANOMALY</span> <span class="val">${data.anomaly_score.toFixed(
-                  3
-                )}</span></div>
-                <div style="margin-top:15px; border:1px solid #333; padding:10px; text-align:center;">
-                    <div style="font-size:0.7rem; color:#888;">UPT PREDICTION</div>
-                    <strong style="color:${
-                      data.energy_level > 0.6
-                        ? "var(--danger)"
-                        : "var(--primary)"
-                    }; font-size:1.2rem;">
-                        ${data.energy_level > 0.6 ? "CRITICAL" : "STABLE"}
-                    </strong>
-                </div>
             `;
       }
     </script>
