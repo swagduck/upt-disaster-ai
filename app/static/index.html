@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V19.0 (NASA + USGS)</title>
+    <title>UPT COMMANDER V19.1 (COLOR FIX)</title>
 
     <link
       rel="icon"
@@ -627,7 +627,7 @@
         let level = 5;
         let color = "var(--defcon-5)";
 
-        // Logic Defcon tổng hợp (Động đất lớn hoặc quá nhiều cháy rừng)
+        // Logic Defcon tổng hợp
         if (score > 5) {
           level = 4;
           color = "var(--defcon-4)";
@@ -773,12 +773,9 @@
       async function fetchAllData() {
         const start = Date.now();
         try {
-          // 1. Fetch Earthquakes (USGS)
           const quakePromise = fetch(
             "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
           ).then((r) => r.json());
-
-          // 2. Fetch Wildfires/Storms/Volcanoes (NASA EONET) - Limit 20 days
           const nasaPromise = fetch(
             "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
           ).then((r) => r.json());
@@ -787,10 +784,8 @@
             quakePromise,
             nasaPromise,
           ]);
-
           document.getElementById("val-ping").innerText =
             Date.now() - start + "ms";
-
           processMultiData(quakeData, nasaData);
         } catch (e) {
           console.error(e);
@@ -829,33 +824,32 @@
           });
         }
 
-        // --- 2. Process NASA EONET ---
+        // --- 2. Process NASA EONET (FIXED COLORS) ---
         if (nasaData.events) {
           nasaData.events.forEach((e) => {
             const catId = e.categories[0].id;
-            const coords = e.geometry[0].coordinates; // Lấy tọa độ điểm đầu tiên
-
-            // Xử lý tọa độ (NASA có thể trả về [lng, lat] hoặc polygon)
+            const coords = e.geometry[0].coordinates;
             let lat = coords[1];
             let lng = coords[0];
 
+            // DÙNG MÃ HEX TRỰC TIẾP THAY VÌ BIẾN CSS
             let color = "#ffffff";
             let type = e.title;
             let alt = 0.2;
 
             if (catId === "wildfires") {
               counts.FIRE++;
-              color = "var(--neon-orange)";
+              color = "#ff6600";
               type = "WILDFIRE";
               alt = 0.3;
             } else if (catId === "volcanoes") {
               counts.VOLCANO++;
-              color = "var(--neon-gold)";
+              color = "#ffd700";
               type = "VOLCANO";
               alt = 0.5;
             } else if (catId === "severeStorms") {
               counts.STORM++;
-              color = "var(--neon-purple)";
+              color = "#bd00ff";
               type = "STORM/CYCLONE";
               alt = 0.4;
             } else if (catId === "seaLakeIce") {
@@ -872,7 +866,7 @@
               color: color,
               type: type,
               place: e.title,
-              value: 5.0, // Default intensity for NASA events
+              value: 5.0,
               desc: "Active NASA Event",
               maxR: 0,
             });
@@ -882,19 +876,14 @@
         // --- Update UI ---
         document.getElementById("val-prob").innerText = combinedEvents.length;
         document.getElementById("val-res").innerText = maxIntensity.toFixed(1);
-
-        // Defcon Score = (Quakes * 1) + (Volcano * 3) + (Storm * 2)
         const dangerScore =
           maxIntensity + counts.VOLCANO * 2 + counts.STORM * 1.5;
         updateDefcon(dangerScore);
-
         sfx.playScan();
 
-        // Charts
         waveChart.data.datasets[0].data.push(maxIntensity);
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
-
         radarChart.data.datasets[0].data = [
           counts.QUAKE,
           counts.FIRE,
@@ -904,12 +893,10 @@
         ];
         radarChart.update();
 
-        // Update Globe
         if (world) {
           world.pointsData(combinedEvents);
           world.ringsData(combinedEvents.filter((d) => d.maxR > 0));
         }
-
         printTerm(`Synced ${combinedEvents.length} global events.`);
       }
 
@@ -961,8 +948,7 @@
           printTerm("Initializing Multi-Source Link...");
           sfx.playBeep();
           fetchAllData();
-          timer = setInterval(fetchAllData, 60000); // 60s update
-
+          timer = setInterval(fetchAllData, 60000);
           statusAuto.innerText = "ENGAGED";
           statusAuto.style.color = "var(--neon-green)";
           statusSat.innerText = "LOCKED";
@@ -973,7 +959,6 @@
           clearInterval(timer);
           if (world) world.controls().autoRotate = true;
           printTerm("Uplink Terminated.");
-
           statusAuto.innerText = "STANDBY";
           statusAuto.style.color = "#888";
           statusSat.innerText = "IDLE";
