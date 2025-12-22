@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V25.0 (THE GUARDIAN)</title>
+    <title>UPT COMMANDER V25.1 (FIXED)</title>
 
     <link
       rel="icon"
@@ -512,10 +512,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v25.0 loaded.</div>
-        <div class="term-line sys">
-          Modules: AI [ON] | GPS [STANDBY] | VISUAL [ON]
-        </div>
+        <div class="term-line sys">Guardian Kernel v25.1 loaded.</div>
+        <div class="term-line sys">UI Bug Fixes: Applied.</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -1014,7 +1012,6 @@
       let trainingData = [];
       let isTraining = false;
 
-      // --- NEW GPS VARS ---
       let userLat = null;
       let userLng = null;
       let userEventMarker = null;
@@ -1292,7 +1289,7 @@
 
       function applyFilters() {
         let filteredData = allEventsCache.filter((d) => {
-          if (d.type.includes("USER_LOC")) return true; // Always show user
+          if (d.type.includes("USER_LOC")) return true;
           if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
           if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
           if (d.type.includes("STORM") && d.color === "#bd00ff")
@@ -1669,8 +1666,7 @@
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
-        const statusAuto = document.getElementById("status-auto");
-        const statusSat = document.getElementById("status-sat");
+        // FIX START: REMOVED OLD REFERENCES TO statusAuto and statusSat
         if (isLive) {
           sfx.ctx.resume();
           btn.classList.add("active");
@@ -1678,13 +1674,11 @@
           if (world) world.controls().autoRotate = false;
           printTerm("Initializing Neural Link...");
           sfx.playBeep();
-          initModel(); // Start TF.js
+          initModel();
           fetchAllData();
           timer = setInterval(fetchAllData, 60000);
 
           document.getElementById("status-model").innerText = "LOADING CORE";
-          statusSat.innerText = "LOCKED";
-          statusSat.style.color = "var(--neon-green)";
         } else {
           btn.classList.remove("active");
           btn.innerText = "ACTIVATE GUARDIAN";
@@ -1694,9 +1688,8 @@
           printTerm("Uplink Terminated.");
           document.getElementById("status-model").innerText = "OFFLINE";
           document.getElementById("status-model").style.color = "#888";
-          statusSat.innerText = "IDLE";
-          statusSat.style.color = "#888";
         }
+        // FIX END
       });
     </script>
   </body>
