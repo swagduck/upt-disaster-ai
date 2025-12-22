@@ -3,19 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V17.1 (SATELLITE FIX)</title>
+    <title>UPT COMMANDER V17.2 (STABLE CORE)</title>
 
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>"
     />
 
-    <script src="//unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
       rel="stylesheet"
@@ -344,8 +343,8 @@
       </div>
       <div id="term-output">
         <div class="term-line sys">System initialized...</div>
-        <div class="term-line sys">Orbital Grid: Online</div>
-        <div class="term-line">Satellites: Tracking (200)</div>
+        <div class="term-line sys">Engine: Three.js r124 (Legacy Core)</div>
+        <div class="term-line">Satellites: Tracking (150)</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -461,10 +460,9 @@
     </div>
 
     <script>
-      // --- ERROR SUPPRESSION (Clean Console) ---
+      // --- 0. ERROR SUPPRESSION ---
       const originalError = console.error;
       console.error = function (...args) {
-        // Chặn lỗi t.map nếu có
         if (
           args[0] &&
           (args[0].toString().includes("t.map") ||
@@ -594,10 +592,7 @@
         } else if (cmd.includes("usa") || cmd.includes("mỹ")) {
           world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
           printTerm("Moving to USA...");
-        }
-
-        // SAT COMMAND
-        else if (cmd === "sats" || cmd.includes("vệ tinh")) {
+        } else if (cmd === "sats" || cmd.includes("vệ tinh")) {
           showSats = !showSats;
           world.customLayerData(showSats ? satData : []);
           printTerm(`Satellites: ${showSats ? "ON" : "OFF"}`, "sys");
@@ -615,7 +610,6 @@
       let currentNodeCount = 0;
       let showSats = true;
 
-      // Generate Satellites
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
@@ -672,11 +666,7 @@
           )
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
-
-          // TACTICAL GRID
           .showGraticules(true)
-
-          // DISASTER POINTS
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
@@ -686,11 +676,9 @@
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
 
-          // SATELLITES (CUSTOM LAYER)
+          // SATELLITES (Now works perfectly with Three.js r124)
           .customLayerData(satData)
           .customThreeObject((d) => {
-            // Cần THREE được load global
-            if (typeof THREE === "undefined") return null;
             const geometry = new THREE.TetrahedronGeometry(0.3);
             const material = new THREE.MeshLambertMaterial({ color: d.color });
             return new THREE.Mesh(geometry, material);
