@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V24.5 (TOTAL CONTROL)</title>
+    <title>UPT COMMANDER V25.0 (THE GUARDIAN)</title>
 
     <link
       rel="icon"
@@ -449,17 +449,17 @@
 
     <div id="ai-ticker">
       <div id="ai-ticker-text">
-        INITIALIZING NEURAL LINK... TENSORFLOW CORE LOADED...
+        INITIALIZING GUARDIAN PROTOCOL... GPS SYSTEMS STANDBY...
       </div>
     </div>
 
     <div id="help-overlay">
       <div class="help-box">
         <div class="help-col">
-          <h4>SYSTEM CONTROL</h4>
+          <h4>GUARDIAN OPS</h4>
           <ul>
+            <li><span class="cmd-key">locate</span> - FIND ME (GPS)</li>
             <li><span class="cmd-key">scan</span> - Refresh Data</li>
-            <li><span class="cmd-key">status</span> - Situation Report</li>
             <li><span class="cmd-key">train</span> - Force Retrain</li>
             <li><span class="cmd-key">sats</span> - Toggle Satellites</li>
           </ul>
@@ -512,11 +512,11 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">TensorFlow.js Backend: WebGL</div>
+        <div class="term-line sys">Guardian Kernel v25.0 loaded.</div>
         <div class="term-line sys">
-          Neural Network: Initialized (Adam Optimizer)
+          Modules: AI [ON] | GPS [STANDBY] | VISUAL [ON]
         </div>
-        <div class="term-line">Ready. Waiting for data...</div>
+        <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
         <button id="mic-btn" onclick="toggleVoice()" title="Voice Command">
@@ -573,7 +573,7 @@
 
     <div class="hud-overlay">
       <div class="panel">
-        <h3>Global Threat</h3>
+        <h3>Nearest Threat</h3>
         <div
           style="
             text-align: center;
@@ -583,8 +583,14 @@
             justify-content: center;
           "
         >
-          <div id="val-prob" class="big-stat">--</div>
-          <div class="sub-stat">ACTIVE EVENTS</div>
+          <div id="val-prob" class="big-stat" style="font-size: 2rem">--</div>
+          <div class="sub-stat" id="lbl-prob">DISTANCE (KM)</div>
+          <div
+            id="nearest-name"
+            style="font-size: 0.7rem; color: #fff; margin-top: 5px"
+          >
+            AWAITING GPS
+          </div>
         </div>
       </div>
       <div class="panel">
@@ -601,9 +607,7 @@
             color: #666;
           "
         >
-          <span
-            >MODEL LOSS: <span id="val-res" style="color: #fff">--</span></span
-          >
+          <span>LOSS: <span id="val-res" style="color: #fff">--</span></span>
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
@@ -662,6 +666,19 @@
 
         <div class="filter-grid">
           <button
+            id="btn-gps"
+            class="filter-btn"
+            style="
+              border-color: var(--neon-blue);
+              color: var(--neon-blue);
+              grid-column: span 2;
+            "
+            onclick="locateUser()"
+          >
+            [ ] LOCATE ME (GPS)
+          </button>
+
+          <button
             id="btn-quake"
             class="filter-btn active"
             onclick="toggleFilter('QUAKE', this)"
@@ -717,10 +734,10 @@
           "
         >
           > TF_MODEL: <span id="status-model">UNTRAINED</span><br />
-          > SAT_LINK: <span id="status-sat">STANDBY</span>
+          > USER_LOC: <span id="status-loc">UNKNOWN</span>
         </div>
 
-        <button id="btn-link" class="btn-link">ACTIVATE NEURAL LINK</button>
+        <button id="btn-link" class="btn-link">ACTIVATE GUARDIAN</button>
       </div>
     </div>
 
@@ -856,14 +873,20 @@
           trainModel();
           return;
         }
+        if (cmd.includes("locate") || cmd.includes("gps")) {
+          locateUser();
+          return;
+        }
 
         if (cmd.includes("status")) {
           printTerm(`--- SYSTEM REPORT ---`, "sys");
           printTerm(`DEFCON LEVEL: ${currentDefcon}`, "sys");
           printTerm(`TOTAL EVENTS: ${currentNodeCount}`, "sys");
-          if (statsCache) {
-            printTerm(`[+] QUAKES: ${statsCache.QUAKE}`, "sys");
-            printTerm(`[+] FIRES: ${statsCache.FIRE}`, "sys");
+          if (userLat !== null) {
+            printTerm(
+              `USER COORDS: ${userLat.toFixed(2)}, ${userLng.toFixed(2)}`,
+              "sys"
+            );
           }
           return;
         }
@@ -978,7 +1001,6 @@
       let showSats = true;
       let allEventsCache = [];
       let statsCache = null;
-      // ADDED 'OTHER' CATEGORY
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
@@ -991,6 +1013,11 @@
       let model = null;
       let trainingData = [];
       let isTraining = false;
+
+      // --- NEW GPS VARS ---
+      let userLat = null;
+      let userLng = null;
+      let userEventMarker = null;
 
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
@@ -1012,6 +1039,113 @@
         sfx.playBeep();
         applyFilters();
       };
+
+      // --- GPS LOGIC ---
+      window.locateUser = () => {
+        const btn = document.getElementById("btn-gps");
+        const statusLoc = document.getElementById("status-loc");
+
+        if (navigator.geolocation) {
+          printTerm("Triangulating user position...", "sys");
+          btn.innerText = "[...] LOCATING";
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              userLat = position.coords.latitude;
+              userLng = position.coords.longitude;
+
+              btn.innerText = "[x] GPS LOCKED";
+              btn.classList.add("active");
+              statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(
+                2
+              )}`;
+              statusLoc.style.color = "var(--neon-blue)";
+
+              printTerm(
+                `GPS Locked: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`,
+                "sys"
+              );
+              sfx.playBeep();
+
+              // Create User Marker (Blue Ring)
+              userEventMarker = {
+                lat: userLat,
+                lng: userLng,
+                alt: 0.02,
+                color: "#00f3ff",
+                type: "USER_LOC",
+                place: "HOME BASE",
+                value: 0,
+                desc: "Current User Location",
+                maxR: 5,
+                propagationSpeed: 1,
+                repeatPeriod: 2000,
+              };
+
+              world.pointOfView(
+                { lat: userLat, lng: userLng, altitude: 1.5 },
+                2000
+              );
+              applyFilters(); // Redraw to show user
+              calcNearestThreat();
+            },
+            (error) => {
+              printTerm("GPS Access Denied or Failed.", "err");
+              btn.innerText = "[!] GPS FAIL";
+            }
+          );
+        } else {
+          printTerm("Geolocation not supported.", "err");
+        }
+      };
+
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // km
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      function calcNearestThreat() {
+        if (userLat === null || allEventsCache.length === 0) return;
+
+        let minDist = 999999;
+        let nearestEvent = null;
+
+        allEventsCache.forEach((e) => {
+          if (e.type === "USER_LOC") return; // Don't measure self
+          const dist = getDistance(userLat, userLng, e.lat, e.lng);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestEvent = e;
+          }
+        });
+
+        const distEl = document.getElementById("val-prob");
+        const nameEl = document.getElementById("nearest-name");
+        const probEl = document.getElementById("lbl-prob");
+
+        if (nearestEvent) {
+          distEl.innerText = Math.round(minDist).toLocaleString();
+          nameEl.innerText = `${nearestEvent.type} - ${nearestEvent.place}`;
+
+          if (minDist < 100) {
+            distEl.style.color = "var(--neon-red)";
+            sfx.playAlarm();
+          } else if (minDist < 500) {
+            distEl.style.color = "var(--neon-gold)";
+          } else {
+            distEl.style.color = "var(--neon-green)";
+          }
+        }
+      }
 
       // --- TENSORFLOW AI LOGIC ---
       async function initModel() {
@@ -1156,22 +1290,20 @@
         applyFilters();
       }
 
-      // --- FIXED STRICT FILTERING ---
       function applyFilters() {
         let filteredData = allEventsCache.filter((d) => {
+          if (d.type.includes("USER_LOC")) return true; // Always show user
           if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
           if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
           if (d.type.includes("STORM") && d.color === "#bd00ff")
-            return activeFilters["STORM"]; // Strict Storm
+            return activeFilters["STORM"];
           if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
-
-          // CATCH ALL FOR OTHERS (Ice, Flood, Landslide, etc)
-          // If it's none of the above, it's an OTHER
           return activeFilters["OTHER"];
         });
 
         if (activeFilters["PREDICT"])
           filteredData = filteredData.concat(predictionEvents);
+        if (userEventMarker) filteredData.push(userEventMarker);
 
         if (world) {
           world.pointsData(filteredData);
@@ -1234,7 +1366,7 @@
       function updateTicker(maxMag, count) {
         const ticker = document.getElementById("ai-ticker-text");
         const msgs = [
-          `NEURAL LINK ESTABLISHED...`,
+          `GUARDIAN PROTOCOL ACTIVE...`,
           `REAL-TIME MONITORING: ${count} EVENTS...`,
           `MAX INTENSITY: ${maxMag.toFixed(1)}...`,
           `AI LEARNING FROM DATA STREAMS...`,
@@ -1442,7 +1574,6 @@
               isSpecial = true;
             }
 
-            // If not special, it's 'OTHER' (white)
             if (!isSpecial) {
               type = "OTHER EVENT";
               color = "#aaaaaa";
@@ -1489,6 +1620,7 @@
         radarChart.update();
 
         if (model) trainModel();
+        calcNearestThreat(); // Recalc distances on new data
 
         if (activeFilters["PREDICT"]) runNeuralPrediction();
         else applyFilters();
@@ -1504,6 +1636,7 @@
         else if (d.type.includes("STORM")) icon = "🌀";
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
         else if (d.type.includes("NEURAL")) icon = "👁️";
+        else if (d.type.includes("USER")) icon = "🏠";
 
         const isPredict = d.type.includes("NEURAL");
         const statusText = isPredict
@@ -1554,7 +1687,7 @@
           statusSat.style.color = "var(--neon-green)";
         } else {
           btn.classList.remove("active");
-          btn.innerText = "ACTIVATE NEURAL LINK";
+          btn.innerText = "ACTIVATE GUARDIAN";
           clearInterval(timer);
           if (countdownTimer) clearInterval(countdownTimer);
           if (world) world.controls().autoRotate = true;
