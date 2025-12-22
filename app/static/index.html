@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V25.1 (FIXED)</title>
+    <title>UPT COMMANDER V26.0 (ATOMIC WATCH)</title>
 
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"
     />
 
     <script src="//unpkg.com/three@0.124.0/build/three.min.js"></script>
@@ -29,6 +29,7 @@
         --neon-orange: #ff6600;
         --neon-purple: #bd00ff;
         --neon-white: #ffffff;
+        --neon-toxic: #ccff00;
         --glass-bg: rgba(8, 15, 25, 0.9);
         --glass-border: rgba(0, 243, 255, 0.3);
         --tech-font: "Orbitron", sans-serif;
@@ -53,6 +54,9 @@
       }
       body.alert-mode {
         box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
+      }
+      body.nuclear-mode {
+        box-shadow: inset 0 0 150px rgba(204, 255, 0, 0.2);
       }
 
       .scanlines {
@@ -183,6 +187,11 @@
       .term-line.ai {
         color: var(--neon-purple);
         font-weight: bold;
+      }
+      .term-line.nuke {
+        color: var(--neon-toxic);
+        font-weight: bold;
+        text-shadow: 0 0 5px var(--neon-toxic);
       }
       .term-line.tf {
         color: var(--neon-orange);
@@ -449,7 +458,7 @@
 
     <div id="ai-ticker">
       <div id="ai-ticker-text">
-        INITIALIZING GUARDIAN PROTOCOL... GPS SYSTEMS STANDBY...
+        INITIALIZING GUARDIAN PROTOCOL... ATOMIC WATCH ONLINE...
       </div>
     </div>
 
@@ -477,7 +486,7 @@
           <h4>TACTICAL</h4>
           <ul>
             <li><span class="cmd-key">show all</span> - Reveal Map</li>
-            <li><span class="cmd-key">hide all</span> - Stealth Mode</li>
+            <li><span class="cmd-key">show nukes</span> - Nuclear Plants</li>
             <li><span class="cmd-key">predict</span> - Toggle AI Viz</li>
             <li><span class="cmd-key">mute / unmute</span> - Audio Control</li>
           </ul>
@@ -512,8 +521,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v25.1 loaded.</div>
-        <div class="term-line sys">UI Bug Fixes: Applied.</div>
+        <div class="term-line sys">Guardian Kernel v26.0 loaded.</div>
+        <div class="term-line sys">Module: ATOMIC WATCH [ACTIVE]</div>
         <div class="term-line">Ready.</div>
       </div>
       <div id="term-input-line">
@@ -698,23 +707,22 @@
             [x] STORMS
           </button>
           <button
-            id="btn-fire"
+            id="btn-nuke"
             class="filter-btn active"
-            onclick="toggleFilter('FIRE', this)"
+            style="border-color: var(--neon-toxic); color: var(--neon-toxic)"
+            onclick="toggleFilter('NUKE', this)"
           >
-            [x] FIRES
+            [x] NUKES
           </button>
-          <button
-            id="btn-other"
-            class="filter-btn active"
-            onclick="toggleFilter('OTHER', this)"
-          >
-            [x] OTHERS
-          </button>
+
           <button
             id="btn-predict"
             class="filter-btn"
-            style="border-color: var(--neon-purple); color: var(--neon-purple)"
+            style="
+              border-color: var(--neon-purple);
+              color: var(--neon-purple);
+              grid-column: span 2;
+            "
             onclick="togglePrediction()"
           >
             [ ] NEURAL AI
@@ -951,6 +959,7 @@
           fire: "FIRE",
           storm: "STORM",
           volcano: "VOLCANO",
+          nuke: "NUKE",
         };
         for (const [key, type] of Object.entries(filterMap)) {
           if (cmd.includes(key)) {
@@ -971,10 +980,12 @@
       }
 
       function setAllFilters(state) {
-        ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER"].forEach((type) => {
-          activeFilters[type] = state;
-          updateFilterBtnUI(type, state);
-        });
+        ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER", "NUKE"].forEach(
+          (type) => {
+            activeFilters[type] = state;
+            updateFilterBtnUI(type, state);
+          }
+        );
         applyFilters();
       }
       function updateFilterBtnUI(type, isActive) {
@@ -999,12 +1010,14 @@
       let showSats = true;
       let allEventsCache = [];
       let statsCache = null;
+      // ADDED 'NUKE'
       let activeFilters = {
         QUAKE: true,
         VOLCANO: true,
         STORM: true,
         FIRE: true,
         OTHER: true,
+        NUKE: true,
         PREDICT: false,
       };
       let predictionEvents = [];
@@ -1015,6 +1028,48 @@
       let userLat = null;
       let userLng = null;
       let userEventMarker = null;
+
+      // NUCLEAR POWER PLANTS (Major locations)
+      const nuclearPlants = [
+        {
+          name: "Fukushima Daiichi",
+          lat: 37.421,
+          lng: 141.033,
+          desc: "Japan - High Seismic Risk",
+        },
+        {
+          name: "Zaporizhzhia",
+          lat: 47.512,
+          lng: 34.586,
+          desc: "Ukraine - Active Conflict Zone",
+        },
+        {
+          name: "Kashiwazaki-Kariwa",
+          lat: 37.429,
+          lng: 138.596,
+          desc: "Japan - World's Largest",
+        },
+        { name: "Hanul", lat: 37.094, lng: 129.385, desc: "South Korea" },
+        {
+          name: "Diablo Canyon",
+          lat: 35.211,
+          lng: -120.855,
+          desc: "USA (California) - Fault Line",
+        },
+        {
+          name: "Gravelines",
+          lat: 51.012,
+          lng: 2.136,
+          desc: "France - Western Europe",
+        },
+        {
+          name: "Bruce",
+          lat: 44.326,
+          lng: -81.599,
+          desc: "Canada - North America",
+        },
+        { name: "Tianwan", lat: 34.686, lng: 119.461, desc: "China - Coastal" },
+      ];
 
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
@@ -1064,7 +1119,6 @@
               );
               sfx.playBeep();
 
-              // Create User Marker (Blue Ring)
               userEventMarker = {
                 lat: userLat,
                 lng: userLng,
@@ -1083,7 +1137,7 @@
                 { lat: userLat, lng: userLng, altitude: 1.5 },
                 2000
               );
-              applyFilters(); // Redraw to show user
+              applyFilters();
               calcNearestThreat();
             },
             (error) => {
@@ -1117,7 +1171,7 @@
         let nearestEvent = null;
 
         allEventsCache.forEach((e) => {
-          if (e.type === "USER_LOC") return; // Don't measure self
+          if (e.type === "USER_LOC") return;
           const dist = getDistance(userLat, userLng, e.lat, e.lng);
           if (dist < minDist) {
             minDist = dist;
@@ -1127,7 +1181,6 @@
 
         const distEl = document.getElementById("val-prob");
         const nameEl = document.getElementById("nearest-name");
-        const probEl = document.getElementById("lbl-prob");
 
         if (nearestEvent) {
           distEl.innerText = Math.round(minDist).toLocaleString();
@@ -1144,7 +1197,7 @@
         }
       }
 
-      // --- TENSORFLOW AI LOGIC ---
+      // --- TENSORFLOW AI ---
       async function initModel() {
         model = tf.sequential();
         model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
@@ -1295,7 +1348,9 @@
           if (d.type.includes("STORM") && d.color === "#bd00ff")
             return activeFilters["STORM"];
           if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
-          return activeFilters["OTHER"];
+          if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
+          if (d.type.includes("OTHER EVENT")) return activeFilters["OTHER"];
+          return false;
         });
 
         if (activeFilters["PREDICT"])
@@ -1305,6 +1360,26 @@
         if (world) {
           world.pointsData(filteredData);
           world.ringsData(filteredData.filter((d) => d.maxR > 0));
+
+          // Nuclear Plants need special 3D Objects
+          world.customThreeObject((d) => {
+            if (d.type.includes("NUCLEAR")) {
+              // Octahedron for Nukes
+              const geometry = new THREE.OctahedronGeometry(1.5);
+              const material = new THREE.MeshBasicMaterial({
+                color: d.color,
+                wireframe: true,
+              });
+              return new THREE.Mesh(geometry, material);
+            } else {
+              // Default Tetrahedron
+              const geometry = new THREE.TetrahedronGeometry(1.2);
+              const material = new THREE.MeshLambertMaterial({
+                color: d.color,
+              });
+              return new THREE.Mesh(geometry, material);
+            }
+          });
         }
       }
 
@@ -1363,10 +1438,10 @@
       function updateTicker(maxMag, count) {
         const ticker = document.getElementById("ai-ticker-text");
         const msgs = [
-          `GUARDIAN PROTOCOL ACTIVE...`,
-          `REAL-TIME MONITORING: ${count} EVENTS...`,
-          `MAX INTENSITY: ${maxMag.toFixed(1)}...`,
-          `AI LEARNING FROM DATA STREAMS...`,
+          `ATOMIC WATCH ACTIVE...`,
+          `NEURAL LINK: STABLE...`,
+          `MONITORING ${nuclearPlants.length} STRATEGIC ASSETS...`,
+          `REAL-TIME DATA: ${count} EVENTS...`,
         ];
         ticker.innerText = msgs.join(" /// ");
       }
@@ -1391,18 +1466,14 @@
           .ringMaxRadius("maxR")
           .ringPropagationSpeed("propagationSpeed")
           .ringRepeatPeriod("repeatPeriod")
-
           .customLayerData(satData)
-          .customThreeObject((d) => {
-            const geometry = new THREE.TetrahedronGeometry(1.2);
-            const material = new THREE.MeshLambertMaterial({ color: d.color });
-            return new THREE.Mesh(geometry, material);
-          })
           .customThreeObjectUpdate((obj, d) => {
             Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
             obj.rotation.y += 0.1;
-            d.lng += d.velocity;
-            if (d.lng > 180) d.lng = -180;
+            if (d.lng) {
+              d.lng += d.velocity || 0;
+              if (d.lng > 180) d.lng = -180;
+            } // Only Sats move
           })
           .onPointClick((d) => {
             sfx.playBeep();
@@ -1506,6 +1577,7 @@
 
         trainingData = [];
 
+        // 1. Quakes
         if (quakeData.features) {
           quakeData.features.forEach((f, index) => {
             const mag = f.properties.mag;
@@ -1534,6 +1606,7 @@
           });
         }
 
+        // 2. NASA Events
         if (nasaData.events) {
           nasaData.events.forEach((e) => {
             const catId = e.categories[0].id;
@@ -1592,6 +1665,23 @@
           });
         }
 
+        // 3. NUCLEAR PLANTS
+        nuclearPlants.forEach((n) => {
+          combinedEvents.push({
+            lat: n.lat,
+            lng: n.lng,
+            alt: 0.1,
+            color: "var(--neon-toxic)",
+            type: "NUCLEAR PLANT",
+            place: n.name,
+            value: 10,
+            desc: n.desc,
+            maxR: 20,
+            propagationSpeed: 1,
+            repeatPeriod: 3000, // Slow danger pulse
+          });
+        });
+
         allEventsCache = combinedEvents;
         currentNodeCount = combinedEvents.length;
         statsCache = counts;
@@ -1617,7 +1707,7 @@
         radarChart.update();
 
         if (model) trainModel();
-        calcNearestThreat(); // Recalc distances on new data
+        calcNearestThreat();
 
         if (activeFilters["PREDICT"]) runNeuralPrediction();
         else applyFilters();
@@ -1634,12 +1724,22 @@
         else if (d.type.includes("WILDFIRE")) icon = "🔥";
         else if (d.type.includes("NEURAL")) icon = "👁️";
         else if (d.type.includes("USER")) icon = "🏠";
+        else if (d.type.includes("NUCLEAR")) icon = "☢️";
 
         const isPredict = d.type.includes("NEURAL");
-        const statusText = isPredict
-          ? "AI PREDICTION (UNVERIFIED)"
-          : "LIVE DATA CONFIRMED";
-        const borderColor = isPredict ? "var(--neon-white)" : d.color;
+        const isNuke = d.type.includes("NUCLEAR");
+
+        let statusText = "LIVE DATA CONFIRMED";
+        let borderColor = d.color;
+
+        if (isPredict) {
+          statusText = "AI PREDICTION (UNVERIFIED)";
+          borderColor = "var(--neon-white)";
+        }
+        if (isNuke) {
+          statusText = "CRITICAL INFRASTRUCTURE";
+          borderColor = "var(--neon-toxic)";
+        }
 
         document.getElementById("inspector-content").innerHTML = `
                 <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
@@ -1666,7 +1766,6 @@
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
-        // FIX START: REMOVED OLD REFERENCES TO statusAuto and statusSat
         if (isLive) {
           sfx.ctx.resume();
           btn.classList.add("active");
@@ -1689,7 +1788,6 @@
           document.getElementById("status-model").innerText = "OFFLINE";
           document.getElementById("status-model").style.color = "#888";
         }
-        // FIX END
       });
     </script>
   </body>
