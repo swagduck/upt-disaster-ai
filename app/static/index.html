@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT CINEMATIC V13.0</title>
+    <title>UPT ULTIMATE COMMANDER V14.0</title>
 
     <script src="//unpkg.com/globe.gl@2.26.4/dist/globe.gl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
-      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&family=VT323&display=swap"
       rel="stylesheet"
     />
 
@@ -17,23 +17,33 @@
         --neon-blue: #00f3ff;
         --neon-red: #ff003c;
         --neon-gold: #ffd700;
-        --glass-bg: rgba(10, 20, 35, 0.65);
-        --glass-border: rgba(0, 243, 255, 0.2);
+        --neon-green: #00ff66;
+        --glass-bg: rgba(8, 15, 25, 0.75);
+        --glass-border: rgba(0, 243, 255, 0.3);
         --tech-font: "Orbitron", sans-serif;
         --data-font: "Rajdhani", sans-serif;
+        --code-font: "VT323", monospace;
+        --defcon-1: #ff0000;
+        --defcon-2: #ff4400;
+        --defcon-3: #ffcc00;
+        --defcon-4: #00ff66;
+        --defcon-5: #0088ff;
       }
 
       body {
         margin: 0;
         background-color: #000;
-        background-image: radial-gradient(circle at 50% 50%, #112 0%, #000 80%);
         color: var(--neon-blue);
         font-family: var(--data-font);
         overflow: hidden;
         height: 100vh;
+        user-select: none;
+        transition: box-shadow 1s ease; /* Hiệu ứng chớp đỏ khi DEFCON 1 */
+      }
+      body.alert-mode {
+        box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.3);
       }
 
-      /* --- BACKGROUND FX --- */
       .scanlines {
         position: fixed;
         top: 0;
@@ -41,7 +51,7 @@
         width: 100%;
         height: 100%;
         pointer-events: none;
-        z-index: 999;
+        z-index: 1;
         background: linear-gradient(
           to bottom,
           rgba(255, 255, 255, 0),
@@ -50,19 +60,102 @@
           rgba(0, 0, 0, 0.2)
         );
         background-size: 100% 4px;
-        opacity: 0.15;
+        opacity: 0.1;
       }
 
-      /* --- LAYOUT --- */
       #globe-viz {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 1;
+        z-index: 0;
       }
 
+      /* --- DEFCON BAR (TOP) --- */
+      #defcon-bar {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 60px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid var(--neon-blue);
+        border-top: none;
+        clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+        transition: 0.5s;
+      }
+      #defcon-level {
+        font-family: var(--tech-font);
+        font-size: 2rem;
+        font-weight: 900;
+        letter-spacing: 5px;
+        color: var(--defcon-5);
+        text-shadow: 0 0 15px currentColor;
+      }
+
+      /* --- TERMINAL (LEFT) --- */
+      #terminal {
+        position: absolute;
+        top: 100px;
+        left: 20px;
+        width: 350px;
+        height: 40vh;
+        background: rgba(0, 10, 10, 0.9);
+        border: 1px solid #333;
+        border-left: 3px solid var(--neon-green);
+        font-family: var(--code-font);
+        font-size: 1.1rem;
+        color: var(--neon-green);
+        display: flex;
+        flex-direction: column;
+        z-index: 20;
+        box-shadow: 0 0 15px rgba(0, 255, 100, 0.1);
+        backdrop-filter: blur(5px);
+      }
+      #term-output {
+        flex: 1;
+        padding: 10px;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+      .term-line {
+        margin-bottom: 2px;
+      }
+      .term-line.sys {
+        color: #888;
+      }
+      .term-line.err {
+        color: var(--neon-red);
+      }
+      .term-line.cmd {
+        color: #fff;
+      }
+      #term-input-line {
+        display: flex;
+        border-top: 1px solid #333;
+        padding: 5px;
+        background: rgba(0, 255, 100, 0.05);
+      }
+      #term-input {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-family: var(--code-font);
+        font-size: 1.1rem;
+        flex: 1;
+        outline: none;
+        margin-left: 5px;
+        text-transform: lowercase;
+      }
+
+      /* --- HUD (BOTTOM) --- */
       .hud-overlay {
         position: absolute;
         bottom: 20px;
@@ -76,62 +169,22 @@
         pointer-events: none;
       }
 
-      /* --- CINEMATIC PANELS --- */
       .panel {
         background: var(--glass-bg);
         backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
         border: 1px solid var(--glass-border);
         padding: 15px;
         display: flex;
         flex-direction: column;
-        position: relative;
         pointer-events: auto;
-        clip-path: polygon(
-          0 0,
-          100% 0,
-          100% 85%,
-          92% 100%,
-          0 100%
-        ); /* Vát góc dưới bên phải */
-        box-shadow: 0 0 20px rgba(0, 243, 255, 0.05);
-        transition: all 0.3s ease;
+        clip-path: polygon(0 0, 100% 0, 100% 85%, 92% 100%, 0 100%);
+        transition: 0.3s;
       }
-
       .panel:hover {
-        background: rgba(10, 30, 50, 0.8);
-        border-color: rgba(0, 243, 255, 0.6);
-        box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+        border-color: rgba(0, 243, 255, 0.8);
+        box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
       }
 
-      /* Decoration Lines */
-      .panel::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: linear-gradient(
-          90deg,
-          transparent,
-          var(--neon-blue),
-          transparent
-        );
-        opacity: 0.5;
-      }
-      .deco-corner {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        width: 20px;
-        height: 20px;
-        border-bottom: 2px solid var(--neon-blue);
-        border-right: 2px solid var(--neon-blue);
-        opacity: 0.8;
-      }
-
-      /* --- TYPOGRAPHY --- */
       h3 {
         margin: 0 0 10px 0;
         font-family: var(--tech-font);
@@ -139,17 +192,6 @@
         letter-spacing: 2px;
         color: rgba(255, 255, 255, 0.7);
         text-transform: uppercase;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      h3::before {
-        content: "";
-        width: 8px;
-        height: 8px;
-        background: var(--neon-blue);
-        box-shadow: 0 0 8px var(--neon-blue);
-        transform: rotate(45deg);
       }
 
       .big-stat {
@@ -159,28 +201,8 @@
         color: #fff;
         text-shadow: 0 0 20px var(--neon-blue);
         line-height: 1;
-        margin-bottom: 5px;
-      }
-      .sub-stat {
-        font-size: 0.8rem;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 1px;
       }
 
-      .row {
-        display: flex;
-        justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 8px 0;
-        font-size: 0.95rem;
-      }
-      .val {
-        font-weight: 700;
-        color: #fff;
-      }
-
-      /* --- BUTTONS --- */
       .btn-link {
         background: rgba(0, 243, 255, 0.1);
         border: 1px solid var(--neon-blue);
@@ -188,11 +210,9 @@
         padding: 12px;
         font-family: var(--tech-font);
         font-weight: bold;
-        letter-spacing: 2px;
         cursor: pointer;
         margin-top: auto;
         transition: 0.3s;
-        text-transform: uppercase;
         clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
       }
       .btn-link:hover {
@@ -204,7 +224,18 @@
         background: var(--neon-red);
         border-color: var(--neon-red);
         color: #fff;
-        box-shadow: 0 0 20px var(--neon-red);
+        animation: pulseRed 1s infinite;
+      }
+      @keyframes pulseRed {
+        0% {
+          box-shadow: 0 0 10px red;
+        }
+        50% {
+          box-shadow: 0 0 30px red;
+        }
+        100% {
+          box-shadow: 0 0 10px red;
+        }
       }
 
       /* --- INSPECTOR --- */
@@ -218,40 +249,52 @@
         border-left: 4px solid var(--neon-blue);
         padding: 25px;
         z-index: 20;
-        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Hiệu ứng nảy */
+        transition: 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
         clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px);
-        box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.8);
       }
       #inspector.active {
         right: 20px;
       }
-
-      /* --- LOGS --- */
-      #log-box {
-        font-size: 0.85rem;
-        overflow-y: auto;
-        flex: 1;
-        margin-top: 10px;
-        scrollbar-width: none;
-      }
-      .log-item {
-        margin-bottom: 4px;
-        padding-left: 8px;
-        border-left: 2px solid #333;
-        color: rgba(255, 255, 255, 0.8);
-        font-family: "Courier New", monospace;
-      }
-      .log-item span {
-        color: #666;
-        font-size: 0.7em;
-        margin-right: 5px;
+      .row {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 8px 0;
       }
     </style>
   </head>
   <body>
     <div class="scanlines"></div>
-
     <div id="globe-viz"></div>
+
+    <div id="defcon-bar">
+      <div id="defcon-level">DEFCON 5</div>
+    </div>
+
+    <div id="terminal">
+      <div
+        style="
+          background: rgba(0, 255, 100, 0.1);
+          padding: 5px;
+          font-size: 0.9rem;
+          color: #000;
+          background: var(--neon-green);
+          font-weight: bold;
+        "
+      >
+        root@upt-commander:~#
+      </div>
+      <div id="term-output">
+        <div class="term-line sys">System initialized...</div>
+        <div class="term-line sys">Audio synth loaded.</div>
+        <div class="term-line sys">Waiting for uplink...</div>
+        <div class="term-line">Type 'help' for commands.</div>
+      </div>
+      <div id="term-input-line">
+        <span>></span>
+        <input type="text" id="term-input" autocomplete="off" placeholder="_" />
+      </div>
+    </div>
 
     <div id="inspector">
       <h2
@@ -259,7 +302,6 @@
           font-family: var(--tech-font);
           color: var(--neon-blue);
           margin: 0 0 5px 0;
-          font-size: 1.2rem;
         "
       >
         TARGET LOCKED
@@ -273,13 +315,9 @@
           opacity: 0.5;
         "
       ></div>
-
-      <div id="inspector-content" style="font-size: 1rem; line-height: 1.6">
-        Awaiting Selection...
-      </div>
-
+      <div id="inspector-content">Selecting...</div>
       <button
-        id="btn-dismiss"
+        onclick="window.closeInspector()"
         style="
           width: 100%;
           margin-top: 25px;
@@ -289,7 +327,6 @@
           padding: 10px;
           cursor: pointer;
           font-family: var(--tech-font);
-          transition: 0.3s;
         "
       >
         // DISMISS
@@ -298,7 +335,7 @@
 
     <div class="hud-overlay">
       <div class="panel">
-        <h3>Global Stability</h3>
+        <h3>Threat Level</h3>
         <div
           style="
             text-align: center;
@@ -311,14 +348,10 @@
           <div id="val-prob" class="big-stat">--%</div>
           <div class="sub-stat">COLLAPSE PROBABILITY</div>
         </div>
-        <div class="deco-corner"></div>
       </div>
-
       <div class="panel">
         <h3>Resonance Frequency</h3>
-        <div style="flex: 1; width: 100%; position: relative">
-          <canvas id="waveChart"></canvas>
-        </div>
+        <div style="flex: 1; width: 100%"><canvas id="waveChart"></canvas></div>
         <div
           style="
             display: flex;
@@ -332,89 +365,189 @@
           <span>PING: <span id="val-ping" style="color: #fff">--ms</span></span>
         </div>
       </div>
-
       <div class="panel">
         <h3>Threat Analysis</h3>
-        <div style="flex: 1; width: 100%; position: relative">
+        <div style="flex: 1; width: 100%">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
-
       <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
-        <h3 style="color: var(--neon-red)">Command Link</h3>
-        <div id="log-box"></div>
+        <h3 style="color: var(--neon-red)">Main Control</h3>
+        <div
+          style="
+            font-family: var(--code-font);
+            color: #888;
+            flex: 1;
+            font-size: 0.9rem;
+            padding: 5px;
+          "
+        >
+          > AUTO_PILOT: OFF<br />
+          > AUDIO_SYNTH: READY<br />
+          > UPLINK: STANDBY
+        </div>
         <button id="btn-link" class="btn-link">Initialize Uplink</button>
-        <div class="deco-corner" style="border-color: var(--neon-red)"></div>
       </div>
     </div>
 
     <script>
-      // --- 1. CONFIG & GLOBALS ---
-      const colorConfig = {
-        earthquake: "#00f3ff", // Cyan
-        volcano: "#ffd700", // Gold
-        storm: "#bd00ff", // Purple
-        fire: "#ff6600", // Orange
-        tsunami: "#0044ff", // Deep Blue
-        solar: "#ffffff", // White
-      };
+      // --- A. AUDIO SYNTHESIZER (KHÔNG CẦN FILE MP3) ---
+      class AudioSynth {
+        constructor() {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          this.muted = false;
+        }
+        playTone(freq, type, duration, vol = 0.1) {
+          if (this.muted) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(
+            0.01,
+            this.ctx.currentTime + duration
+          );
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        }
+        playBeep() {
+          this.playTone(800, "sine", 0.1, 0.05);
+        } // Tiếng click
+        playScan() {
+          this.playTone(1200, "square", 0.05, 0.02);
+        } // Tiếng quét
+        playAlarm() {
+          // Tiếng báo động
+          if (this.muted) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(
+            600,
+            this.ctx.currentTime + 0.3
+          ); // Oa-oa
+          gain.gain.value = 0.1;
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.5);
+        }
+      }
+      const sfx = new AudioSynth();
 
+      // --- B. TERMINAL LOGIC ---
+      const termOut = document.getElementById("term-output");
+      const termIn = document.getElementById("term-input");
+
+      function printTerm(msg, type = "") {
+        const div = document.createElement("div");
+        div.className = `term-line ${type}`;
+        div.innerText = `> ${msg}`;
+        termOut.appendChild(div);
+        termOut.scrollTop = termOut.scrollHeight;
+      }
+
+      termIn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const cmd = termIn.value.trim().toLowerCase();
+          printTerm(cmd, "cmd");
+          processCommand(cmd);
+          termIn.value = "";
+          sfx.playBeep();
+        }
+      });
+
+      function processCommand(cmd) {
+        const parts = cmd.split(" ");
+        if (cmd === "help") {
+          printTerm("COMMANDS: scan, status, mute, unmute, focus [vn/jp/us]");
+        } else if (cmd === "scan") {
+          printTerm("Forcing manual scan...", "sys");
+          fetchData();
+        } else if (cmd === "status") {
+          printTerm(`DEFCON: ${currentDefcon}`, "sys");
+          printTerm(`NODES: ${currentNodeCount}`, "sys");
+        } else if (cmd === "mute") {
+          sfx.muted = true;
+          printTerm("Audio Muted.", "sys");
+        } else if (cmd === "unmute") {
+          sfx.muted = false;
+          printTerm("Audio Enabled.", "sys");
+        } else if (parts[0] === "focus") {
+          const target = parts[1];
+          if (target === "vn" || target === "vietnam") {
+            world.pointOfView({ lat: 14.0, lng: 108.0, altitude: 0.8 }, 2000);
+            printTerm("Moving camera to VIETNAM...");
+          } else if (target === "jp" || target === "japan") {
+            world.pointOfView({ lat: 36.0, lng: 138.0, altitude: 0.8 }, 2000);
+            printTerm("Moving camera to JAPAN...");
+          } else if (target === "us" || target === "usa") {
+            world.pointOfView({ lat: 37.0, lng: -95.0, altitude: 1.0 }, 2000);
+            printTerm("Moving camera to USA...");
+          } else {
+            printTerm("Unknown target. Try: vn, jp, us", "err");
+          }
+        } else {
+          printTerm("Unknown command.", "err");
+        }
+      }
+
+      // --- C. MAIN LOGIC ---
       let isLive = false;
       let timer = null;
       let world;
       let previousDataHash = "";
+      let currentDefcon = 5;
+      let currentNodeCount = 0;
 
-      // --- 2. HELPERS ---
-      function log(msg) {
-        const box = document.getElementById("log-box");
-        if (!box) return;
-        const t = new Date().toLocaleTimeString("en-GB", { hour12: false });
-        box.innerHTML =
-          `<div class="log-item"><span>${t}</span>${msg}</div>` + box.innerHTML;
+      // Config Defcon Colors
+      function updateDefcon(prob) {
+        const el = document.getElementById("defcon-level");
+        const bar = document.getElementById("defcon-bar");
+        const body = document.body;
+
+        let level = 5;
+        let color = "var(--defcon-5)";
+
+        if (prob > 20) {
+          level = 4;
+          color = "var(--defcon-4)";
+        }
+        if (prob > 40) {
+          level = 3;
+          color = "var(--defcon-3)";
+        }
+        if (prob > 60) {
+          level = 2;
+          color = "var(--defcon-2)";
+        }
+        if (prob > 80) {
+          level = 1;
+          color = "var(--defcon-1)";
+        }
+
+        if (level !== currentDefcon) {
+          currentDefcon = level;
+          el.innerText = `DEFCON ${level}`;
+          el.style.color = color;
+          bar.style.borderColor = color;
+          bar.style.boxShadow = `0 0 30px ${color}`;
+
+          if (level === 1) {
+            body.classList.add("alert-mode");
+            sfx.playAlarm();
+            printTerm("!!! DEFCON 1 ALERT !!!", "err");
+          } else {
+            body.classList.remove("alert-mode");
+          }
+        }
       }
 
-      // --- 3. UI INTERACTIONS ---
-      window.showInspector = (d) => {
-        const p = document.getElementById("inspector");
-        p.classList.add("active");
-
-        let color = colorConfig.earthquake;
-        if (d.type.includes("VOLCANO")) color = colorConfig.volcano;
-        if (d.type.includes("STORM")) color = colorConfig.storm;
-        if (d.type.includes("FIRE")) color = colorConfig.fire;
-        if (d.type.includes("TSUNAMI")) color = colorConfig.tsunami;
-
-        document.getElementById("inspector-content").innerHTML = `
-                <div class="row"><span style="color:#888">TYPE</span> <strong style="color:${color}">${
-          d.type
-        }</strong></div>
-                <div class="row"><span style="color:#888">LOCATION</span> <span>${
-                  d.place
-                }</span></div>
-                <div class="row"><span style="color:#888">ENERGY</span> <span style="color:${color}">${d.energy_level.toFixed(
-          3
-        )}</span></div>
-                <div class="row"><span style="color:#888">COORDS</span> <span>${d.lat.toFixed(
-                  2
-                )}, ${d.lng.toFixed(2)}</span></div>
-                
-                <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-left:3px solid ${
-                  d.energy_level > 0.6 ? "red" : "green"
-                };">
-                    STATUS: ${
-                      d.energy_level > 0.6 ? "CRITICAL DANGER" : "MONITORING"
-                    }
-                </div>
-            `;
-      };
-
-      window.closeInspector = () => {
-        document.getElementById("inspector").classList.remove("active");
-        if (world) world.pointOfView({ altitude: 2.5 }, 1500);
-      };
-      document.getElementById("btn-dismiss").onclick = window.closeInspector;
-
-      // --- 4. 3D GLOBE INITIALIZATION ---
+      // --- D. INIT GLOBE ---
       try {
         world = Globe()(document.getElementById("globe-viz"))
           .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
@@ -426,40 +559,28 @@
           )
           .atmosphereColor("#00f3ff")
           .atmosphereAltitude(0.2)
-
-          // Cột năng lượng (Giữ nguyên logic Stable V12)
           .pointAltitude("alt")
           .pointColor("color")
           .pointRadius(0.5)
           .pointsMerge(false)
-          .pointResolution(32)
-
-          // Vòng sóng xung kích
           .ringColor("color")
           .ringMaxRadius("maxR")
           .ringPropagationSpeed(5)
           .ringRepeatPeriod(800)
-
-          // Tương tác
-          .pointLabel(
-            (d) =>
-              `<div style="background:rgba(0,0,0,0.8); padding:5px 10px; border:1px solid cyan; font-family:'Rajdhani'">${d.place}</div>`
-          )
           .onPointClick((d) => {
+            sfx.playBeep();
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
-            window.showInspector(d);
+            showInspector(d);
           });
-
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.6;
+        world.controls().autoRotateSpeed = 0.5;
       } catch (e) {
         console.error(e);
       }
 
-      // --- 5. CHART JS SETUP ---
+      // --- E. CHARTS ---
       Chart.defaults.color = "#666";
       Chart.defaults.font.family = "Rajdhani";
-
       const waveChart = new Chart(document.getElementById("waveChart"), {
         type: "line",
         data: {
@@ -472,17 +593,7 @@
               pointRadius: 0,
               tension: 0.5,
               fill: true,
-              backgroundColor: (ctx) => {
-                const gradient = ctx.chart.ctx.createLinearGradient(
-                  0,
-                  0,
-                  0,
-                  200
-                );
-                gradient.addColorStop(0, "rgba(0, 243, 255, 0.4)");
-                gradient.addColorStop(1, "rgba(0, 243, 255, 0)");
-                return gradient;
-              },
+              backgroundColor: "rgba(0,243,255,0.1)",
             },
           ],
         },
@@ -497,7 +608,6 @@
           animation: { duration: 0 },
         },
       });
-
       const radarChart = new Chart(document.getElementById("radarChart"), {
         type: "polarArea",
         data: {
@@ -506,11 +616,11 @@
             {
               data: [0, 0, 0, 0, 0],
               backgroundColor: [
-                "rgba(0, 243, 255, 0.6)",
-                "rgba(255, 215, 0, 0.6)",
-                "rgba(189, 0, 255, 0.6)",
-                "rgba(255, 255, 255, 0.6)",
-                "rgba(0, 68, 255, 0.6)",
+                "#00f3ff",
+                "#ffd700",
+                "#bd00ff",
+                "#ffffff",
+                "#0044ff",
               ],
               borderWidth: 1,
               borderColor: "#111",
@@ -523,95 +633,87 @@
           plugins: {
             legend: {
               position: "right",
-              labels: { color: "#ccc", boxWidth: 10, font: { size: 10 } },
+              labels: { color: "#ccc", boxWidth: 10, font: { size: 9 } },
             },
           },
-          scales: {
-            r: {
-              grid: { color: "rgba(255,255,255,0.1)" },
-              ticks: { display: false },
-            },
-          },
+          scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
         },
       });
 
-      // --- 6. DATA FETCHING (SMART DIFF LOGIC V12) ---
+      // --- F. DATA FETCH ---
       async function fetchData() {
-        const start = Date.now();
         try {
           const res = await fetch("/api/v1/disaster/realtime/usgs");
           const data = await res.json();
-          document.getElementById("val-ping").innerText =
-            Date.now() - start + "ms";
           if (data.upt_metrics) updateUI(data);
         } catch (e) {
-          log("Connection unstable...");
+          printTerm("Connection lost...", "err");
         }
       }
 
       function updateUI(data) {
         // Stats
-        const prob = (data.upt_metrics.probability_index * 100).toFixed(1);
-        const probEl = document.getElementById("val-prob");
-        probEl.innerText = prob + "%";
-
-        // Color Logic for Text
-        if (prob > 60) {
-          probEl.style.color = "var(--neon-red)";
-          probEl.style.textShadow = "0 0 30px red";
-        } else {
-          probEl.style.color = "#fff";
-          probEl.style.textShadow = "0 0 20px var(--neon-blue)";
-        }
-
+        const prob = data.upt_metrics.probability_index * 100;
+        document.getElementById("val-prob").innerText = prob.toFixed(1) + "%";
         document.getElementById("val-res").innerText =
           data.upt_metrics.network_resonance.toFixed(3);
 
-        // Update Wave Chart
+        // Defcon Logic
+        updateDefcon(prob);
+
+        // Audio Feedback
+        sfx.playScan();
+
+        // Charts
         waveChart.data.datasets[0].data.push(
           data.upt_metrics.network_resonance
         );
         waveChart.data.datasets[0].data.shift();
         waveChart.update();
 
-        // Anti-Jitter Logic
+        // Check new data
         const currentHash = JSON.stringify(
           data.raw_sensors.map((s) => s.place + s.energy_level)
         );
         if (currentHash === previousDataHash) return;
         previousDataHash = currentHash;
+        currentNodeCount = data.raw_sensors.length;
+        printTerm(`Synced ${currentNodeCount} events.`);
 
-        // Process 3D Data
+        // Globe Data
         let counts = {
           EARTHQUAKE: 0,
           VOLCANO: 0,
           STORM: 0,
-          SOLAR_FLARE: 0,
+          SOLAR: 0,
           TSUNAMI: 0,
         };
-
         const globeData = data.raw_sensors.map((s) => {
-          let typeKey = "EARTHQUAKE";
-          if (s.type.includes("VOLCANO")) typeKey = "VOLCANO";
-          if (s.type.includes("STORM")) typeKey = "STORM";
-          if (s.type.includes("SOLAR")) typeKey = "SOLAR_FLARE";
-          if (s.type.includes("TSUNAMI")) typeKey = "TSUNAMI";
-
-          counts[typeKey] = (counts[typeKey] || 0) + 1;
-
-          let color = colorConfig.earthquake;
-          if (typeKey === "VOLCANO") color = colorConfig.volcano;
-          if (typeKey === "STORM") color = colorConfig.storm;
-          if (typeKey === "SOLAR_FLARE") color = colorConfig.solar;
-          if (typeKey === "TSUNAMI") color = colorConfig.tsunami;
-          if (typeKey === "EARTHQUAKE" && s.energy_level > 0.6)
-            color = colorConfig.fire; // High energy quake
+          // Simplified Mapping
+          let c = "#00f3ff";
+          let t = s.type;
+          if (t.includes("VOLCANO")) {
+            c = "#ffd700";
+            counts.VOLCANO++;
+          } else if (t.includes("STORM")) {
+            c = "#bd00ff";
+            counts.STORM++;
+          } else if (t.includes("SOLAR")) {
+            c = "#ffffff";
+            counts.SOLAR++;
+          } else if (t.includes("TSUNAMI")) {
+            c = "#0044ff";
+            counts.TSUNAMI++;
+          } else {
+            c = s.energy_level > 0.6 ? "#ff003c" : "#00f3ff";
+            counts.EARTHQUAKE++;
+          }
 
           return {
             lat: s.lat,
             lng: s.lon,
             alt: s.energy_level * 0.4,
-            color: color,
+            color: c,
             type: s.type,
             place: s.place,
             energy_level: s.energy_level,
@@ -624,29 +726,38 @@
           world.ringsData(globeData.filter((d) => d.maxR > 0));
         }
 
-        // Update Radar
         radarChart.data.datasets[0].data = [
-          counts["EARTHQUAKE"],
-          counts["VOLCANO"],
-          counts["STORM"],
-          counts["SOLAR_FLARE"],
-          counts["TSUNAMI"],
+          counts.EARTHQUAKE,
+          counts.VOLCANO,
+          counts.STORM,
+          counts.SOLAR,
+          counts.TSUNAMI,
         ];
         radarChart.update();
-
-        log(`Synced ${data.raw_sensors.length} nodes successfully.`);
       }
 
-      // --- 7. BUTTON LOGIC ---
+      // --- G. CONTROLS ---
+      window.showInspector = (d) => {
+        document.getElementById("inspector").classList.add("active");
+        document.getElementById(
+          "inspector-content"
+        ).innerHTML = `<div class="row"><span>TYPE</span> <strong style="color:${d.color}">${d.type}</strong></div><div class="row"><span>PLACE</span> <span>${d.place}</span></div>`;
+      };
+      window.closeInspector = () => {
+        document.getElementById("inspector").classList.remove("active");
+        if (world) world.pointOfView({ altitude: 2.5 }, 1500);
+      };
+
       document.getElementById("btn-link").addEventListener("click", () => {
         isLive = !isLive;
         const btn = document.getElementById("btn-link");
-
         if (isLive) {
+          sfx.ctx.resume(); // Bật Audio Context
           btn.classList.add("active");
           btn.innerText = "ABORT UPLINK";
           if (world) world.controls().autoRotate = false;
-          log("Uplink Established. Scanning...");
+          printTerm("Uplink Established.");
+          sfx.playBeep();
           fetchData();
           timer = setInterval(fetchData, 3000);
         } else {
@@ -654,7 +765,7 @@
           btn.innerText = "INITIALIZE UPLINK";
           clearInterval(timer);
           if (world) world.controls().autoRotate = true;
-          log("Uplink Terminated.");
+          printTerm("Uplink Terminated.");
         }
       });
     </script>
