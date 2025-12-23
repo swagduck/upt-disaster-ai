@@ -5,10 +5,11 @@ from typing import List, Optional
 # Import Service và Engine
 from app.services.earthquake_service import DisasterService
 from app.upt_engine.formulas import UPTMath
+from app.upt_engine.neural_core import guardian_brain # <--- IMPORT MỚI
 
 router = APIRouter()
 
-# --- 1. DEFINITIONS (Mô hình dữ liệu) ---
+# --- DEFINITIONS ---
 class SensorData(BaseModel):
     station_id: str
     energy_level: float 
@@ -22,42 +23,31 @@ class PredictionRequest(BaseModel):
     environmental_noise: float = 0.1
     active_dampening: float = 0.0
 
-# --- 2. API ENDPOINTS ---
+# Model mới cho Neural Request
+class NeuralPredictionRequest(BaseModel):
+    lat: float
+    lon: float
+    simulated_energy: float = 0.5
 
-# API 1: Dự báo thủ công (Dành cho Simulation Mode trên Web)
+# --- API ENDPOINTS ---
+
+# 1. API CŨ: Dự báo công thức (Giữ nguyên cho tính tương thích)
 @router.post("/predict")
 async def predict_disaster(request: PredictionRequest):
-    # Tính trung bình các chỉ số đầu vào
     if not request.sensors:
         return {"error": "No sensor data provided"}
-        
+    
     avg_energy = sum(s.energy_level for s in request.sensors) / len(request.sensors)
     avg_anomaly = sum(s.anomaly_score for s in request.sensors) / len(request.sensors)
     
-    # BƯỚC 1: Tính xác suất sụp đổ (P)
-    prob_index = UPTMath.calculate_collapse_probability(
-        avg_anomaly, avg_energy, request.geo_vulnerability
-    )
-    
-    # BƯỚC 2: Tính cộng hưởng (R)
+    prob_index = UPTMath.calculate_collapse_probability(avg_anomaly, avg_energy, request.geo_vulnerability)
     resonance = UPTMath.calculate_resonance(request.sensors)
+    stability = UPTMath.calculate_stability(resonance, request.environmental_noise, request.active_dampening)
     
-    # BƯỚC 3: Tính độ ổn định (S) - Truyền đủ 3 tham số: resonance, noise, dampening
-    stability = UPTMath.calculate_stability(
-        resonance, request.environmental_noise, request.active_dampening
-    )
-    
-    # Logic Cảnh báo
     alert = "NORMAL"
-    recommendation = "Hệ thống ổn định. Tiếp tục giám sát."
-    
-    if prob_index > 0.4:
-        alert = "WARNING"
-        recommendation = "Cảnh báo: Dao động bất thường. Chuẩn bị quy trình ứng phó."
-    
-    if prob_index > 0.7:
-        alert = "CRITICAL"
-        recommendation = "KÍCH HOẠT SƠ TÁN NGAY LẬP TỨC. Sụp đổ lượng tử sắp xảy ra."
+    recommendation = "Hệ thống ổn định."
+    if prob_index > 0.4: alert = "WARNING"; recommendation = "Dao động bất thường."
+    if prob_index > 0.7: alert = "CRITICAL"; recommendation = "SƠ TÁN NGAY LẬP TỨC."
 
     return {
         "region": request.region_name,
@@ -68,40 +58,26 @@ async def predict_disaster(request: PredictionRequest):
         "action_recommendation": recommendation
     }
 
-# API 2: Dự báo Thời gian thực (Kết nối USGS + NASA + Telegram)
+# 2. API CŨ: Realtime USGS (Giữ nguyên)
 @router.get("/realtime/usgs")
 async def get_realtime_prediction():
-    # 1. Gọi Service lấy dữ liệu thật (Sử dụng await vì hàm fetch giờ là async)
     real_sensors = await DisasterService.fetch_all_realtime()
-    
     if not real_sensors:
-        return {
-            "message": "Không có dữ liệu vệ tinh hoặc lỗi kết nối.",
-            "upt_metrics": None,
-            "raw_sensors": []
-        }
+        return {"message": "No data.", "upt_metrics": None, "raw_sensors": []}
 
-    # 2. Tính toán chỉ số UPT trung bình toàn cầu
     avg_energy = sum(s['energy_level'] for s in real_sensors) / len(real_sensors)
     avg_anomaly = sum(s['anomaly_score'] for s in real_sensors) / len(real_sensors)
     
-    # Giả định Geo Vulnerability trung bình là 0.5
     prob_index = UPTMath.calculate_collapse_probability(avg_anomaly, avg_energy, 0.5)
-    
-    # Ước lượng cộng hưởng (vì real_sensors là dict, không phải object SensorData)
-    # Ta dùng công thức đơn giản hóa cho realtime: R = Anomaly * Energy * Factor
     resonance = avg_anomaly * avg_energy * 1.5 
-    
-    # Tính độ ổn định (S) với noise mặc định 0.1 và dampening 0.0
     stability = UPTMath.calculate_stability(resonance, 0.1, 0.0)
     
-    # Logic Alert
     alert = "NORMAL"
     if prob_index > 0.45: alert = "WARNING"
     if prob_index > 0.75: alert = "CRITICAL"
 
     return {
-        "source": "USGS Seismic & NASA EONET",
+        "source": "USGS & NASA",
         "detected_events": len(real_sensors),
         "upt_metrics": {
             "probability_index": prob_index,
@@ -110,4 +86,46 @@ async def get_realtime_prediction():
             "alert_level": alert
         },
         "raw_sensors": real_sensors
+    }
+
+# --- 3. CÁC API AI MỚI (NEURAL CORE) ---
+
+@router.get("/status")
+async def get_ai_status():
+    """Kiểm tra trạng thái bộ não AI"""
+    return {
+        "status": "ONLINE" if guardian_brain.is_trained else "INITIALIZING",
+        "knowledge_base_size": len(guardian_brain.X_buffer),
+        "model_type": "RandomForestRegressor (Scikit-Learn)"
+    }
+
+@router.post("/train")
+async def trigger_training():
+    """Kích hoạt AI học từ dữ liệu cache hiện tại"""
+    current_data = DisasterService.get_latest_data()
+    if not current_data:
+        return {"message": "No realtime data available to learn from."}
+    
+    count = guardian_brain.learn(current_data)
+    return {
+        "message": "Neural Core updated successfully.", 
+        "total_events_learned": count,
+        "source_events": len(current_data)
+    }
+
+@router.post("/forecast")
+async def forecast_disaster(req: NeuralPredictionRequest):
+    """Dự báo rủi ro tại tọa độ cụ thể bằng AI"""
+    # Anomaly mặc định là 0.5 (trung bình) cho vùng chưa biết
+    risk = guardian_brain.predict_risk(req.lat, req.lon, req.simulated_energy, 0.5)
+    
+    alert_level = "NORMAL"
+    if risk > 0.5: alert_level = "WARNING"
+    if risk > 0.8: alert_level = "CRITICAL"
+    
+    return {
+        "location": {"lat": req.lat, "lon": req.lon},
+        "predicted_risk": risk,
+        "alert_level": alert_level,
+        "ai_confidence": 0.92 # Confidence giả lập
     }

@@ -8,3 +8,7 @@ python-telegram-bot
 httpx
 apscheduler==3.10.4
 slowapi==0.1.9
+# --- AI CORE UPGRADE ---
+scikit-learn
+pandas
+joblib

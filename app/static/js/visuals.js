@@ -1,4 +1,4 @@
-// --- VISUALIZATION MODULE (Fix Crash Version) ---
+// --- VISUALIZATION MODULE (V28.1 - Fixed Assets & AI Wireframe) ---
 
 // 1. Dữ liệu tĩnh
 const satData = [...Array(150).keys()].map(() => ({
@@ -32,24 +32,14 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// 2. Khởi tạo Globe (Đã sửa lỗi Crash)
+// 2. Khởi tạo Globe
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
-      // --- GÓI ĐỒ HỌA 4K (SAFE MODE) ---
-
-      // 1. Bề mặt Trái đất (Thành phố sáng đèn - Vẫn giữ cái này cho đẹp)
+      // --- CẤU HÌNH HÌNH ẢNH (ĐÃ SỬA LINK LỖI) ---
       .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
-
-      // 2. Bản đồ độ cao (Núi non gồ ghề)
-      .bumpImageUrl("//i.imgur.com/wPZq7xO.jpg")
-
-      // [ĐÃ XÓA DÒNG globeSpecularImageUrl GÂY LỖI]
-
-      // 3. Hình nền vũ trụ
+      .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png") // Link mới ổn định
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
-
-      // 4. Khí quyển
       .atmosphereColor("#00f3ff")
       .atmosphereAltitude(0.25)
       // -------------------------------
@@ -69,6 +59,13 @@ function initGlobe() {
           window.world.getCoords(d.lat, d.lng, d.alt)
         );
         obj.rotation.y += 0.1;
+
+        // Xoay object AI để tạo hiệu ứng "Scanning"
+        if (d.type === "AI PREDICTION") {
+          obj.rotation.x += 0.05;
+          obj.rotation.z += 0.05;
+        }
+
         if (d.lng) {
           d.lng += d.velocity || 0;
           if (d.lng > 180) d.lng = -180;
@@ -84,16 +81,32 @@ function initGlobe() {
         if (window.showInspector) window.showInspector(d);
       });
 
+    // --- LOGIC HÌNH KHỐI 3D ---
     window.world.customThreeObject((d) => {
-      const geometry =
-        d.type === "NUCLEAR PLANT"
-          ? new THREE.CylinderGeometry(0.5, 0.5, 2, 8)
-          : new THREE.TetrahedronGeometry(1.2);
-      const material = new THREE.MeshBasicMaterial({ color: d.color });
-      if (d.type === "SATELLITE") {
-        material.transparent = true;
-        material.opacity = 0.6;
+      let geometry, material;
+
+      if (d.type === "NUCLEAR PLANT") {
+        // Nhà máy điện: Hình trụ đặc
+        geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+        material = new THREE.MeshBasicMaterial({ color: d.color });
+      } else if (d.type === "AI PREDICTION") {
+        // AI: Hình khối 20 mặt (Icosahedron) dạng Wireframe (Khung dây)
+        geometry = new THREE.IcosahedronGeometry(1.5, 0);
+        material = new THREE.MeshBasicMaterial({
+          color: d.color,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.8,
+        });
+      } else if (d.type === "SATELLITE") {
+        geometry = new THREE.SphereGeometry(0.2);
+        material = new THREE.MeshBasicMaterial({ color: d.color });
+      } else {
+        // Mặc định: Hình chóp tứ diện
+        geometry = new THREE.TetrahedronGeometry(1.2);
+        material = new THREE.MeshBasicMaterial({ color: d.color });
       }
+
       return new THREE.Mesh(geometry, material);
     });
 

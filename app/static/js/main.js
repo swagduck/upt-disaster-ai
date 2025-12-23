@@ -1,9 +1,9 @@
-// --- MAIN LOGIC MODULE (V27.10) ---
+// --- MAIN LOGIC MODULE (V28.0 - AI BACKEND INTEGRATION) ---
 
 // 1. Biến toàn cục
 let socket = null;
 let isLive = false;
-let fetchTimer = null; // Dùng timeout để kiểm soát vòng lặp linh hoạt
+let fetchTimer = null;
 let currentDefcon = 5;
 let currentNodeCount = 0;
 let allEventsCache = [];
@@ -19,8 +19,10 @@ let activeFilters = {
 let userLat = null;
 let userLng = null;
 let userEventMarker = null;
+let predictionEvents = []; // Cache cho các điểm dự báo AI
+let isTraining = false; // Cờ trạng thái training
 
-// 2. Audio System
+// 2. Audio System (Giữ nguyên)
 class AudioSynth {
   constructor() {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -45,6 +47,9 @@ class AudioSynth {
   playBeep() {
     this.playTone(800, "sine", 0.1, 0.05);
   }
+  playPredict() {
+    this.playTone(600, "triangle", 0.3, 0.05);
+  } // Âm thanh mới cho AI
   playAlarm() {
     if (this.muted) return;
     const osc = this.ctx.createOscillator();
@@ -61,7 +66,7 @@ class AudioSynth {
 }
 window.sfx = new AudioSynth();
 
-// 3. Helper Functions
+// 3. Helper Functions (Giữ nguyên)
 const termOut = document.getElementById("term-output");
 function printTerm(msg, type = "") {
   const div = document.createElement("div");
@@ -117,46 +122,41 @@ function applyFilters() {
     if (d.type.includes("OTHER EVENT")) return activeFilters["OTHER"];
     return false;
   });
+
+  // Thêm dữ liệu dự báo AI nếu bật
+  if (activeFilters["PREDICT"]) {
+    filteredData = filteredData.concat(predictionEvents);
+  }
+
   if (userEventMarker) filteredData.push(userEventMarker);
 
-  // Gọi hàm cập nhật Globe bên visuals.js
   if (window.world) {
     window.world.pointsData(filteredData);
     window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
   }
 }
 
-// 4. Data Processing (Smart Loop with Cache Busting)
+// 4. Data Processing (Smart Loop)
 async function fetchAllDataLoop() {
-  if (!isLive) return; // Dừng nếu đã ngắt kết nối
+  if (!isLive) return;
 
-  let nextDelay = 60000; // Mặc định 1 phút
-
+  let nextDelay = 60000;
   try {
-    // [FIX QUAN TRỌNG] Thêm ?t=Date.now() để bắt buộc trình duyệt không dùng Cache cũ
     const response = await fetch(`/api/v1/disasters/live?t=${Date.now()}`);
     const json = await response.json();
 
     if (json.data && json.data.length > 0) {
       processBackendData(json.data);
-      nextDelay = 60000; // Có dữ liệu rồi thì nghỉ 1 phút
+      nextDelay = 60000;
 
-      // Cập nhật trạng thái UI
-      const statusModel = document.getElementById("status-model");
-      if (statusModel) {
-        statusModel.innerText = "ONLINE";
-        statusModel.style.color = "var(--neon-green)";
-      }
+      // Sau khi lấy dữ liệu mới, tự động train AI
+      trainModel();
     } else {
-      // Chưa có dữ liệu (Server đang khởi động) -> Thử lại nhanh sau 3s
-      printTerm("System initializing... Retrying in 3s...", "sys");
+      printTerm("Scanning... Retrying in 3s...", "sys");
       nextDelay = 3000;
-
-      const statusModel = document.getElementById("status-model");
-      if (statusModel) {
-        statusModel.innerText = "SCANNING...";
-        statusModel.style.color = "var(--neon-orange)";
-      }
+      document.getElementById("status-model").innerText = "SCANNING...";
+      document.getElementById("status-model").style.color =
+        "var(--neon-orange)";
     }
   } catch (e) {
     console.error(e);
@@ -164,7 +164,6 @@ async function fetchAllDataLoop() {
     nextDelay = 5000;
   }
 
-  // Lên lịch chạy lần tiếp theo
   if (isLive) {
     clearTimeout(fetchTimer);
     fetchTimer = setTimeout(fetchAllDataLoop, nextDelay);
@@ -239,7 +238,6 @@ function processBackendData(events) {
   const countEl = document.getElementById("val-prob");
   if (countEl) countEl.innerText = combinedEvents.length;
 
-  // [FIX] Safety Check cho Radar Chart để tránh lỗi undefined
   if (window.radarChart && window.radarChart.data) {
     window.radarChart.data.datasets[0].data = [
       counts.QUAKE,
@@ -252,10 +250,100 @@ function processBackendData(events) {
   }
 
   applyFilters();
-  printTerm(`Synced ${combinedEvents.length} threats via UPT-CACHE.`);
+  printTerm(`Synced ${combinedEvents.length} threats.`);
 }
 
-// 5. Interaction (Events)
+// 5. AI FUNCTIONS (NEW & IMPROVED)
+async function trainModel() {
+  if (isTraining) return;
+  isTraining = true;
+
+  try {
+    const res = await fetch("/api/v1/predict/train", { method: "POST" });
+    const json = await res.json();
+
+    if (json.total_events_learned > 0) {
+      printTerm(
+        `Neural Core updated. Knowledge: ${json.total_events_learned}`,
+        "sys"
+      );
+    }
+
+    const statusModel = document.getElementById("status-model");
+    if (statusModel) {
+      statusModel.innerText = "ONLINE (AI ACTIVE)";
+      statusModel.style.color = "var(--neon-green)";
+    }
+  } catch (e) {
+    console.warn("AI Train Fail:", e);
+  } finally {
+    isTraining = false;
+  }
+}
+
+async function runNeuralPrediction() {
+  if (!activeFilters["PREDICT"]) return;
+
+  printTerm("Querying Guardian AI...", "ai");
+  window.sfx.playPredict();
+
+  // Dùng vị trí người dùng hoặc mặc định (Nhật Bản - Vùng hay có động đất)
+  const targetLat = userLat || 36.2;
+  const targetLon = userLng || 138.2;
+
+  try {
+    const res = await fetch("/api/v1/predict/forecast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lat: targetLat,
+        lon: targetLon,
+        simulated_energy: 0.7, // Giả lập mức năng lượng cao
+      }),
+    });
+    const data = await res.json();
+
+    const isCritical = data.alert_level === "CRITICAL";
+    const typeStr = isCritical ? "err" : "sys";
+
+    printTerm(
+      `AI FORECAST @ [${targetLat.toFixed(1)}, ${targetLon.toFixed(1)}]:`,
+      "ai"
+    );
+    printTerm(
+      `RISK LEVEL: ${(data.predicted_risk * 100).toFixed(1)}% [${
+        data.alert_level
+      }]`,
+      typeStr
+    );
+
+    // Vẽ vòng tròn cảnh báo lên bản đồ
+    if (data.predicted_risk > 0.0) {
+      predictionEvents = [
+        {
+          lat: targetLat,
+          lng: targetLon,
+          alt: 0.1,
+          color: isCritical ? "#ff0000" : "#ffffff",
+          type: "AI PREDICTION",
+          place: `RISK ZONE (${data.alert_level})`,
+          value: data.predicted_risk * 10,
+          maxR: isCritical ? 15 : 8,
+          propagationSpeed: 2,
+          repeatPeriod: 1000,
+        },
+      ];
+    } else {
+      predictionEvents = [];
+    }
+    applyFilters();
+  } catch (e) {
+    console.error(e);
+    printTerm("Neural Uplink Failed.", "err");
+  }
+}
+
+// 6. Interaction & WebSocket
 window.toggleFilter = (type, btn) => {
   if (window.world) window.world.controls().autoRotate = false;
   activeFilters[type] = !activeFilters[type];
@@ -263,6 +351,22 @@ window.toggleFilter = (type, btn) => {
   btn.classList.toggle("active");
   window.sfx.playBeep();
   applyFilters();
+};
+
+window.togglePrediction = () => {
+  activeFilters["PREDICT"] = !activeFilters["PREDICT"];
+  const btn = document.getElementById("btn-predict");
+  if (activeFilters["PREDICT"]) {
+    btn.innerText = "[x] NEURAL AI";
+    btn.classList.add("active");
+    runNeuralPrediction();
+  } else {
+    btn.innerText = "[ ] NEURAL AI";
+    btn.classList.remove("active");
+    predictionEvents = [];
+    applyFilters();
+    printTerm("Neural Viz deactivated.", "sys");
+  }
 };
 
 window.locateUser = () => {
@@ -301,6 +405,9 @@ window.locateUser = () => {
           );
         applyFilters();
         calcNearestThreat();
+
+        // Nếu AI đang bật, dự báo lại cho vị trí mới
+        if (activeFilters["PREDICT"]) runNeuralPrediction();
       },
       () => {
         printTerm("GPS Failed.", "err");
@@ -315,9 +422,15 @@ window.locateUser = () => {
 window.showInspector = (d) => {
   document.getElementById("inspector").classList.add("active");
   document.getElementById("inspector-content").innerHTML = `
-        <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${d.color}">${d.type}</strong></div>
-        <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem;">${d.place}</span></div>
-        <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${d.color}">${d.value}</span></div>
+        <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
+          d.color
+        }">${d.type}</strong></div>
+        <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem;">${
+          d.place
+        }</span></div>
+        <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${
+          d.color
+        }">${d.value.toFixed(1)}</span></div>
     `;
 };
 
@@ -329,10 +442,6 @@ window.closeInspector = () => {
   }
 };
 
-window.togglePrediction = () =>
-  printTerm("Neural AI module is in maintenance.", "sys");
-
-// 6. WebSocket & Initial Load
 document.getElementById("btn-link").addEventListener("click", () => {
   const btn = document.getElementById("btn-link");
   isLive = !isLive;
@@ -343,7 +452,6 @@ document.getElementById("btn-link").addEventListener("click", () => {
     printTerm("Initializing Quantum Uplink (WebSocket)...");
     window.sfx.playBeep();
 
-    // --- SMART LOOP START ---
     fetchAllDataLoop();
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -352,22 +460,15 @@ document.getElementById("btn-link").addEventListener("click", () => {
     socket = new WebSocket(wsUrl);
     socket.onopen = () => {
       printTerm("WebSocket Connected.", "sys");
-      const statusModel = document.getElementById("status-model");
-      if (statusModel) {
-        statusModel.innerText = "ONLINE";
-        statusModel.style.color = "var(--neon-green)";
-      }
     };
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         const fluxEl = document.getElementById("val-flux");
         const tempEl = document.getElementById("val-temp");
-
         if (fluxEl) fluxEl.innerText = data.neutron_flux;
         if (tempEl) tempEl.innerText = data.core_temp + " K";
 
-        // [FIX] Safety Check cho Wave Chart
         if (
           window.waveChart &&
           window.waveChart.data &&
@@ -379,11 +480,6 @@ document.getElementById("btn-link").addEventListener("click", () => {
         }
 
         if (data.core_temp > 2000) {
-          const statusModel = document.getElementById("status-model");
-          if (statusModel) {
-            statusModel.innerText = "CRITICAL";
-            statusModel.style.color = "red";
-          }
           window.sfx.playAlarm();
         }
       } catch (e) {
@@ -392,16 +488,11 @@ document.getElementById("btn-link").addEventListener("click", () => {
     };
     socket.onclose = () => {
       printTerm("WebSocket Disconnected.", "err");
-      const statusModel = document.getElementById("status-model");
-      if (statusModel) statusModel.innerText = "OFFLINE";
     };
   } else {
     btn.classList.remove("active");
     btn.innerText = "ACTIVATE REACTOR LINK";
-
-    // Dừng vòng lặp quét dữ liệu
     clearTimeout(fetchTimer);
-
     if (socket) socket.close();
     printTerm("Uplink Terminated.");
     const statusModel = document.getElementById("status-model");
@@ -412,5 +503,5 @@ document.getElementById("btn-link").addEventListener("click", () => {
   }
 });
 
-printTerm("Guardian Kernel v27.10 loaded.");
-printTerm("Modules: Smart Retry & Anti-Cache active.");
+printTerm("Guardian Kernel v28.0 loaded.");
+printTerm("Modules: AI Neural Core (Scikit-Learn) Ready.");

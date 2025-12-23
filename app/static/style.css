@@ -67,6 +67,19 @@ body {
 .term-line.cmd { color: #fff; }
 .term-line.voice { color: var(--neon-gold); font-style: italic; }
 
+/* --- AI STYLES --- */
+.term-line.ai { 
+    color: var(--neon-purple); 
+    font-weight: bold; 
+    text-shadow: 0 0 5px var(--neon-purple);
+    border-left: 2px solid var(--neon-purple);
+    padding-left: 5px;
+}
+.term-line.tf { 
+    color: var(--neon-orange); 
+    font-family: var(--data-font);
+}
+
 #term-input-line { display: flex; border-top: 1px solid #333; padding: 5px; background: rgba(0, 255, 100, 0.05); }
 #term-input { background: transparent; border: none; color: #fff; font-family: var(--code-font); font-size: 1.1rem; flex: 1; outline: none; margin-left: 5px; text-transform: lowercase; }
 #mic-btn { background: transparent; border: none; color: #888; cursor: pointer; font-size: 1.2rem; margin-right: 5px; }

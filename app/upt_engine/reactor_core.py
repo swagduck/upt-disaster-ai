@@ -1,82 +1,92 @@
-import math
+import asyncio
 import random
+import math
+from datetime import datetime
 
 class UPTReactorCore:
     def __init__(self):
-        # Thông số UPT
-        self.f_res = 2.148
-        self.k_p = 12.5
-        self.target_coherence = 0.85
+        # Trạng thái khởi tạo của Lò phản ứng
+        self.is_running = False
+        self.core_temp = 300.0       # Kelvin (300K ~ 27°C)
+        self.neutron_flux = 100.0    # Đơn vị ảo
+        self.k_eff = 0.98            # Hệ số nhân nơ-tron
+        self.control_rods = 50.0     # % Thanh điều khiển (50% là an toàn)
+        self.coolant_pressure = 150.0 # Bar
+        self.entropy_accumulation = 0.0
         
-        # Trạng thái
-        self.neutron_flux = 100.0
-        self.temperature = 300.0 
-        self.phase_noise = 0.0
-        
-        # Biến đệm để lưu cú sốc
-        self._shock_buffer = 0.0
+        # Cache dữ liệu thảm họa để ảnh hưởng đến lò
+        self.latest_disaster_impact = 0.0
 
-    def calculate_keff(self, ep_t: float, c_geo: float, r_eff: float, ai_damp: float):
-        numerator = ep_t * c_geo * r_eff
-        denominator = 1 + self.phase_noise + ai_damp
-        if denominator == 0: return 9999.0
-        return numerator / denominator
+    def start_reactor(self):
+        """Khởi động quy trình nền mô phỏng lò phản ứng"""
+        if not self.is_running:
+            self.is_running = True
+            print("☢️ [REACTOR] Core ignition sequence initiated...")
+            asyncio.create_task(self._run_simulation_loop())
 
-    def simulate_step(self, entropy_input: float, ai_intervention: bool, external_shock: float = 0.0):
-        """
-        Mô phỏng 1 bước.
-        external_shock: Giá trị từ 0.0 - 1.0 (Động đất bên ngoài tác động vào lò)
-        """
+    async def _run_simulation_loop(self):
+        """Vòng lặp vô tận mô phỏng vật lý hạt nhân (Giả lập)"""
+        while self.is_running:
+            try:
+                self._tick_physics()
+                await asyncio.sleep(1) # Cập nhật mỗi giây
+            except Exception as e:
+                print(f"⚠️ [REACTOR ERROR] {e}")
+                await asyncio.sleep(5)
+
+    def _tick_physics(self):
+        """Tính toán biến động chỉ số mỗi giây"""
+        # 1. Biến động ngẫu nhiên (Quantum Noise)
+        noise = random.uniform(-0.5, 0.5)
         
-        # Xử lý sốc ngoại lai (tích lũy)
-        if external_shock > 0:
-            self._shock_buffer += external_shock * 10.0 # Nhân hệ số để thấy rõ tác động
+        # 2. Ảnh hưởng từ dữ liệu thảm họa bên ngoài (nếu có)
+        # Nếu có động đất lớn, lò sẽ mất ổn định nhẹ
+        external_stress = self.latest_disaster_impact * 5.0
+        
+        # 3. Tính toán nhiệt độ (Core Temp)
+        # Nhiệt độ tăng nếu thanh điều khiển rút ra (control_rods giảm)
+        target_temp = 300 + (100 - self.control_rods) * 10 + external_stress
+        self.core_temp += (target_temp - self.core_temp) * 0.1 + noise
+
+        # 4. Tính toán thông lượng nơ-tron (Flux)
+        flux_delta = (100 - self.control_rods) * 0.5 + noise * 2
+        self.neutron_flux = max(0, min(2000, self.neutron_flux + flux_delta - 1.0))
+
+        # 5. Hệ số K-effective (Độ ổn định)
+        # K > 1: Quá tải (Supercritical) | K < 1: Tắt dần | K = 1: Ổn định
+        if self.control_rods > 60:
+            target_k = 0.95
+        elif self.control_rods < 40:
+            target_k = 1.05
+        else:
+            target_k = 1.00
             
-        # Giảm dần sốc theo thời gian (Hồi phục)
-        current_shock = self._shock_buffer
-        self._shock_buffer = max(0, self._shock_buffer - 0.5)
+        self.k_eff += (target_k - self.k_eff) * 0.05
 
-        # 1. Biến động cơ bản
-        base_fluctuation = random.uniform(-0.02, 0.05)
-        
-        # Shock làm tăng entropy (giảm Ep) nhưng lại tăng phase_noise cực mạnh
-        current_ep = 1.05 + base_fluctuation - (entropy_input * 0.4)
-        
-        # 2. Logic AI Safety
-        ai_damp = 0.0
-        status = "STABLE"
-        
-        # Nếu có shock, lò bị rung lắc pha (Phase Noise tăng vọt)
-        if current_shock > 0:
-            self.phase_noise += current_shock * 0.2
-            status = "SEISMIC WARNING"
+        # Tự động làm mát nếu quá nóng (Safety System)
+        if self.core_temp > 1500:
+            self.control_rods = min(100, self.control_rods + 5) # Hạ thanh điều khiển khẩn cấp
 
-        if ai_intervention:
-            if self.neutron_flux > 200.0 or self.phase_noise > 2.0:
-                ai_damp = 0.8 # Can thiệp mạnh hơn
-                self.phase_noise += 0.1 
-                status = "DAMPING_ACTIVE"
-            elif self.neutron_flux < 80.0 and current_shock == 0:
-                self.phase_noise = max(0, self.phase_noise - 0.2)
-                status = "RECOVERING" if self.phase_noise == 0 else "COOLING_DOWN"
-        
-        # 3. Tính toán
-        r_eff_current = max(0, 1.0 - (entropy_input * 0.1))
-        k_eff = self.calculate_keff(current_ep, 1.0, r_eff_current, ai_damp)
-        
-        self.neutron_flux = self.neutron_flux * k_eff
-        self.neutron_flux = max(0.1, min(self.neutron_flux, 50000.0))
-        self.temperature = 300 + (self.neutron_flux * 10) + (current_shock * 100)
+    def update_external_stress(self, stress_level: float):
+        """API gọi hàm này để báo cho lò biết thế giới đang hỗn loạn"""
+        self.latest_disaster_impact = stress_level
 
-        # Cảnh báo nóng chảy
-        if self.temperature > 1500: status = "CRITICAL TEMP"
-        if self.temperature > 2500: status = "MELTDOWN IMMINENT"
+    def get_status(self):
+        """Trả về trạng thái hiện tại cho API/WebSocket"""
+        status_level = "NOMINAL"
+        if self.core_temp > 1000: status_level = "WARNING"
+        if self.core_temp > 2000: status_level = "CRITICAL"
 
         return {
-            "timestamp": "Now",
-            "k_eff": round(k_eff, 4),
+            "timestamp": datetime.now().isoformat(),
+            "status": status_level,
+            "core_temp": round(self.core_temp, 2),
             "neutron_flux": round(self.neutron_flux, 2),
-            "core_temp": round(self.temperature, 1),
-            "status": status,
-            "phase_noise_level": round(self.phase_noise, 2)
+            "k_eff": round(self.k_eff, 4),
+            "control_rods": round(self.control_rods, 1),
+            "entropy": round(self.entropy_accumulation, 2)
         }
+
+# --- QUAN TRỌNG: KHỞI TẠO INSTANCE ---
+# Đây là biến mà main.py đang tìm kiếm nhưng không thấy
+upt_reactor = UPTReactorCore()

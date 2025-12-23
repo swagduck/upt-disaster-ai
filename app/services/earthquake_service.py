@@ -4,14 +4,15 @@ import os
 from dotenv import load_dotenv
 from telegram import Bot
 
+# [FIX] Import đúng instance từ Reactor Core mới
+from app.upt_engine.reactor_core import upt_reactor
+
 load_dotenv()
 
 class DisasterService:
     
     # API ENDPOINTS
-    # USGS: Lấy tất cả sự kiện trong 1 ngày qua
     USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
-    # NASA: Lấy sự kiện thiên nhiên trong 30 ngày qua (để bắt được nhiều bão/lũ hơn)
     NASA_EONET = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30"
     
     _NASA_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
@@ -28,8 +29,6 @@ class DisasterService:
             print(f"Telegram Init Failed: {e}")
     
     alerted_events = set()
-    
-    # --- NO DUMMY DATA: Chỉ dùng list rỗng ---
     LATEST_DATA = [] 
 
     @staticmethod
@@ -47,7 +46,7 @@ class DisasterService:
 
         async with httpx.AsyncClient() as client:
             try:
-                # Tăng timeout lên 30s để đảm bảo tải hết dữ liệu nặng
+                # Tăng timeout để load dữ liệu ổn định hơn
                 resp_usgs, resp_nasa, resp_solar = await asyncio.gather(
                     client.get(DisasterService.USGS_URL, timeout=30.0),
                     client.get(DisasterService.NASA_EONET, timeout=30.0),
@@ -59,12 +58,10 @@ class DisasterService:
                 if isinstance(resp_usgs, httpx.Response) and resp_usgs.status_code == 200:
                     features = resp_usgs.json().get('features', [])
                     
-                    # [FULL DATA] Không dùng break để giới hạn số lượng
                     for q in features:
                         props = q['properties']
                         mag = props.get('mag', 0) or 0
                         
-                        # Chỉ lọc những rung chấn siêu nhỏ (< 1.0) để tránh quá tải trình duyệt
                         if mag < 1.0: continue 
                         
                         place = props['place']
@@ -76,9 +73,10 @@ class DisasterService:
                             if place not in DisasterService.alerted_events:
                                 DisasterService.alerted_events.add(place)
                                 new_alerts.append(msg)
-                                # Trigger Reactor
-                                from app.api.v1.endpoints.reactor import reactor
-                                reactor.simulate_step(entropy_input=0, ai_intervention=True, external_shock=0.8)
+                                
+                                # [FIX] Gọi hàm mới của Reactor Core để gây sốc cho lò phản ứng
+                                print(f"⚠️ TRIGGERING REACTOR SHOCK: {place}")
+                                upt_reactor.update_external_stress(0.8)
 
                         sensors.append({
                             "type": "EARTHQUAKE", "place": place,
@@ -90,13 +88,9 @@ class DisasterService:
                 # 2. XỬ LÝ NASA EONET
                 if isinstance(resp_nasa, httpx.Response) and resp_nasa.status_code == 200:
                     events = resp_nasa.json().get('events', [])
-                    
-                    # Lấy tối đa 500 sự kiện NASA (Thực tế NASA thường trả về ít hơn số này)
                     for ev in events[:500]:
                         if not ev.get('geometry'): continue
                         cat = ev['categories'][0]['id']
-                        
-                        # Lấy tọa độ (GeoJSON chuẩn là [lon, lat])
                         geo_raw = ev['geometry'][0]['coordinates']
                         lon, lat = geo_raw[0], geo_raw[1]
                         
@@ -116,18 +110,16 @@ class DisasterService:
                                 "raw_val": 5.0
                             })
 
-                # 3. XỬ LÝ SOLAR (BÃO MẶT TRỜI)
+                # 3. XỬ LÝ SOLAR
                 if isinstance(resp_solar, httpx.Response) and resp_solar.status_code == 200:
                     flares = resp_solar.json()
                     if flares and isinstance(flares, list):
-                        # Lấy 5 đợt bùng phát gần nhất
                         for flare in flares[-5:]:
                             class_type = flare.get('classType', 'B')
                             energy = 0.3
                             if 'M' in class_type: energy = 0.7
                             if 'X' in class_type: energy = 1.0
                             
-                            # Random vị trí cực bắc để giả lập hiệu ứng cực quang
                             import random
                             fake_lon = random.randint(-180, 180)
                             
@@ -141,11 +133,9 @@ class DisasterService:
             except Exception as e:
                 print(f"Error fetching data: {e}")
 
-        # Gửi cảnh báo Telegram
         for msg in new_alerts:
             await DisasterService.send_telegram_alert(msg)
 
-        # Cập nhật Cache (Lưu ý: Chỉ cập nhật khi có dữ liệu thật)
         if sensors:
             DisasterService.LATEST_DATA = sensors
             print(f"✅ [CACHE] Updated {len(sensors)} REAL events from global sensors.")
