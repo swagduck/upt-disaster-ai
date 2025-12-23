@@ -129,3 +129,75 @@ h3 { margin: 0 0 8px 0; font-family: var(--tech-font); font-size: 0.7rem; letter
 .help-col ul { list-style: none; padding: 0; }
 .help-col li { margin-bottom: 8px; font-size: 1rem; }
 .cmd-key { color: #fff; font-weight: bold; background: rgba(255, 255, 255, 0.1); padding: 2px 5px; }
+/* --- MOBILE RESPONSIVE (Thêm vào cuối file) --- */
+@media only screen and (max-width: 768px) {
+    /* 1. Chỉnh lại bố cục tổng thể */
+    body {
+        font-size: 12px; /* Giảm cỡ chữ chút cho gọn */
+    }
+
+    /* 2. Đẩy các bảng panel xuống dưới đáy hoặc ẩn bớt */
+    #hud {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: auto;
+        pointer-events: none; /* Để bấm xuyên qua được phần trống */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+
+    /* 3. Panel bên trái (Terminal & Info) */
+    .panel-left {
+        position: relative;
+        width: 90%;
+        top: auto;
+        left: 5%;
+        margin-bottom: 10px;
+        background: rgba(0, 10, 20, 0.85); /* Tăng độ tối nền để dễ đọc */
+        pointer-events: auto;
+    }
+    
+    /* Ẩn bớt Terminal trên mobile cho đỡ rối (hoặc hiện nếu muốn) */
+    #terminal {
+        display: none; 
+    }
+
+    /* 4. Panel bên phải (Chart & Filter) */
+    .panel-right {
+        position: relative;
+        width: 90%;
+        top: auto;
+        right: auto;
+        left: 5%;
+        margin-bottom: 80px; /* Chừa chỗ cho nút Link ở dưới */
+        pointer-events: auto;
+    }
+
+    /* 5. Nút LINK to đùng ở dưới cùng để dễ bấm */
+    #btn-link {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        padding: 15px;
+        font-size: 1.2rem;
+        z-index: 999;
+        background: rgba(0, 0, 0, 0.9);
+        box-shadow: 0 0 20px var(--neon-red);
+    }
+
+    /* 6. Tiêu đề nhỏ lại */
+    h1 {
+        font-size: 1.5rem;
+        top: 10px;
+    }
+
+    /* 7. Ẩn biểu đồ Radar cho đỡ chật, giữ lại biểu đồ sóng */
+    #radarChart {
+        display: none;
+    }
+}
