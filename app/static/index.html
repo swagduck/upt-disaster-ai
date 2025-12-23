@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UPT COMMANDER V27.5 (FIX ALPHA WARNING)</title>
+
     <meta property="og:title" content="UPT Disaster AI - Guardian System" />
     <meta
       property="og:description"
@@ -12,7 +14,7 @@
       property="og:image"
       content="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Nuclear_symbol.svg/1200px-Nuclear_symbol.svg.png"
     />
-    <meta property="og:url" content="https://upt-disaster-ai.onrender.com/" />
+    <meta property="og:url" content="https://upt-disaster-ai.onrender.com" />
     <meta name="theme-color" content="#00f3ff" />
 
     <link
@@ -508,8 +510,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v27.4 loaded.</div>
-        <div class="term-line sys">Module: AUTO_RESUME [PATCHED]</div>
+        <div class="term-line sys">Guardian Kernel v27.5 loaded.</div>
+        <div class="term-line sys">Module: ALPHA_FIX [PATCHED]</div>
         <div class="term-line">System Online.</div>
       </div>
       <div id="term-input-line">
@@ -951,13 +953,13 @@
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- SATELLITE DATA (COLOR FIXED: WHITE GHOST) ---
+      // --- SATELLITE DATA (FIX: DÙNG HEX THAY VÌ RGBA ĐỂ TRÁNH LỖI) ---
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
         alt: 0.6 + Math.random() * 0.3,
         velocity: Math.random() * 0.4 + 0.1,
-        color: "rgba(200, 200, 255, 0.6)", // MÀU MỚI: Trắng mờ
+        color: "#C8C8FF", // Dùng mã HEX xanh nhạt (độ trong suốt sẽ chỉnh trong Material)
         type: "SATELLITE",
       }));
 
@@ -1140,9 +1142,19 @@
             d.type === "NUCLEAR PLANT"
               ? new THREE.CylinderGeometry(0.5, 0.5, 2, 8)
               : new THREE.TetrahedronGeometry(1.2);
+
+          // FIX ALPHA WARNING TẠI ĐÂY:
           const material = new THREE.MeshBasicMaterial({ color: d.color });
+
+          // Nếu là vệ tinh, bật chế độ trong suốt thủ công
+          if (d.type === "SATELLITE") {
+            material.transparent = true;
+            material.opacity = 0.6; // Đặt độ mờ là 0.6 (60%)
+          }
+
           return new THREE.Mesh(geometry, material);
         });
+
         world.controls().autoRotate = true;
         // --- CHỈNH TỐC ĐỘ QUAY TẠI ĐÂY ---
         world.controls().autoRotateSpeed = 0.15; // Cực chậm (Slow Motion)
