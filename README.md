@@ -25,8 +25,10 @@
    docker build -t upt-ai .
    docker run -p 8000:8000 upt-ai
    ```
-   📸 Screenshots
-   ![alt text](image.png)
+
+### 📸 Screenshots
+
+![alt text](image.png)
 
 ### 3. Chuyển `print()` sang `logging` (Backend Standard)
 
