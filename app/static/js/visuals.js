@@ -1,6 +1,6 @@
-// --- VISUALIZATION MODULE (Final Fixed) ---
+// --- VISUALIZATION MODULE (Ultra Graphics Edition) ---
 
-// 1. Dữ liệu tĩnh
+// 1. Dữ liệu tĩnh (Vệ tinh & Nhà máy hạt nhân)
 const satData = [...Array(150).keys()].map(() => ({
   lat: (Math.random() - 0.5) * 180,
   lng: (Math.random() - 0.5) * 360,
@@ -33,23 +33,43 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// 2. Khởi tạo Globe
+// 2. Khởi tạo Globe (Nâng cấp đồ họa)
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
-      .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
-      .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
+      // --- GÓI ĐỒ HỌA ULTRA DETAIL ---
+      // 1. Bề mặt Trái đất (Thành phố sáng đèn ban đêm)
+      .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
+
+      // 2. Bản đồ độ cao (Núi non gồ ghề, chi tiết cao)
+      .bumpImageUrl("//i.imgur.com/wPZq7xO.jpg")
+
+      // 3. Bản đồ phản quang (Giúp đại dương bóng loáng, phản chiếu ánh sáng)
+      .globeSpecularImageUrl(
+        "//unpkg.com/three-globe/example/img/earth-water.png"
+      )
+
+      // 4. Hình nền vũ trụ (Milky Way)
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
+
+      // 5. Khí quyển (Tăng độ dày và sáng)
       .atmosphereColor("#00f3ff")
-      .atmosphereAltitude(0.2)
+      .atmosphereAltitude(0.25)
+      // -------------------------------
+
+      // Cấu hình điểm dữ liệu (Points)
       .pointAltitude("alt")
       .pointColor("color")
       .pointRadius(0.5)
       .pointsMerge(false)
+
+      // Cấu hình vòng sóng lan truyền (Rings)
       .ringColor("color")
       .ringMaxRadius("maxR")
       .ringPropagationSpeed("propagationSpeed")
       .ringRepeatPeriod("repeatPeriod")
+
+      // Layer Vệ tinh (Custom Data)
       .customLayerData(satData)
       .customThreeObjectUpdate((obj, d) => {
         Object.assign(
@@ -62,25 +82,34 @@ function initGlobe() {
           if (d.lng > 180) d.lng = -180;
         }
       })
+
+      // Sự kiện Click
       .onPointClick((d) => {
         if (window.sfx) window.sfx.playBeep();
+        // Dừng tự động quay để người dùng xem chi tiết
         if (window.world) window.world.controls().autoRotate = false;
+
+        // Bay đến điểm được click
         window.world.pointOfView(
           { lat: d.lat, lng: d.lng, altitude: 1.2 },
           1500
         );
+
+        // Hiển thị thông tin
         if (window.showInspector) window.showInspector(d);
       });
 
+    // Custom Objects (Vẽ nhà máy hạt nhân & Vệ tinh)
     window.world.customThreeObject((d) => {
-      // Vẽ nhà máy hạt nhân bằng hình trụ, sự kiện thường bằng hình tứ diện
+      // Nhà máy hạt nhân: Hình trụ
+      // Sự kiện khác: Hình tứ diện
       const geometry =
         d.type === "NUCLEAR PLANT"
           ? new THREE.CylinderGeometry(0.5, 0.5, 2, 8)
           : new THREE.TetrahedronGeometry(1.2);
       const material = new THREE.MeshBasicMaterial({ color: d.color });
 
-      // Làm mờ vệ tinh
+      // Hiệu ứng trong suốt cho vệ tinh
       if (d.type === "SATELLITE") {
         material.transparent = true;
         material.opacity = 0.6;
@@ -88,21 +117,22 @@ function initGlobe() {
       return new THREE.Mesh(geometry, material);
     });
 
+    // Thiết lập camera quay tự động
     window.world.controls().autoRotate = true;
-    window.world.controls().autoRotateSpeed = 0.15;
+    window.world.controls().autoRotateSpeed = 0.15; // Tốc độ quay chậm (Cinematic)
   } catch (e) {
     console.error("Globe Init Failed:", e);
   }
 }
 
-// 3. Khởi tạo Biểu đồ
+// 3. Khởi tạo Biểu đồ (Charts)
 function initCharts() {
   Chart.defaults.color = "#666";
   Chart.defaults.font.family = "Rajdhani";
 
+  // Biểu đồ sóng (Wave Chart) - Gắn vào window
   const ctxWave = document.getElementById("waveChart");
   if (ctxWave) {
-    // Gắn trực tiếp vào window để main.js gọi được .update()
     window.waveChart = new Chart(ctxWave, {
       type: "line",
       data: {
@@ -129,6 +159,7 @@ function initCharts() {
     });
   }
 
+  // Biểu đồ radar (Radar Chart) - Gắn vào window
   const ctxRadar = document.getElementById("radarChart");
   if (ctxRadar) {
     window.radarChart = new Chart(ctxRadar, {
@@ -159,11 +190,17 @@ function initCharts() {
             labels: { color: "#ccc", boxWidth: 10, font: { size: 9 } },
           },
         },
-        scales: { r: { grid: { color: "#333" }, ticks: { display: false } } },
+        scales: {
+          r: {
+            grid: { color: "#333" },
+            ticks: { display: false },
+          },
+        },
       },
     });
   }
 }
 
+// Khởi chạy
 initGlobe();
 initCharts();
