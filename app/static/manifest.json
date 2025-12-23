@@ -1,0 +1,15 @@
+{
+  "name": "UPT Disaster AI",
+  "short_name": "UPT Guardian",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00f3ff",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Nuclear_symbol.svg/512px-Nuclear_symbol.svg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
