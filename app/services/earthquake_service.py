@@ -3,8 +3,10 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from telegram import Bot
+from datetime import datetime, timezone
 
-# [FIX] Import đúng instance từ Reactor Core mới
+# [LEVEL 2 IMPORT] Kết nối Database & Reactor
+from app.core.database import Database
 from app.upt_engine.reactor_core import upt_reactor
 
 load_dotenv()
@@ -46,7 +48,7 @@ class DisasterService:
 
         async with httpx.AsyncClient() as client:
             try:
-                # Tăng timeout để load dữ liệu ổn định hơn
+                # Tăng timeout lên 30s
                 resp_usgs, resp_nasa, resp_solar = await asyncio.gather(
                     client.get(DisasterService.USGS_URL, timeout=30.0),
                     client.get(DisasterService.NASA_EONET, timeout=30.0),
@@ -74,7 +76,7 @@ class DisasterService:
                                 DisasterService.alerted_events.add(place)
                                 new_alerts.append(msg)
                                 
-                                # [FIX] Gọi hàm mới của Reactor Core để gây sốc cho lò phản ứng
+                                # Gây sốc cho lò phản ứng
                                 print(f"⚠️ TRIGGERING REACTOR SHOCK: {place}")
                                 upt_reactor.update_external_stress(0.8)
 
@@ -88,7 +90,7 @@ class DisasterService:
                 # 2. XỬ LÝ NASA EONET
                 if isinstance(resp_nasa, httpx.Response) and resp_nasa.status_code == 200:
                     events = resp_nasa.json().get('events', [])
-                    for ev in events[:500]:
+                    for ev in events[:500]: 
                         if not ev.get('geometry'): continue
                         cat = ev['categories'][0]['id']
                         geo_raw = ev['geometry'][0]['coordinates']
@@ -110,7 +112,7 @@ class DisasterService:
                                 "raw_val": 5.0
                             })
 
-                # 3. XỬ LÝ SOLAR
+                # 3. XỬ LÝ SOLAR (BÃO MẶT TRỜI)
                 if isinstance(resp_solar, httpx.Response) and resp_solar.status_code == 200:
                     flares = resp_solar.json()
                     if flares and isinstance(flares, list):
@@ -120,12 +122,10 @@ class DisasterService:
                             if 'M' in class_type: energy = 0.7
                             if 'X' in class_type: energy = 1.0
                             
-                            import random
-                            fake_lon = random.randint(-180, 180)
-                            
+                            # [CLEAN CODE] Cố định tọa độ tại Cực Bắc (90, 0) thay vì Random
                             sensors.append({
                                 "type": "SOLAR_FLARE", "place": f"Sunspot {flare.get('activeRegionNum', 'Unknown')} ({class_type})",
-                                "lat": 85.0, "lon": fake_lon, 
+                                "lat": 90.0, "lon": 0.0, 
                                 "energy_level": energy, "anomaly_score": 0.99,
                                 "raw_val": 10.0
                             })
@@ -139,6 +139,20 @@ class DisasterService:
         if sensors:
             DisasterService.LATEST_DATA = sensors
             print(f"✅ [CACHE] Updated {len(sensors)} REAL events from global sensors.")
+            
+            # --- [LEVEL 2] LƯU SNAPSHOT VÀO MONGODB ---
+            try:
+                collection = Database.get_collection("raw_logs")
+                if collection is not None:
+                    log_entry = {
+                        "timestamp": datetime.now(timezone.utc),
+                        "total_events": len(sensors),
+                        "max_magnitude": max([s['raw_val'] for s in sensors]) if sensors else 0,
+                        "sensors_data": sensors 
+                    }
+                    collection.insert_one(log_entry)
+            except Exception as e:
+                print(f"⚠️ [DB SAVE ERROR] Could not save to MongoDB: {e}")
             
         return sensors
 

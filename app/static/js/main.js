@@ -1,12 +1,51 @@
-// --- MAIN LOGIC MODULE (V28.0 - AI BACKEND INTEGRATION) ---
+// --- MAIN LOGIC MODULE (V28.1 - COMMANDER & AI BACKEND) ---
 
-// 1. Biến toàn cục
+// 1. Biến toàn cục & Cấu hình
+const strategicLocations = {
+  // Châu Á
+  vietnam: { lat: 14.0, lng: 108.0, alt: 0.8, msg: "Home Base" },
+  hanoi: { lat: 21.0, lng: 105.8, alt: 0.4, msg: "Capital Sector" },
+  saigon: { lat: 10.8, lng: 106.6, alt: 0.4, msg: "Southern Hub" },
+  japan: { lat: 36.0, lng: 138.0, alt: 0.7, msg: "Seismic Hotspot" },
+  tokyo: { lat: 35.6, lng: 139.6, alt: 0.3, msg: "High Density Zone" },
+  china: { lat: 35.0, lng: 105.0, alt: 1.0, msg: "Mainland Monitoring" },
+  indonesia: { lat: -5.0, lng: 120.0, alt: 0.8, msg: "Ring of Fire" },
+  india: { lat: 20.0, lng: 77.0, alt: 1.0, msg: "Subcontinent" },
+
+  // Âu - Mỹ
+  usa: { lat: 37.0, lng: -95.0, alt: 1.0, msg: "Western Hemisphere" },
+  california: { lat: 36.7, lng: -119.4, alt: 0.5, msg: "San Andreas Fault" },
+  europe: { lat: 54.0, lng: 15.0, alt: 1.2, msg: "EU Sector" },
+  russia: { lat: 60.0, lng: 100.0, alt: 1.2, msg: "Northern Territory" },
+  ukraine: { lat: 48.3, lng: 31.1, alt: 0.6, msg: "Conflict Zone" },
+
+  // Điểm nóng đặc biệt
+  chernobyl: { lat: 51.27, lng: 30.22, alt: 0.2, msg: "☢️ RADIATION ZONE ☢️" },
+  fukushima: {
+    lat: 37.42,
+    lng: 141.03,
+    alt: 0.2,
+    msg: "☢️ REACTOR FALLOUT ☢️",
+  },
+  mariana: { lat: 11.3, lng: 142.2, alt: 0.3, msg: "Deepest Point" },
+  everest: { lat: 27.98, lng: 86.92, alt: 0.1, msg: "Highest Point" },
+  bermuda: { lat: 25.0, lng: -71.0, alt: 0.5, msg: "Anomaly Detected?" },
+
+  // Tổng quan
+  global: { lat: 0, lng: 0, alt: 2.5, msg: "Global Overwatch" },
+  north: { lat: 90, lng: 0, alt: 2.0, msg: "Arctic Circle" },
+  south: { lat: -90, lng: 0, alt: 2.0, msg: "Antarctica" },
+};
+
 let socket = null;
 let isLive = false;
 let fetchTimer = null;
 let currentDefcon = 5;
 let currentNodeCount = 0;
 let allEventsCache = [];
+let predictionEvents = []; // Cache cho dự báo AI
+let isTraining = false;
+
 let activeFilters = {
   QUAKE: true,
   VOLCANO: true,
@@ -16,13 +55,12 @@ let activeFilters = {
   NUKE: true,
   PREDICT: false,
 };
+
 let userLat = null;
 let userLng = null;
 let userEventMarker = null;
-let predictionEvents = []; // Cache cho các điểm dự báo AI
-let isTraining = false; // Cờ trạng thái training
 
-// 2. Audio System (Giữ nguyên)
+// 2. Audio System
 class AudioSynth {
   constructor() {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -49,7 +87,7 @@ class AudioSynth {
   }
   playPredict() {
     this.playTone(600, "triangle", 0.3, 0.05);
-  } // Âm thanh mới cho AI
+  }
   playAlarm() {
     if (this.muted) return;
     const osc = this.ctx.createOscillator();
@@ -66,7 +104,7 @@ class AudioSynth {
 }
 window.sfx = new AudioSynth();
 
-// 3. Helper Functions (Giữ nguyên)
+// 3. Helper Functions & UI
 const termOut = document.getElementById("term-output");
 function printTerm(msg, type = "") {
   const div = document.createElement("div");
@@ -123,7 +161,7 @@ function applyFilters() {
     return false;
   });
 
-  // Thêm dữ liệu dự báo AI nếu bật
+  // Thêm AI Predictions vào bản đồ nếu bật
   if (activeFilters["PREDICT"]) {
     filteredData = filteredData.concat(predictionEvents);
   }
@@ -136,7 +174,7 @@ function applyFilters() {
   }
 }
 
-// 4. Data Processing (Smart Loop)
+// 4. Backend Data Loop
 async function fetchAllDataLoop() {
   if (!isLive) return;
 
@@ -149,7 +187,7 @@ async function fetchAllDataLoop() {
       processBackendData(json.data);
       nextDelay = 60000;
 
-      // Sau khi lấy dữ liệu mới, tự động train AI
+      // Auto-train AI khi có dữ liệu mới
       trainModel();
     } else {
       printTerm("Scanning... Retrying in 3s...", "sys");
@@ -250,10 +288,10 @@ function processBackendData(events) {
   }
 
   applyFilters();
-  printTerm(`Synced ${combinedEvents.length} threats.`);
+  printTerm(`Synced ${combinedEvents.length} threats via UPT-CACHE.`);
 }
 
-// 5. AI FUNCTIONS (NEW & IMPROVED)
+// 5. AI Functions (Python Backend)
 async function trainModel() {
   if (isTraining) return;
   isTraining = true;
@@ -287,9 +325,22 @@ async function runNeuralPrediction() {
   printTerm("Querying Guardian AI...", "ai");
   window.sfx.playPredict();
 
-  // Dùng vị trí người dùng hoặc mặc định (Nhật Bản - Vùng hay có động đất)
-  const targetLat = userLat || 36.2;
-  const targetLon = userLng || 138.2;
+  // --- [LOGIC MỚI] DỰ BÁO THEO TẦM NHÌN ---
+  // Mặc định lấy tọa độ trung tâm màn hình (nơi bạn đang nhìn)
+  let targetLat = 36.2;
+  let targetLon = 138.2;
+
+  // Nếu đã bật GPS, ưu tiên vị trí người dùng
+  if (userLat !== null && userLng !== null) {
+    targetLat = userLat;
+    targetLon = userLng;
+  }
+  // Nếu chưa có GPS, lấy tọa độ camera đang chiếu tới
+  else if (window.world) {
+    const pov = window.world.pointOfView();
+    targetLat = pov.lat;
+    targetLon = pov.lng;
+  }
 
   try {
     const res = await fetch("/api/v1/predict/forecast", {
@@ -298,7 +349,7 @@ async function runNeuralPrediction() {
       body: JSON.stringify({
         lat: targetLat,
         lon: targetLon,
-        simulated_energy: 0.7, // Giả lập mức năng lượng cao
+        simulated_energy: 0.7, // Giả lập năng lượng để test phản ứng AI
       }),
     });
     const data = await res.json();
@@ -317,7 +368,7 @@ async function runNeuralPrediction() {
       typeStr
     );
 
-    // Vẽ vòng tròn cảnh báo lên bản đồ
+    // Vẽ vòng tròn dự báo
     if (data.predicted_risk > 0.0) {
       predictionEvents = [
         {
@@ -343,16 +394,213 @@ async function runNeuralPrediction() {
   }
 }
 
-// 6. Interaction & WebSocket
-window.toggleFilter = (type, btn) => {
-  if (window.world) window.world.controls().autoRotate = false;
-  activeFilters[type] = !activeFilters[type];
-  btn.innerText = activeFilters[type] ? `[x] ${type}S` : `[ ] ${type}S`;
-  btn.classList.toggle("active");
-  window.sfx.playBeep();
-  applyFilters();
+// 6. COMMAND SYSTEM (NEW)
+window.processCommand = async function (cmd) {
+  cmd = cmd.trim().toLowerCase();
+
+  // --- SYSTEM COMMANDS ---
+  if (cmd.includes("scan") || cmd === "refresh") {
+    printTerm("Initiating Manual Scan...", "sys");
+    fetchAllDataLoop();
+    return;
+  }
+  if (cmd.includes("train") || cmd === "learn") {
+    printTerm("Force Retraining Neural Core...", "tf");
+    trainModel();
+    return;
+  }
+  if (cmd.includes("locate") || cmd.includes("gps") || cmd === "me") {
+    locateUser();
+    return;
+  }
+  if (cmd === "status" || cmd === "report") {
+    printTerm(`--- SITUATION REPORT ---`, "sys");
+    printTerm(
+      `DEFCON LEVEL: ${currentDefcon}`,
+      currentDefcon <= 2 ? "err" : "sys"
+    );
+    printTerm(`ACTIVE THREATS: ${currentNodeCount}`, "sys");
+    printTerm(`NEURAL STATUS: ${isTraining ? "TRAINING" : "ONLINE"}`, "ai");
+    if (userLat !== null)
+      printTerm(
+        `OPERATOR LOC: ${userLat.toFixed(2)}, ${userLng.toFixed(2)}`,
+        "sys"
+      );
+    return;
+  }
+
+  // --- REACTOR COMMANDS ---
+  if (cmd === "scram" || cmd === "shutdown" || cmd === "kill") {
+    printTerm("!!! EMERGENCY SCRAM INITIATED !!!", "err");
+    window.sfx.playAlarm();
+    try {
+      await fetch("/api/v1/reactor/scram", { method: "POST" });
+      printTerm("CONTROL RODS DROPPED. FLUX ZERO.", "sys");
+    } catch (e) {
+      printTerm("SCRAM FAILED: Uplink Error.", "err");
+    }
+    return;
+  }
+  if (cmd.startsWith("defcon")) {
+    const level = parseInt(cmd.split(" ")[1]);
+    if (level >= 1 && level <= 5) {
+      currentDefcon = level;
+      const colors = {
+        1: "#ff0000",
+        2: "#ff4400",
+        3: "#ffcc00",
+        4: "#00ff66",
+        5: "#0088ff",
+      };
+      document.getElementById("defcon-level").innerText = `DEFCON ${level}`;
+      document.getElementById("defcon-level").style.color = colors[level];
+      document.getElementById("defcon-bar").style.borderColor = colors[level];
+      printTerm(`DEFCON LEVEL SET TO ${level}`, "sys");
+      if (level === 1) window.sfx.playAlarm();
+    } else {
+      printTerm("Invalid DEFCON level (1-5).", "err");
+    }
+    return;
+  }
+
+  // --- VISUAL/AUDIO COMMANDS ---
+  if (cmd.includes("predict") || cmd === "ai") {
+    togglePrediction();
+    return;
+  }
+  if (cmd === "mute" || cmd === "silent") {
+    window.sfx.muted = true;
+    printTerm("Audio Muted.", "sys");
+    return;
+  }
+  if (cmd === "unmute" || cmd === "sound") {
+    window.sfx.muted = false;
+    printTerm("Audio Enabled.", "sys");
+    return;
+  }
+
+  if (cmd === "matrix") {
+    document.documentElement.style.setProperty("--neon-blue", "#00ff00");
+    document.documentElement.style.setProperty("--neon-purple", "#00ff00");
+    printTerm("ENTERING THE MATRIX...", "cmd");
+    return;
+  }
+  if (cmd === "reset theme") {
+    document.documentElement.style = "";
+    printTerm("Visuals restored.", "sys");
+    return;
+  }
+
+  // --- NAVIGATION COMMANDS ---
+  for (const [key, val] of Object.entries(strategicLocations)) {
+    if (cmd.includes(key)) {
+      if (window.world) {
+        window.world.pointOfView(
+          { lat: val.lat, lng: val.lng, altitude: val.alt },
+          2000
+        );
+        window.world.controls().autoRotate = false;
+      }
+      printTerm(`Moving to ${key.toUpperCase()}...`, "sys");
+      printTerm(`>> ${val.msg}`, "voice");
+      window.sfx.playBeep();
+      return;
+    }
+  }
+
+  // --- FILTER COMMANDS ---
+  if (cmd === "sats") {
+    const currentData = window.world.customLayerData();
+    if (currentData.length > 0) {
+      window.world.customLayerData([]);
+      printTerm("Satellites: OFF", "sys");
+    } else {
+      // Cần truy cập satData từ visuals.js (scope global)
+      // Nếu lỗi, đảm bảo satData được define ở scope window hoặc global
+      try {
+        window.world.customLayerData(satData);
+        printTerm("Satellites: ON", "sys");
+      } catch (e) {
+        printTerm("Satellite Data Unavailable", "err");
+      }
+    }
+    return;
+  }
+  if (cmd.includes("show all")) {
+    setAllFilters(true);
+    printTerm("All filters ENGAGED.", "sys");
+    return;
+  }
+  if (cmd.includes("hide all")) {
+    setAllFilters(false);
+    printTerm("All filters DISENGAGED.", "sys");
+    return;
+  }
+
+  const filterMap = {
+    quake: "QUAKE",
+    fire: "FIRE",
+    storm: "STORM",
+    volcano: "VOLCANO",
+    nuke: "NUKE",
+  };
+  for (const [key, type] of Object.entries(filterMap)) {
+    if (cmd.includes(key)) {
+      const btn = document.getElementById(`btn-${key}`);
+      if (btn) toggleFilter(type, btn);
+      return;
+    }
+  }
+
+  if (cmd === "help")
+    printTerm(
+      "Commands: scan, locate, train, predict, scram, defcon [1-5], [location], matrix...",
+      "sys"
+    );
+  else printTerm("Command not recognized.", "err");
 };
 
+function setAllFilters(state) {
+  ["QUAKE", "VOLCANO", "STORM", "FIRE", "OTHER", "NUKE"].forEach((type) => {
+    activeFilters[type] = state;
+    let btnKey = type.toLowerCase();
+    if (btnKey === "quake") btnKey = "quake";
+    if (btnKey === "volcano") btnKey = "volcano";
+    if (btnKey === "storm") btnKey = "storm";
+    if (btnKey === "fire") btnKey = "fire";
+    if (btnKey === "nuke") btnKey = "nuke";
+    if (btnKey === "other") btnKey = "other";
+
+    const btn = document.getElementById(`btn-${btnKey}`);
+    if (btn) {
+      if (state) {
+        btn.classList.add("active");
+        btn.innerText = `[x] ${type}S`;
+      } else {
+        btn.classList.remove("active");
+        btn.innerText = `[ ] ${type}S`;
+      }
+    }
+  });
+  applyFilters();
+}
+
+// 7. Interaction & Listeners
+// Terminal Input Listener
+document.addEventListener("keydown", (e) => {
+  const termIn = document.getElementById("term-input");
+  if (document.activeElement === termIn) {
+    if (e.key === "Enter") {
+      const cmd = termIn.value.trim().toLowerCase();
+      printTerm(cmd, "cmd");
+      window.processCommand(cmd); // Gọi hàm toàn cục
+      termIn.value = "";
+      window.sfx.playBeep();
+    }
+  }
+});
+
+// UI Buttons
 window.togglePrediction = () => {
   activeFilters["PREDICT"] = !activeFilters["PREDICT"];
   const btn = document.getElementById("btn-predict");
@@ -367,6 +615,15 @@ window.togglePrediction = () => {
     applyFilters();
     printTerm("Neural Viz deactivated.", "sys");
   }
+};
+
+window.toggleFilter = (type, btn) => {
+  if (window.world) window.world.controls().autoRotate = false;
+  activeFilters[type] = !activeFilters[type];
+  btn.innerText = activeFilters[type] ? `[x] ${type}S` : `[ ] ${type}S`;
+  btn.classList.toggle("active");
+  window.sfx.playBeep();
+  applyFilters();
 };
 
 window.locateUser = () => {
@@ -405,8 +662,6 @@ window.locateUser = () => {
           );
         applyFilters();
         calcNearestThreat();
-
-        // Nếu AI đang bật, dự báo lại cho vị trí mới
         if (activeFilters["PREDICT"]) runNeuralPrediction();
       },
       () => {
@@ -442,6 +697,7 @@ window.closeInspector = () => {
   }
 };
 
+// 8. WebSocket Connection
 document.getElementById("btn-link").addEventListener("click", () => {
   const btn = document.getElementById("btn-link");
   isLive = !isLive;
@@ -469,25 +725,23 @@ document.getElementById("btn-link").addEventListener("click", () => {
         if (fluxEl) fluxEl.innerText = data.neutron_flux;
         if (tempEl) tempEl.innerText = data.core_temp + " K";
 
-        if (
-          window.waveChart &&
-          window.waveChart.data &&
-          window.waveChart.data.datasets
-        ) {
+        if (window.waveChart && window.waveChart.data) {
           window.waveChart.data.datasets[0].data.push(data.k_eff);
           window.waveChart.data.datasets[0].data.shift();
           window.waveChart.update();
         }
-
-        if (data.core_temp > 2000) {
-          window.sfx.playAlarm();
-        }
+        if (data.core_temp > 2000) window.sfx.playAlarm();
       } catch (e) {
         console.warn("WS Error:", e);
       }
     };
     socket.onclose = () => {
       printTerm("WebSocket Disconnected.", "err");
+      const statusModel = document.getElementById("status-model");
+      if (statusModel) {
+        statusModel.innerText = "OFFLINE";
+        statusModel.style.color = "#888";
+      }
     };
   } else {
     btn.classList.remove("active");
@@ -503,5 +757,5 @@ document.getElementById("btn-link").addEventListener("click", () => {
   }
 });
 
-printTerm("Guardian Kernel v28.0 loaded.");
-printTerm("Modules: AI Neural Core (Scikit-Learn) Ready.");
+printTerm("Guardian Kernel v28.1 loaded.");
+printTerm("Modules: COMMANDER Ops + AI Backend Synced.");

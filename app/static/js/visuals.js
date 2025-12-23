@@ -1,15 +1,6 @@
-// --- VISUALIZATION MODULE (V28.1 - Fixed Assets & AI Wireframe) ---
+// --- VISUALIZATION MODULE (Clean Version) ---
 
-// 1. Dữ liệu tĩnh
-const satData = [...Array(150).keys()].map(() => ({
-  lat: (Math.random() - 0.5) * 180,
-  lng: (Math.random() - 0.5) * 360,
-  alt: 0.6 + Math.random() * 0.3,
-  velocity: Math.random() * 0.4 + 0.1,
-  color: "#C8C8FF",
-  type: "SATELLITE",
-}));
-
+// 1. Dữ liệu tĩnh (Chỉ giữ lại Nhà máy điện hạt nhân vì nó là toạ độ thật cố định)
 const nuclearPlants = [
   { name: "Fukushima Daiichi", lat: 37.421, lng: 141.033, desc: "Japan" },
   { name: "Zaporizhzhia", lat: 47.512, lng: 34.586, desc: "Ukraine" },
@@ -36,9 +27,9 @@ window.radarChart = null;
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
-      // --- CẤU HÌNH HÌNH ẢNH (ĐÃ SỬA LINK LỖI) ---
+      // --- CẤU HÌNH HÌNH ẢNH ---
       .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
-      .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png") // Link mới ổn định
+      .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
       .atmosphereColor("#00f3ff")
       .atmosphereAltitude(0.25)
@@ -52,7 +43,10 @@ function initGlobe() {
       .ringMaxRadius("maxR")
       .ringPropagationSpeed("propagationSpeed")
       .ringRepeatPeriod("repeatPeriod")
-      .customLayerData(satData)
+
+      // [XÓA] Dòng .customLayerData(satData) cũ đã bị xóa
+      // .customLayerData([]) // Để trống hoặc xóa hẳn dòng này
+
       .customThreeObjectUpdate((obj, d) => {
         Object.assign(
           obj.position,
@@ -60,15 +54,10 @@ function initGlobe() {
         );
         obj.rotation.y += 0.1;
 
-        // Xoay object AI để tạo hiệu ứng "Scanning"
+        // Hiệu ứng AI
         if (d.type === "AI PREDICTION") {
           obj.rotation.x += 0.05;
           obj.rotation.z += 0.05;
-        }
-
-        if (d.lng) {
-          d.lng += d.velocity || 0;
-          if (d.lng > 180) d.lng = -180;
         }
       })
       .onPointClick((d) => {
@@ -86,11 +75,9 @@ function initGlobe() {
       let geometry, material;
 
       if (d.type === "NUCLEAR PLANT") {
-        // Nhà máy điện: Hình trụ đặc
         geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
         material = new THREE.MeshBasicMaterial({ color: d.color });
       } else if (d.type === "AI PREDICTION") {
-        // AI: Hình khối 20 mặt (Icosahedron) dạng Wireframe (Khung dây)
         geometry = new THREE.IcosahedronGeometry(1.5, 0);
         material = new THREE.MeshBasicMaterial({
           color: d.color,
@@ -98,11 +85,9 @@ function initGlobe() {
           transparent: true,
           opacity: 0.8,
         });
-      } else if (d.type === "SATELLITE") {
-        geometry = new THREE.SphereGeometry(0.2);
-        material = new THREE.MeshBasicMaterial({ color: d.color });
-      } else {
-        // Mặc định: Hình chóp tứ diện
+      }
+      // [XÓA] Logic vẽ SATELLITE (Hình cầu)
+      else {
         geometry = new THREE.TetrahedronGeometry(1.2);
         material = new THREE.MeshBasicMaterial({ color: d.color });
       }
@@ -117,7 +102,7 @@ function initGlobe() {
   }
 }
 
-// 3. Khởi tạo Biểu đồ
+// 3. Khởi tạo Biểu đồ (Giữ nguyên)
 function initCharts() {
   Chart.defaults.color = "#666";
   Chart.defaults.font.family = "Rajdhani";

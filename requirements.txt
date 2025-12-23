@@ -8,7 +8,10 @@ python-telegram-bot
 httpx
 apscheduler==3.10.4
 slowapi==0.1.9
-# --- AI CORE UPGRADE ---
+# --- DATA & AI ---
+pymongo
 scikit-learn
 pandas
 joblib
+# [LEVEL 3 - GPU POWER]
+tensorflow

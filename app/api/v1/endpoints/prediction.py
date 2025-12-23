@@ -5,7 +5,11 @@ from typing import List, Optional
 # Import Service và Engine
 from app.services.earthquake_service import DisasterService
 from app.upt_engine.formulas import UPTMath
-from app.upt_engine.neural_core import guardian_brain # <--- IMPORT MỚI
+
+# [LEVEL 3 UPDATE] Thay đổi bộ não
+# CŨ: from app.upt_engine.neural_core import guardian_brain 
+# MỚI: Dùng Deep Learning (LSTM)
+from app.upt_engine.deep_core import guardian_brain
 
 router = APIRouter()
 
