@@ -1,0 +1,17 @@
+# Bỏ qua git
+.git
+.gitignore
+
+# Bỏ qua môi trường ảo và cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ qua file env cục bộ (quan trọng để không lộ key)
+.env
+
+# Bỏ qua file rác hệ thống
+.DS_Store
+Thumbs.db

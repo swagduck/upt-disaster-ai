@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UPT COMMANDER V27.0 (WEBSOCKET ENABLED)</title>
+    <title>UPT COMMANDER V27.4 (AUTO-RESUME)</title>
 
     <link
       rel="icon"
@@ -28,6 +28,7 @@
         --neon-green: #00ff66;
         --neon-orange: #ff6600;
         --neon-purple: #bd00ff;
+        --neon-pink: #ff00cc;
         --neon-white: #ffffff;
         --neon-toxic: #ccff00;
         --glass-bg: rgba(8, 15, 25, 0.9);
@@ -184,9 +185,6 @@
       .term-line.ai {
         color: var(--neon-purple);
         font-weight: bold;
-      }
-      .term-line.tf {
-        color: var(--neon-orange);
       }
       .term-line.voice {
         color: var(--neon-gold);
@@ -500,8 +498,8 @@
         root@upt-commander:~#
       </div>
       <div id="term-output">
-        <div class="term-line sys">Guardian Kernel v27.0 loaded.</div>
-        <div class="term-line sys">Module: WEBSOCKET [READY]</div>
+        <div class="term-line sys">Guardian Kernel v27.4 loaded.</div>
+        <div class="term-line sys">Module: AUTO_RESUME [PATCHED]</div>
         <div class="term-line">System Online.</div>
       </div>
       <div id="term-input-line">
@@ -909,6 +907,18 @@
           return;
         }
 
+        // Manual rotation control command
+        if (cmd.includes("stop")) {
+          if (world) world.controls().autoRotate = false;
+          printTerm("Rotation HALTED.", "sys");
+          return;
+        }
+        if (cmd.includes("spin") || cmd.includes("rotate")) {
+          if (world) world.controls().autoRotate = true;
+          printTerm("Rotation RESUMED.", "sys");
+          return;
+        }
+
         const locs = {
           vietnam: { lat: 14.0, lng: 108.0, alt: 0.8 },
           usa: { lat: 37.0, lng: -95.0, alt: 1.0 },
@@ -931,13 +941,13 @@
         else printTerm("Command not recognized.", "err");
       }
 
-      // --- SATELLITE DATA ---
+      // --- SATELLITE DATA (COLOR FIXED: WHITE GHOST) ---
       const satData = [...Array(150).keys()].map(() => ({
         lat: (Math.random() - 0.5) * 180,
         lng: (Math.random() - 0.5) * 360,
         alt: 0.6 + Math.random() * 0.3,
         velocity: Math.random() * 0.4 + 0.1,
-        color: "#ffd700",
+        color: "rgba(200, 200, 255, 0.6)", // MÀU MỚI: Trắng mờ
         type: "SATELLITE",
       }));
 
@@ -953,7 +963,11 @@
         { name: "Diablo Canyon", lat: 35.211, lng: -120.855, desc: "USA" },
       ];
 
+      // --- UPDATED: Stop Rotation on Toggle ---
       window.toggleFilter = (type, btn) => {
+        // NGỪNG QUAY KHI BẤM NÚT
+        if (world) world.controls().autoRotate = false;
+
         activeFilters[type] = !activeFilters[type];
         btn.innerText = activeFilters[type] ? `[x] ${type}S` : `[ ] ${type}S`;
         if (activeFilters[type]) btn.classList.add("active");
@@ -1048,7 +1062,7 @@
       }
 
       window.togglePrediction = () => {
-        // Placeholder for future AI expansion
+        // Placeholder
         printTerm("Neural AI module is in maintenance.", "sys");
       };
 
@@ -1103,6 +1117,10 @@
           })
           .onPointClick((d) => {
             sfx.playBeep();
+
+            // NGỪNG QUAY KHI CLICK VÀO ĐIỂM
+            if (world) world.controls().autoRotate = false;
+
             world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
             showInspector(d);
           });
@@ -1116,7 +1134,8 @@
           return new THREE.Mesh(geometry, material);
         });
         world.controls().autoRotate = true;
-        world.controls().autoRotateSpeed = 0.5;
+        // --- CHỈNH TỐC ĐỘ QUAY TẠI ĐÂY ---
+        world.controls().autoRotateSpeed = 0.15; // Cực chậm (Slow Motion)
       } catch (e) {
         console.error(e);
       }
@@ -1205,6 +1224,7 @@
         let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
         let maxIntensity = 0;
 
+        // Xử lý Earthquake
         if (quakeData.features) {
           quakeData.features.forEach((f) => {
             const mag = f.properties.mag;
@@ -1227,11 +1247,50 @@
           });
         }
 
-        // NASA Processing (Simplified for brevity)
+        // Xử lý NASA (COLOR FIX APPLIED)
         if (nasaData.events) {
           nasaData.events.forEach((e) => {
-            if (e.categories[0].id === "wildfires") counts.FIRE++;
-            // Add logic similar to previous code if needed, but keeping it short here
+            if (!e.geometry || !e.categories) return;
+            const catId = e.categories[0].id;
+            const coords = e.geometry[0].coordinates;
+            let lat = coords[1];
+            let lng = coords[0];
+            let color = "#aaaaaa";
+            let type = "OTHER";
+            let alt = 0.2;
+
+            if (catId === "wildfires") {
+              counts.FIRE++;
+              color = "#ff6600";
+              type = "WILDFIRE";
+              alt = 0.3;
+            } else if (catId === "volcanoes") {
+              counts.VOLCANO++;
+              color = "#ff00cc"; // MÀU MỚI: HỒNG NEON (Pink)
+              type = "VOLCANO";
+              alt = 0.5;
+            } else if (catId === "severeStorms") {
+              counts.STORM++;
+              color = "#bd00ff";
+              type = "STORM";
+              alt = 0.4;
+            }
+
+            if (type !== "OTHER") {
+              combinedEvents.push({
+                lat: lat,
+                lng: lng,
+                alt: alt,
+                color: color,
+                type: type,
+                place: e.title,
+                value: 5.0,
+                desc: "Active NASA Event",
+                maxR: 0,
+                propagationSpeed: 5,
+                repeatPeriod: 800,
+              });
+            }
           });
         }
 
@@ -1277,8 +1336,14 @@
             <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${d.color}">${d.value}</span></div>
         `;
       }
+
+      // --- CẬP NHẬT: AUTO-RESUME KHI ĐÓNG BẢNG ---
       window.closeInspector = () => {
         document.getElementById("inspector").classList.remove("active");
+        if (world) {
+          world.controls().autoRotate = true; // Quay tiếp
+          world.pointOfView({ altitude: 2.5 }, 2000); // Zoom out về mặc định cho đẹp
+        }
       };
 
       // --- MAIN BUTTON: WEBSOCKET TOGGLE ---
@@ -1294,7 +1359,7 @@
 
           // Start fetching map data
           fetchAllData();
-          timer = setInterval(fetchAllData, 60000); // Poll map data every 1 min
+          timer = setInterval(fetchAllData, 60000);
 
           // --- WEBSOCKET CONNECTION ---
           const protocol =
@@ -1313,17 +1378,14 @@
           socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
-            // Update Reactor Stats UI
             document.getElementById("val-flux").innerText = data.neutron_flux;
             document.getElementById("val-temp").innerText =
               data.core_temp + " K";
 
-            // Update Wave Chart (Realtime)
             waveChart.data.datasets[0].data.push(data.k_eff);
             waveChart.data.datasets[0].data.shift();
             waveChart.update();
 
-            // Alert Logic
             if (data.core_temp > 2000) {
               document.getElementById("status-model").innerText = "CRITICAL";
               document.getElementById("status-model").style.color = "red";
@@ -1355,7 +1417,6 @@
         }
       });
 
-      // Start countdown animation
       setInterval(() => {
         let val = parseInt(document.getElementById("scan-text").innerText);
         val = val > 0 ? val - 1 : 60;
