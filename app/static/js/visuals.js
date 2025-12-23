@@ -6,7 +6,7 @@ const satData = [...Array(150).keys()].map(() => ({
   lng: (Math.random() - 0.5) * 360,
   alt: 0.6 + Math.random() * 0.3,
   velocity: Math.random() * 0.4 + 0.1,
-  color: "#C8C8FF", // Màu HEX để fix lỗi Alpha warning
+  color: "#C8C8FF",
   type: "SATELLITE",
 }));
 
@@ -17,14 +17,15 @@ const nuclearPlants = [
   { name: "Diablo Canyon", lat: 35.211, lng: -120.855, desc: "USA" },
 ];
 
-let world;
-let waveChart;
-let radarChart;
+// Khai báo rõ ràng trên window để tránh xung đột với ID của thẻ HTML
+window.world = null;
+window.waveChart = null;
+window.radarChart = null;
 
 // 2. Khởi tạo Globe
 function initGlobe() {
   try {
-    world = Globe()(document.getElementById("globe-viz"))
+    window.world = Globe()(document.getElementById("globe-viz"))
       .globeImageUrl("//unpkg.com/three-globe/example/img/earth-dark.jpg")
       .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
@@ -40,7 +41,10 @@ function initGlobe() {
       .ringRepeatPeriod("repeatPeriod")
       .customLayerData(satData)
       .customThreeObjectUpdate((obj, d) => {
-        Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+        Object.assign(
+          obj.position,
+          window.world.getCoords(d.lat, d.lng, d.alt)
+        );
         obj.rotation.y += 0.1;
         if (d.lng) {
           d.lng += d.velocity || 0;
@@ -49,20 +53,20 @@ function initGlobe() {
       })
       .onPointClick((d) => {
         if (window.sfx) window.sfx.playBeep();
-        // Dừng quay khi click
-        if (world) world.controls().autoRotate = false;
-
-        world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
-        window.showInspector(d);
+        if (window.world) window.world.controls().autoRotate = false;
+        window.world.pointOfView(
+          { lat: d.lat, lng: d.lng, altitude: 1.2 },
+          1500
+        );
+        if (window.showInspector) window.showInspector(d);
       });
 
-    world.customThreeObject((d) => {
+    window.world.customThreeObject((d) => {
       const geometry =
         d.type === "NUCLEAR PLANT"
           ? new THREE.CylinderGeometry(0.5, 0.5, 2, 8)
           : new THREE.TetrahedronGeometry(1.2);
       const material = new THREE.MeshBasicMaterial({ color: d.color });
-      // Fix Alpha Warning
       if (d.type === "SATELLITE") {
         material.transparent = true;
         material.opacity = 0.6;
@@ -70,8 +74,8 @@ function initGlobe() {
       return new THREE.Mesh(geometry, material);
     });
 
-    world.controls().autoRotate = true;
-    world.controls().autoRotateSpeed = 0.15; // Slow motion
+    window.world.controls().autoRotate = true;
+    window.world.controls().autoRotateSpeed = 0.15;
   } catch (e) {
     console.error("Globe Init Failed:", e);
   }
@@ -82,10 +86,10 @@ function initCharts() {
   Chart.defaults.color = "#666";
   Chart.defaults.font.family = "Rajdhani";
 
-  // Wave Chart
   const ctxWave = document.getElementById("waveChart");
   if (ctxWave) {
-    waveChart = new Chart(ctxWave, {
+    // Gán trực tiếp vào window.waveChart để ghi đè thẻ DOM <canvas id="waveChart">
+    window.waveChart = new Chart(ctxWave, {
       type: "line",
       data: {
         labels: Array(30).fill(""),
@@ -111,10 +115,10 @@ function initCharts() {
     });
   }
 
-  // Radar Chart
   const ctxRadar = document.getElementById("radarChart");
   if (ctxRadar) {
-    radarChart = new Chart(ctxRadar, {
+    // Tương tự với radarChart
+    window.radarChart = new Chart(ctxRadar, {
       type: "polarArea",
       data: {
         labels: ["Quake", "Fire", "Volcano", "Storm", "Other"],
@@ -148,6 +152,5 @@ function initCharts() {
   }
 }
 
-// Khởi chạy
 initGlobe();
 initCharts();
