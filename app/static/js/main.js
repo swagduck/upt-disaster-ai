@@ -119,86 +119,80 @@ function applyFilters() {
   });
   if (userEventMarker) filteredData.push(userEventMarker);
 
-  // Update Globe via global 'world' variable from visuals.js
+  // Update Globe via global 'world' variable
   if (window.world) {
     window.world.pointsData(filteredData);
     window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
   }
 }
 
-// 4. Data Processing
-function processMultiData(quakeData, nasaData) {
+// 4. Data Processing (Backend Source)
+async function fetchAllData() {
+  try {
+    // [QUAN TRỌNG] Gọi API nội bộ thay vì gọi trực tiếp ra ngoài
+    const response = await fetch("/api/v1/disasters/live");
+    const json = await response.json();
+
+    if (json.data && json.data.length > 0) {
+      processBackendData(json.data);
+    } else {
+      printTerm("Waiting for Guardian scan...", "sys");
+    }
+  } catch (e) {
+    console.error(e);
+    printTerm("Uplink to Mainframe lost.", "err");
+  }
+}
+
+function processBackendData(events) {
   let combinedEvents = [];
-  let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0 };
+  let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0, OTHER: 0 };
 
-  // USGS
-  if (quakeData.features) {
-    quakeData.features.forEach((f) => {
-      const mag = f.properties.mag;
+  events.forEach((e) => {
+    // e = {type, place, lat, lon, energy_level, anomaly_score, raw_val}
+
+    let color = "#aaaaaa";
+    let maxR = 0;
+    let type = e.type;
+
+    // Logic màu sắc dựa trên type
+    if (type.includes("EARTHQUAKE")) {
       counts.QUAKE++;
-      let color = mag > 7 ? "#ff003c" : mag > 5 ? "#ffd700" : "#00f3ff";
-      combinedEvents.push({
-        lat: f.geometry.coordinates[1],
-        lng: f.geometry.coordinates[0],
-        alt: mag * 0.05,
-        color: color,
-        type: `QUAKE (M${mag.toFixed(1)})`,
-        place: f.properties.place,
-        value: mag,
-        maxR: mag > 5 ? mag * 5 : 0,
-        propagationSpeed: 5,
-        repeatPeriod: 800,
-      });
+      const mag = e.raw_val;
+      color = mag > 7 ? "#ff003c" : mag > 5 ? "#ffd700" : "#00f3ff";
+      maxR = mag > 5 ? mag * 5 : 0;
+      type = `QUAKE (M${mag.toFixed(1)})`;
+    } else if (type.includes("WILDFIRE")) {
+      counts.FIRE++;
+      color = "#ff6600";
+    } else if (type.includes("VOLCANO")) {
+      counts.VOLCANO++;
+      color = "#ff00cc";
+    } else if (type.includes("STORM")) {
+      counts.STORM++;
+      color = "#bd00ff";
+    } else if (type.includes("SOLAR")) {
+      color = "#ffffff";
+      maxR = 50;
+    } else {
+      counts.OTHER++;
+    }
+
+    combinedEvents.push({
+      lat: e.lat,
+      lng: e.lon,
+      alt: e.energy_level * 0.5,
+      color: color,
+      type: type,
+      place: e.place,
+      value: e.raw_val,
+      maxR: maxR,
+      propagationSpeed: 5,
+      repeatPeriod: 800,
     });
-  }
+  });
 
-  // NASA
-  if (nasaData.events) {
-    nasaData.events.forEach((e) => {
-      if (!e.geometry || !e.categories) return;
-      const catId = e.categories[0].id;
-      const coords = e.geometry[0].coordinates;
-      let lat = coords[1];
-      let lng = coords[0];
-      let color = "#aaaaaa";
-      let type = "OTHER";
-      let alt = 0.2;
-
-      if (catId === "wildfires") {
-        counts.FIRE++;
-        color = "#ff6600";
-        type = "WILDFIRE";
-        alt = 0.3;
-      } else if (catId === "volcanoes") {
-        counts.VOLCANO++;
-        color = "#ff00cc";
-        type = "VOLCANO";
-        alt = 0.5;
-      } else if (catId === "severeStorms") {
-        counts.STORM++;
-        color = "#bd00ff";
-        type = "STORM";
-        alt = 0.4;
-      }
-
-      if (type !== "OTHER") {
-        combinedEvents.push({
-          lat: lat,
-          lng: lng,
-          alt: alt,
-          color: color,
-          type: type,
-          place: e.title,
-          value: 5.0,
-          maxR: 0,
-          propagationSpeed: 5,
-          repeatPeriod: 800,
-        });
-      }
-    });
-  }
-
-  // Add Nukes (from visuals.js constant)
+  // Thêm Nukes (Dữ liệu tĩnh)
   if (window.nuclearPlants) {
     window.nuclearPlants.forEach((n) => {
       combinedEvents.push({
@@ -220,39 +214,20 @@ function processMultiData(quakeData, nasaData) {
   currentNodeCount = combinedEvents.length;
   document.getElementById("val-prob").innerText = combinedEvents.length;
 
-  // Update Radar Chart via global variable
+  // Update Chart
   if (window.radarChart) {
     window.radarChart.data.datasets[0].data = [
       counts.QUAKE,
       counts.FIRE,
       counts.VOLCANO,
       counts.STORM,
-      counts.ICE,
+      counts.OTHER,
     ];
     window.radarChart.update();
   }
 
   applyFilters();
-  printTerm(`Synced ${combinedEvents.length} events.`);
-}
-
-async function fetchAllData() {
-  try {
-    const quakePromise = fetch(
-      "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson"
-    ).then((r) => r.json());
-    const nasaPromise = fetch(
-      "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=20"
-    ).then((r) => r.json());
-    const [quakeData, nasaData] = await Promise.all([
-      quakePromise,
-      nasaPromise,
-    ]);
-    processMultiData(quakeData, nasaData);
-  } catch (e) {
-    console.error(e);
-    printTerm("Data link unstable.", "err");
-  }
+  printTerm(`Synced ${combinedEvents.length} threats via UPT-CACHE.`);
 }
 
 // 5. Interaction (Events)
@@ -332,7 +307,7 @@ window.closeInspector = () => {
 window.togglePrediction = () =>
   printTerm("Neural AI module is in maintenance.", "sys");
 
-// 6. WebSocket
+// 6. WebSocket & Initial Load
 document.getElementById("btn-link").addEventListener("click", () => {
   const btn = document.getElementById("btn-link");
   isLive = !isLive;
@@ -343,7 +318,9 @@ document.getElementById("btn-link").addEventListener("click", () => {
     printTerm("Initializing Quantum Uplink (WebSocket)...");
     window.sfx.playBeep();
 
+    // Gọi dữ liệu lần đầu
     fetchAllData();
+    // Cập nhật mỗi 1 phút (lấy từ Cache server siêu nhanh)
     timer = setInterval(fetchAllData, 60000);
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -387,6 +364,5 @@ document.getElementById("btn-link").addEventListener("click", () => {
   }
 });
 
-// 7. Initial Print
-printTerm("Guardian Kernel v27.7 loaded.");
-printTerm("Modules: Visuals, Logic separated.");
+printTerm("Guardian Kernel v27.8 loaded.");
+printTerm("Modules: Centralized Data Architecture.");
