@@ -1,9 +1,9 @@
-// --- MAIN LOGIC MODULE ---
+// --- MAIN LOGIC MODULE (V27.10) ---
 
 // 1. Biến toàn cục
 let socket = null;
 let isLive = false;
-let timer = null;
+let fetchTimer = null; // Dùng timeout để kiểm soát vòng lặp linh hoạt
 let currentDefcon = 5;
 let currentNodeCount = 0;
 let allEventsCache = [];
@@ -119,28 +119,55 @@ function applyFilters() {
   });
   if (userEventMarker) filteredData.push(userEventMarker);
 
-  // Update Globe via global 'world' variable
+  // Gọi hàm cập nhật Globe bên visuals.js
   if (window.world) {
     window.world.pointsData(filteredData);
     window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
   }
 }
 
-// 4. Data Processing (Backend Source)
-async function fetchAllData() {
+// 4. Data Processing (Smart Loop with Cache Busting)
+async function fetchAllDataLoop() {
+  if (!isLive) return; // Dừng nếu đã ngắt kết nối
+
+  let nextDelay = 60000; // Mặc định 1 phút
+
   try {
-    // [QUAN TRỌNG] Gọi API nội bộ thay vì gọi trực tiếp ra ngoài
-    const response = await fetch("/api/v1/disasters/live");
+    // [FIX QUAN TRỌNG] Thêm ?t=Date.now() để bắt buộc trình duyệt không dùng Cache cũ
+    const response = await fetch(`/api/v1/disasters/live?t=${Date.now()}`);
     const json = await response.json();
 
     if (json.data && json.data.length > 0) {
       processBackendData(json.data);
+      nextDelay = 60000; // Có dữ liệu rồi thì nghỉ 1 phút
+
+      // Cập nhật trạng thái UI
+      const statusModel = document.getElementById("status-model");
+      if (statusModel) {
+        statusModel.innerText = "ONLINE";
+        statusModel.style.color = "var(--neon-green)";
+      }
     } else {
-      printTerm("Waiting for Guardian scan...", "sys");
+      // Chưa có dữ liệu (Server đang khởi động) -> Thử lại nhanh sau 3s
+      printTerm("System initializing... Retrying in 3s...", "sys");
+      nextDelay = 3000;
+
+      const statusModel = document.getElementById("status-model");
+      if (statusModel) {
+        statusModel.innerText = "SCANNING...";
+        statusModel.style.color = "var(--neon-orange)";
+      }
     }
   } catch (e) {
     console.error(e);
-    printTerm("Uplink to Mainframe lost.", "err");
+    printTerm("Uplink lost. Retrying...", "err");
+    nextDelay = 5000;
+  }
+
+  // Lên lịch chạy lần tiếp theo
+  if (isLive) {
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(fetchAllDataLoop, nextDelay);
   }
 }
 
@@ -149,13 +176,10 @@ function processBackendData(events) {
   let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0, OTHER: 0 };
 
   events.forEach((e) => {
-    // e = {type, place, lat, lon, energy_level, anomaly_score, raw_val}
-
     let color = "#aaaaaa";
     let maxR = 0;
     let type = e.type;
 
-    // Logic màu sắc dựa trên type
     if (type.includes("EARTHQUAKE")) {
       counts.QUAKE++;
       const mag = e.raw_val;
@@ -192,7 +216,6 @@ function processBackendData(events) {
     });
   });
 
-  // Thêm Nukes (Dữ liệu tĩnh)
   if (window.nuclearPlants) {
     window.nuclearPlants.forEach((n) => {
       combinedEvents.push({
@@ -212,10 +235,12 @@ function processBackendData(events) {
 
   allEventsCache = combinedEvents;
   currentNodeCount = combinedEvents.length;
-  document.getElementById("val-prob").innerText = combinedEvents.length;
 
-  // Update Chart
-  if (window.radarChart) {
+  const countEl = document.getElementById("val-prob");
+  if (countEl) countEl.innerText = combinedEvents.length;
+
+  // [FIX] Safety Check cho Radar Chart để tránh lỗi undefined
+  if (window.radarChart && window.radarChart.data) {
     window.radarChart.data.datasets[0].data = [
       counts.QUAKE,
       counts.FIRE,
@@ -318,10 +343,8 @@ document.getElementById("btn-link").addEventListener("click", () => {
     printTerm("Initializing Quantum Uplink (WebSocket)...");
     window.sfx.playBeep();
 
-    // Gọi dữ liệu lần đầu
-    fetchAllData();
-    // Cập nhật mỗi 1 phút (lấy từ Cache server siêu nhanh)
-    timer = setInterval(fetchAllData, 60000);
+    // --- SMART LOOP START ---
+    fetchAllDataLoop();
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/api/v1/reactor/ws/status`;
@@ -329,40 +352,65 @@ document.getElementById("btn-link").addEventListener("click", () => {
     socket = new WebSocket(wsUrl);
     socket.onopen = () => {
       printTerm("WebSocket Connected.", "sys");
-      document.getElementById("status-model").innerText = "ONLINE";
-      document.getElementById("status-model").style.color = "var(--neon-green)";
+      const statusModel = document.getElementById("status-model");
+      if (statusModel) {
+        statusModel.innerText = "ONLINE";
+        statusModel.style.color = "var(--neon-green)";
+      }
     };
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      document.getElementById("val-flux").innerText = data.neutron_flux;
-      document.getElementById("val-temp").innerText = data.core_temp + " K";
+      try {
+        const data = JSON.parse(event.data);
+        const fluxEl = document.getElementById("val-flux");
+        const tempEl = document.getElementById("val-temp");
 
-      if (window.waveChart) {
-        window.waveChart.data.datasets[0].data.push(data.k_eff);
-        window.waveChart.data.datasets[0].data.shift();
-        window.waveChart.update();
-      }
+        if (fluxEl) fluxEl.innerText = data.neutron_flux;
+        if (tempEl) tempEl.innerText = data.core_temp + " K";
 
-      if (data.core_temp > 2000) {
-        document.getElementById("status-model").innerText = "CRITICAL";
-        document.getElementById("status-model").style.color = "red";
-        window.sfx.playAlarm();
+        // [FIX] Safety Check cho Wave Chart
+        if (
+          window.waveChart &&
+          window.waveChart.data &&
+          window.waveChart.data.datasets
+        ) {
+          window.waveChart.data.datasets[0].data.push(data.k_eff);
+          window.waveChart.data.datasets[0].data.shift();
+          window.waveChart.update();
+        }
+
+        if (data.core_temp > 2000) {
+          const statusModel = document.getElementById("status-model");
+          if (statusModel) {
+            statusModel.innerText = "CRITICAL";
+            statusModel.style.color = "red";
+          }
+          window.sfx.playAlarm();
+        }
+      } catch (e) {
+        console.warn("WS Error:", e);
       }
     };
     socket.onclose = () => {
       printTerm("WebSocket Disconnected.", "err");
-      document.getElementById("status-model").innerText = "OFFLINE";
+      const statusModel = document.getElementById("status-model");
+      if (statusModel) statusModel.innerText = "OFFLINE";
     };
   } else {
     btn.classList.remove("active");
     btn.innerText = "ACTIVATE REACTOR LINK";
-    if (timer) clearInterval(timer);
+
+    // Dừng vòng lặp quét dữ liệu
+    clearTimeout(fetchTimer);
+
     if (socket) socket.close();
     printTerm("Uplink Terminated.");
-    document.getElementById("status-model").innerText = "OFFLINE";
-    document.getElementById("status-model").style.color = "#888";
+    const statusModel = document.getElementById("status-model");
+    if (statusModel) {
+      statusModel.innerText = "OFFLINE";
+      statusModel.style.color = "#888";
+    }
   }
 });
 
-printTerm("Guardian Kernel v27.8 loaded.");
-printTerm("Modules: Centralized Data Architecture.");
+printTerm("Guardian Kernel v27.10 loaded.");
+printTerm("Modules: Smart Retry & Anti-Cache active.");
