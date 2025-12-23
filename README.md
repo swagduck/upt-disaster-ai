@@ -244,9 +244,9 @@ Do not rely on this system for actual emergency response or safety-critical deci
 
 ## 📞 Contact
 
-- **Project Maintainer**: [Your Name](mailto:your.email@example.com)
-- **Issues & Bug Reports**: [GitHub Issues](https://github.com/yourusername/upt-disaster-ai/issues)
-- **Discussions & Questions**: [GitHub Discussions](https://github.com/yourusername/upt-disaster-ai/discussions)
+- **Project Maintainer**: [Võ Trần Hoàng Uy](mailto:vtuy2004@gmail.com)
+- **Issues & Bug Reports**: [GitHub Issues](https://github.com/swagduck/upt-disaster-ai/issues)
+- **Discussions & Questions**: [GitHub Discussions](https://github.com/swagduck/upt-disaster-ai/discussions)
 
 ---
 
