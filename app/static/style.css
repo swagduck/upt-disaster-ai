@@ -129,75 +129,132 @@ h3 { margin: 0 0 8px 0; font-family: var(--tech-font); font-size: 0.7rem; letter
 .help-col ul { list-style: none; padding: 0; }
 .help-col li { margin-bottom: 8px; font-size: 1rem; }
 .cmd-key { color: #fff; font-weight: bold; background: rgba(255, 255, 255, 0.1); padding: 2px 5px; }
-/* --- MOBILE RESPONSIVE (Thêm vào cuối file) --- */
+/* =========================================
+   MOBILE INTERFACE (TACTICAL MODE)
+   Kích hoạt khi màn hình nhỏ hơn 768px
+   ========================================= */
 @media only screen and (max-width: 768px) {
-    /* 1. Chỉnh lại bố cục tổng thể */
+
+    /* 1. Reset Body: Chặn cuộn trang, ép full màn hình */
     body {
-        font-size: 12px; /* Giảm cỡ chữ chút cho gọn */
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
     }
 
-    /* 2. Đẩy các bảng panel xuống dưới đáy hoặc ẩn bớt */
+    /* 2. Tiêu đề (Header): Nhỏ lại và nằm gọn trên cùng */
+    h1 {
+        font-size: 1.2rem;
+        top: 15px;
+        background: rgba(0,0,0,0.8);
+        padding: 5px 15px;
+        border-radius: 15px;
+        border: 1px solid var(--neon-blue);
+        width: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+    }
+
+    /* 3. Container Chính (HUD): Chuyển sang bố cục dọc */
     #hud {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; /* Dồn hết xuống đáy */
+        pointer-events: none; /* Để bấm xuyên qua vùng trống */
+        padding: 0;
+    }
+
+    /* 4. Ẩn các thành phần không cần thiết trên Mobile để đỡ rối */
+    #terminal,              /* Terminal code ma trận */
+    #radarChart,           /* Biểu đồ Radar tròn */
+    .panel-left,           /* Panel bên trái cũ */
+    .panel-right h3,       /* Tiêu đề panel phải */
+    .panel-right .stat-row:nth-child(2) /* Ẩn bớt dòng hazard distribution */
+    {
+        display: none !important;
+    }
+
+    /* 5. Panel chứa Nút Bấm & Thông số (Biến thành Dashboard dưới đáy) */
+    .panel-right {
         position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
         height: auto;
-        pointer-events: none; /* Để bấm xuyên qua được phần trống */
+        margin: 0;
+        padding: 15px;
+        background: linear-gradient(to top, #000 80%, transparent); /* Hiệu ứng mờ dần */
+        border: none;
+        border-top: 2px solid var(--neon-blue);
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
+        gap: 10px;
+        z-index: 20;
     }
 
-    /* 3. Panel bên trái (Terminal & Info) */
-    .panel-left {
-        position: relative;
-        width: 90%;
-        top: auto;
-        left: 5%;
+    /* 6. Biểu đồ Lò phản ứng (Wave Chart): Nhỏ gọn lại */
+    #waveChart {
+        height: 60px !important; /* Thấp xuống */
+        width: 100% !important;
         margin-bottom: 10px;
-        background: rgba(0, 10, 20, 0.85); /* Tăng độ tối nền để dễ đọc */
-        pointer-events: auto;
+        opacity: 0.8;
+    }
+
+    /* 7. Nút Control (Tactical Ops): Xếp thành lưới 2 cột dễ bấm */
+    #controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 2 cột */
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .btn {
+        padding: 12px 5px;
+        font-size: 0.7rem; /* Chữ nhỏ lại chút */
+        text-align: center;
+        width: 100%;
+    }
+
+    /* 8. Nút KÍCH HOẠT (LINK): To, Đẹp, Nổi bật nhất */
+    #btn-link {
+        grid-column: span 2; /* Chiếm trọn bề ngang */
+        font-size: 1.1rem;
+        font-weight: bold;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid var(--neon-red);
+        color: var(--neon-red);
+        box-shadow: 0 0 15px var(--neon-red);
+        animation: pulse 2s infinite;
+        margin-top: 5px;
     }
     
-    /* Ẩn bớt Terminal trên mobile cho đỡ rối (hoặc hiện nếu muốn) */
-    #terminal {
-        display: none; 
+    #btn-link.active {
+        background: var(--neon-red);
+        color: #000;
     }
 
-    /* 4. Panel bên phải (Chart & Filter) */
-    .panel-right {
-        position: relative;
-        width: 90%;
-        top: auto;
-        right: auto;
-        left: 5%;
-        margin-bottom: 80px; /* Chừa chỗ cho nút Link ở dưới */
-        pointer-events: auto;
+    /* 9. Hiển thị thông số Lò phản ứng (Reactor Status) ngay trên nút */
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--neon-green);
+        padding: 0 10px;
     }
 
-    /* 5. Nút LINK to đùng ở dưới cùng để dễ bấm */
-    #btn-link {
-        position: fixed;
-        bottom: 20px;
+    /* 10. Inspector (Cửa sổ chi tiết khi bấm vào điểm): Hiện đè lên giữa màn hình */
+    #inspector {
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
         width: 80%;
-        padding: 15px;
-        font-size: 1.2rem;
-        z-index: 999;
-        background: rgba(0, 0, 0, 0.9);
-        box-shadow: 0 0 20px var(--neon-red);
-    }
-
-    /* 6. Tiêu đề nhỏ lại */
-    h1 {
-        font-size: 1.5rem;
-        top: 10px;
-    }
-
-    /* 7. Ẩn biểu đồ Radar cho đỡ chật, giữ lại biểu đồ sóng */
-    #radarChart {
-        display: none;
+        background: rgba(0, 0, 0, 0.95);
+        border: 1px solid var(--neon-blue);
+        padding: 20px;
+        z-index: 100;
     }
 }
