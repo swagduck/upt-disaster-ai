@@ -1,4 +1,4 @@
-// --- VISUALIZATION MODULE (Three.js / Globe.gl / Charts) ---
+// --- VISUALIZATION MODULE (Final Fixed) ---
 
 // 1. Dữ liệu tĩnh
 const satData = [...Array(150).keys()].map(() => ({
@@ -15,9 +15,20 @@ const nuclearPlants = [
   { name: "Zaporizhzhia", lat: 47.512, lng: 34.586, desc: "Ukraine" },
   { name: "Kashiwazaki-Kariwa", lat: 37.429, lng: 138.596, desc: "Japan" },
   { name: "Diablo Canyon", lat: 35.211, lng: -120.855, desc: "USA" },
+  {
+    name: "Kori Nuclear Power Plant",
+    lat: 35.316,
+    lng: 129.292,
+    desc: "South Korea",
+  },
+  { name: "Bruce Nuclear Gen", lat: 44.325, lng: -81.599, desc: "Canada" },
+  { name: "Gravelines", lat: 51.015, lng: 2.136, desc: "France" },
 ];
 
-// Khai báo rõ ràng trên window để tránh xung đột với ID của thẻ HTML
+// [QUAN TRỌNG] Gắn biến này vào window để main.js có thể đọc được
+window.nuclearPlants = nuclearPlants;
+
+// Khai báo biến toàn cục cho Globe và Chart
 window.world = null;
 window.waveChart = null;
 window.radarChart = null;
@@ -62,11 +73,14 @@ function initGlobe() {
       });
 
     window.world.customThreeObject((d) => {
+      // Vẽ nhà máy hạt nhân bằng hình trụ, sự kiện thường bằng hình tứ diện
       const geometry =
         d.type === "NUCLEAR PLANT"
           ? new THREE.CylinderGeometry(0.5, 0.5, 2, 8)
           : new THREE.TetrahedronGeometry(1.2);
       const material = new THREE.MeshBasicMaterial({ color: d.color });
+
+      // Làm mờ vệ tinh
       if (d.type === "SATELLITE") {
         material.transparent = true;
         material.opacity = 0.6;
@@ -88,7 +102,7 @@ function initCharts() {
 
   const ctxWave = document.getElementById("waveChart");
   if (ctxWave) {
-    // Gán trực tiếp vào window.waveChart để ghi đè thẻ DOM <canvas id="waveChart">
+    // Gắn trực tiếp vào window để main.js gọi được .update()
     window.waveChart = new Chart(ctxWave, {
       type: "line",
       data: {
@@ -117,7 +131,6 @@ function initCharts() {
 
   const ctxRadar = document.getElementById("radarChart");
   if (ctxRadar) {
-    // Tương tự với radarChart
     window.radarChart = new Chart(ctxRadar, {
       type: "polarArea",
       data: {
