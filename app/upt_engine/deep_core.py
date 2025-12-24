@@ -13,7 +13,6 @@ class DeepGuardian:
         self.model = None
         
         # --- BUFFER BỘ NHỚ THỰC TẾ ---
-        # Lưu trữ dòng dữ liệu realtime để tạo sequence cho LSTM
         self.realtime_buffer = deque(maxlen=self.look_back)
         
         # Kiểm tra GPU
@@ -35,14 +34,13 @@ class DeepGuardian:
         self.model = tf.keras.models.Sequential()
         self.model.add(tf.keras.layers.Input(shape=(self.look_back, 5)))
         
-        # Tầng LSTM sâu hơn để bắt pattern phức tạp
         self.model.add(tf.keras.layers.LSTM(units=64, return_sequences=True))
         self.model.add(tf.keras.layers.Dropout(0.2))
         
         self.model.add(tf.keras.layers.LSTM(units=32))
         self.model.add(tf.keras.layers.Dropout(0.2))
         
-        self.model.add(tf.keras.layers.Dense(1, activation='sigmoid')) # Output 0-1 (Risk Score)
+        self.model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
         
         self.model.compile(optimizer='adam', loss='binary_crossentropy')
 
@@ -59,25 +57,19 @@ class DeepGuardian:
         
         data = []
         for log in logs:
-            # Feature Extraction
             sensors = log.get('sensors_data', [])
             avg_energy = np.mean([s.get('energy_level', 0) for s in sensors]) if sensors else 0
             avg_anomaly = np.mean([s.get('anomaly_score', 0) for s in sensors]) if sensors else 0
-            # Target giả định: Nếu max_magnitude > 5.0 thì là High Risk (1.0)
             max_mag = log.get('max_magnitude', 0)
-            
-            # Vector [Energy, Anomaly, Mag, Flux(Mock), RandomBias]
             data.append([avg_energy, avg_anomaly, max_mag, 0.5, 0.5])
 
         dataset = np.array(data)
-        # Fit scaler
         self.scaler.fit(dataset)
         dataset_scaled = self.scaler.transform(dataset)
         
         X, y = [], []
         for i in range(self.look_back, len(dataset_scaled)):
             X.append(dataset_scaled[i-self.look_back:i, :])
-            # Target: Nếu Mag > 0.5 (sau scale) thì Risk = 1
             y.append(dataset_scaled[i, 2]) 
             
         X, y = np.array(X), np.array(y)
@@ -86,18 +78,20 @@ class DeepGuardian:
         self.is_trained = True
         return len(X)
 
+    # --- 👇 BỔ SUNG QUAN TRỌNG: HÀM WRAPPER ĐỂ SỬA LỖI API 👇 ---
+    def learn(self, sensors_data=None):
+        """
+        Hàm tương thích ngược (Backward Compatibility).
+        API prediction.py vẫn gọi hàm này. Chúng ta trỏ nó về train_from_memory.
+        """
+        return self.train_from_memory()
+    # ------------------------------------------------------------
+
     def predict_risk(self, lat, lon, energy, anomaly):
-        """
-        Dự đoán rủi ro dựa trên chuỗi dữ liệu thực tế (Real-time Sequence).
-        """
-        # Tạo vector feature hiện tại
-        # [Energy, Anomaly, PlaceholderMag, PlaceholderFlux, PlaceholderBias]
+        """Dự đoán rủi ro dựa trên chuỗi dữ liệu thực tế."""
         current_features = [energy, anomaly, 0.5, 0.5, 0.5]
-        
-        # 1. Cập nhật bộ nhớ ngắn hạn
         self.realtime_buffer.append(current_features)
         
-        # Nếu chưa đủ dữ liệu lịch sử (lúc mới khởi động), dùng thuật toán thô
         if len(self.realtime_buffer) < self.look_back:
             return (energy * 0.7 + anomaly * 0.3)
             
@@ -105,22 +99,12 @@ class DeepGuardian:
             return (energy + anomaly) / 2.0
 
         try:
-            # 2. Chuẩn bị Input cho LSTM
-            # Lấy toàn bộ buffer làm sequence
             raw_seq = np.array(list(self.realtime_buffer))
-            
-            # Scale dữ liệu (Dùng scaler đã fit lúc train, hoặc partial_fit nếu cần)
-            # Ở đây giả định scaler đã được fit hoặc dùng range mặc định
             seq_scaled = self.scaler.transform(raw_seq)
-            
-            # Reshape (1, look_back, 5)
             input_reshaped = np.reshape(seq_scaled, (1, self.look_back, 5))
             
-            # 3. Dự đoán
             prediction = self.model.predict(input_reshaped, verbose=0)
-            risk_score = float(prediction[0][0])
-            
-            return risk_score
+            return float(prediction[0][0])
             
         except Exception as e:
             print(f"LSTM Error: {e}")
