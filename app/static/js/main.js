@@ -208,22 +208,30 @@ function calcNearestThreat() {
 
 function applyFilters() {
   let filteredData = allEventsCache.filter((d) => {
-    if (d.type.includes("USER_LOC")) return true;
+    // 1. Luôn hiển thị vị trí người dùng (User Location)
+    if (d.type === "USER_LOC") return true;
+
+    // 2. Kiểm tra từng loại thiên tai cụ thể
     if (d.type.includes("QUAKE")) return activeFilters["QUAKE"];
     if (d.type.includes("VOLCANO")) return activeFilters["VOLCANO"];
-    if (d.type.includes("STORM") && d.color === "#bd00ff")
-      return activeFilters["STORM"];
+    if (d.type.includes("STORM")) return activeFilters["STORM"]; // Bỏ điều kiện màu để bắt tất cả bão
     if (d.type.includes("WILDFIRE")) return activeFilters["FIRE"];
     if (d.type.includes("NUCLEAR")) return activeFilters["NUKE"];
-    if (d.type.includes("OTHER EVENT")) return activeFilters["OTHER"];
-    return false;
+
+    // 3. QUAN TRỌNG: Tất cả các loại còn lại (SOLAR, FLOOD, TSUNAMI...)
+    // sẽ được gộp vào bộ lọc "OTHER".
+    // Nếu activeFilters["OTHER"] bật -> hiện. Tắt -> ẩn.
+    return activeFilters["OTHER"];
   });
 
+  // Gộp thêm dự báo AI nếu đang bật
   if (activeFilters["PREDICT"]) {
     filteredData = filteredData.concat(predictionEvents);
   }
+  // Thêm marker người dùng
   if (userEventMarker) filteredData.push(userEventMarker);
 
+  // Cập nhật lên quả cầu
   if (window.world) {
     window.world.pointsData(filteredData);
     window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
