@@ -1,4 +1,4 @@
-// --- MAIN LOGIC MODULE (V28.1 - ZERO MOCK EDITION) ---
+// --- MAIN LOGIC MODULE (V29.0 - ZERO MOCK + DISTANCE TRACKING) ---
 
 // 1. Biến toàn cục & Cấu hình
 const strategicLocations = {
@@ -352,7 +352,6 @@ async function runNeuralPrediction() {
       const dist = getDistance(targetLat, targetLon, e.lat, e.lng);
       if (dist < SCAN_RADIUS_KM) {
         // Công thức suy hao: Càng gần càng mạnh
-        // Energy gốc (e.alt * 2 vì alt đã chia nhỏ để hiển thị) * (1 - tỷ lệ khoảng cách)
         const impact = e.alt * 2 * (1 - dist / SCAN_RADIUS_KM);
         localEnergySum += Math.max(0, impact);
         eventCount++;
@@ -361,7 +360,6 @@ async function runNeuralPrediction() {
   }
 
   // Chuẩn hóa Local Energy (0.0 - 1.0)
-  // Nếu localEnergySum > 2.0 (tương đương 2 event mạnh sát bên) thì max nguy hiểm
   const realLocalEnergy = Math.min(localEnergySum / 2.0, 1.0);
 
   printTerm(
@@ -379,7 +377,7 @@ async function runNeuralPrediction() {
       body: JSON.stringify({
         lat: targetLat,
         lon: targetLon,
-        simulated_energy: realLocalEnergy, // REAL DATA (Dù tên key cũ để giữ tương thích)
+        simulated_energy: realLocalEnergy, // REAL DATA
       }),
     });
     const data = await res.json();
@@ -707,8 +705,39 @@ window.locateUser = () => {
   }
 };
 
+// --- 👇 HÀM ĐƯỢC NÂNG CẤP: SHOW INSPECTOR VỚI KHOẢNG CÁCH 👇 ---
 window.showInspector = (d) => {
   document.getElementById("inspector").classList.add("active");
+
+  // NÂNG CẤP: TÍNH KHOẢNG CÁCH TỚI USER
+  let distanceHtml = "";
+  if (
+    userLat !== null &&
+    userLng !== null &&
+    d.lat !== undefined &&
+    d.lng !== undefined
+  ) {
+    const dist = getDistance(userLat, userLng, d.lat, d.lng);
+
+    let distColor = "#00f3ff"; // Xanh neon
+    if (dist < 500) distColor = "#ff003c"; // Đỏ
+    else if (dist < 2000) distColor = "#ffcc00"; // Vàng
+
+    distanceHtml = `
+        <div class="insp-row" style="border-top: 1px dashed #333; margin-top: 5px; padding-top: 5px;">
+            <span class="insp-lbl">DISTANCE</span> 
+            <span class="insp-val" style="color:${distColor}; font-weight:bold;">
+                ${Math.round(dist).toLocaleString()} KM
+            </span>
+        </div>`;
+  } else if (userLat === null) {
+    distanceHtml = `
+        <div class="insp-row" style="margin-top:5px; opacity:0.5; font-style:italic;">
+            <span class="insp-lbl">DIST</span> 
+            <span class="insp-val">LOCATE ME FIRST</span>
+        </div>`;
+  }
+
   document.getElementById("inspector-content").innerHTML = `
         <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
           d.color
@@ -719,8 +748,10 @@ window.showInspector = (d) => {
         <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${
           d.color
         }">${d.value.toFixed(1)}</span></div>
+        ${distanceHtml} 
     `;
 };
+// -------------------------------------------------------------
 
 window.closeInspector = () => {
   document.getElementById("inspector").classList.remove("active");
@@ -790,5 +821,5 @@ document.getElementById("btn-link").addEventListener("click", () => {
   }
 });
 
-printTerm("Guardian Kernel v28.1 loaded.");
+printTerm("Guardian Kernel v29.0 loaded.");
 printTerm("Modules: COMMANDER Ops + AI Backend Synced (REAL MODE).");
