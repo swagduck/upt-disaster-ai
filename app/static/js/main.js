@@ -1,4 +1,4 @@
-// --- MAIN LOGIC MODULE (V28.1 - COMMANDER & AI BACKEND) ---
+// --- MAIN LOGIC MODULE (V28.1 - ZERO MOCK EDITION) ---
 
 // 1. Biến toàn cục & Cấu hình
 const strategicLocations = {
@@ -291,7 +291,7 @@ function processBackendData(events) {
   printTerm(`Synced ${combinedEvents.length} threats via UPT-CACHE.`);
 }
 
-// 5. AI Functions (Python Backend)
+// 5. AI Functions (REAL DATA LOGIC)
 async function trainModel() {
   if (isTraining) return;
   isTraining = true;
@@ -325,23 +325,53 @@ async function runNeuralPrediction() {
   printTerm("Querying Guardian AI...", "ai");
   window.sfx.playPredict();
 
-  // --- [LOGIC MỚI] DỰ BÁO THEO TẦM NHÌN ---
-  // Mặc định lấy tọa độ trung tâm màn hình (nơi bạn đang nhìn)
+  // 1. Xác định tọa độ mục tiêu (Target)
   let targetLat = 36.2;
   let targetLon = 138.2;
 
-  // Nếu đã bật GPS, ưu tiên vị trí người dùng
   if (userLat !== null && userLng !== null) {
     targetLat = userLat;
     targetLon = userLng;
-  }
-  // Nếu chưa có GPS, lấy tọa độ camera đang chiếu tới
-  else if (window.world) {
+  } else if (window.world) {
     const pov = window.world.pointOfView();
     targetLat = pov.lat;
     targetLon = pov.lng;
   }
 
+  // 2. --- TÍNH TOÁN DỮ LIỆU CỤC BỘ THỰC TẾ (ZERO MOCK) ---
+  // Quét toàn bộ sự kiện trong cache để xem có gì gần Target không
+  let localEnergySum = 0.0;
+  let eventCount = 0;
+  const SCAN_RADIUS_KM = 800; // Bán kính ảnh hưởng (800km)
+
+  if (allEventsCache && allEventsCache.length > 0) {
+    allEventsCache.forEach((e) => {
+      // Bỏ qua sự kiện User và Solar (Solar là toàn cầu, AI Backend đã lo)
+      if (e.type === "USER_LOC" || e.type.includes("SOLAR")) return;
+
+      const dist = getDistance(targetLat, targetLon, e.lat, e.lng);
+      if (dist < SCAN_RADIUS_KM) {
+        // Công thức suy hao: Càng gần càng mạnh
+        // Energy gốc (e.alt * 2 vì alt đã chia nhỏ để hiển thị) * (1 - tỷ lệ khoảng cách)
+        const impact = e.alt * 2 * (1 - dist / SCAN_RADIUS_KM);
+        localEnergySum += Math.max(0, impact);
+        eventCount++;
+      }
+    });
+  }
+
+  // Chuẩn hóa Local Energy (0.0 - 1.0)
+  // Nếu localEnergySum > 2.0 (tương đương 2 event mạnh sát bên) thì max nguy hiểm
+  const realLocalEnergy = Math.min(localEnergySum / 2.0, 1.0);
+
+  printTerm(
+    `Analyzing Local Vector: ${eventCount} events nearby. Density: ${realLocalEnergy.toFixed(
+      2
+    )}`,
+    "sys"
+  );
+
+  // 3. Gửi dữ liệu THẬT về API
   try {
     const res = await fetch("/api/v1/predict/forecast", {
       method: "POST",
@@ -349,7 +379,7 @@ async function runNeuralPrediction() {
       body: JSON.stringify({
         lat: targetLat,
         lon: targetLon,
-        simulated_energy: 0.7, // Giả lập năng lượng để test phản ứng AI
+        simulated_energy: realLocalEnergy, // REAL DATA (Dù tên key cũ để giữ tương thích)
       }),
     });
     const data = await res.json();
@@ -367,6 +397,11 @@ async function runNeuralPrediction() {
       }]`,
       typeStr
     );
+
+    // Debug: Hiển thị lý do
+    if (data.predicted_risk > 0.8) {
+      printTerm(">> REASON: GLOBAL INSTABILITY + LOCAL THREAT", "err");
+    }
 
     // Vẽ vòng tròn dự báo
     if (data.predicted_risk > 0.0) {
@@ -515,8 +550,6 @@ window.processCommand = async function (cmd) {
       window.world.customLayerData([]);
       printTerm("Satellites: OFF", "sys");
     } else {
-      // Cần truy cập satData từ visuals.js (scope global)
-      // Nếu lỗi, đảm bảo satData được define ở scope window hoặc global
       try {
         window.world.customLayerData(satData);
         printTerm("Satellites: ON", "sys");
@@ -758,4 +791,4 @@ document.getElementById("btn-link").addEventListener("click", () => {
 });
 
 printTerm("Guardian Kernel v28.1 loaded.");
-printTerm("Modules: COMMANDER Ops + AI Backend Synced.");
+printTerm("Modules: COMMANDER Ops + AI Backend Synced (REAL MODE).");
