@@ -671,7 +671,7 @@ window.locateUser = () => {
   }
 };
 
-// --- INSPECTOR WITH DISTANCE ---
+// --- INSPECTOR WITH DISTANCE (MODIFIED: ADD COORDINATES) ---
 window.showInspector = (d) => {
   document.getElementById("inspector").classList.add("active");
 
@@ -698,6 +698,15 @@ window.showInspector = (d) => {
     distanceHtml = `<div class="insp-row" style="margin-top:5px; opacity:0.5; font-style:italic;"><span class="insp-lbl">DIST</span> <span class="insp-val">LOCATE ME FIRST</span></div>`;
   }
 
+  // --- [ĐOẠN CODE HIỂN THỊ TỌA ĐỘ ĐƯỢC THÊM VÀO DƯỚI ĐÂY] ---
+  const coordsHtml = `
+        <div class="insp-row">
+            <span class="insp-lbl">COORDS</span> 
+            <span class="insp-val" style="color: #fff; font-family: 'Consolas', monospace; font-size: 0.8rem;">
+                ${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}
+            </span>
+        </div>`;
+
   document.getElementById("inspector-content").innerHTML = `
         <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
           d.color
@@ -708,6 +717,7 @@ window.showInspector = (d) => {
         <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${
           d.color
         }">${d.value.toFixed(1)}</span></div>
+        ${coordsHtml}
         ${distanceHtml}
     `;
 };
