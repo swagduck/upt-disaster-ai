@@ -1,9 +1,11 @@
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.core.config import settings
+from app.core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class Database:
     client: MongoClient = None
@@ -11,25 +13,27 @@ class Database:
 
     @staticmethod
     def connect():
-        uri = os.getenv("MONGO_URI")
-        db_name = os.getenv("DB_NAME", "upt_guardian")
-        
+        uri = settings.MONGO_URI
+        db_name = settings.DB_NAME
+
         if not uri:
-            print("⚠️ [DATABASE] No MONGO_URI found in .env")
+            logger.warning("[DATABASE] No MONGO_URI configured — running without persistence.")
             return
 
         try:
             Database.client = MongoClient(uri)
-            # Kiểm tra kết nối
-            Database.client.admin.command('ping')
+            # Verify connectivity
+            Database.client.admin.command("ping")
             Database.db = Database.client[db_name]
-            print(f"💾 [DATABASE] Connected to MongoDB Atlas: {db_name}")
-            
-            # Tạo index để tìm kiếm nhanh theo thời gian
+            logger.info(f"[DATABASE] Connected to MongoDB Atlas: {db_name}")
+
+            # Create time-based index for fast range queries
             Database.db.raw_logs.create_index("timestamp")
-            
+
         except ConnectionFailure as e:
-            print(f"❌ [DATABASE] Connection Failed: {e}")
+            logger.error(f"[DATABASE] Connection failed: {e}")
+        except Exception as e:
+            logger.exception(f"[DATABASE] Unexpected error during connect: {e}")
 
     @staticmethod
     def get_collection(name):
@@ -37,5 +41,6 @@ class Database:
             return Database.db[name]
         return None
 
-# Khởi tạo kết nối ngay khi import
+
+# Establish connection at import time
 Database.connect()

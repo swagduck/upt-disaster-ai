@@ -1,3 +1,33 @@
+# Environment
 .env
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Logs (generated at runtime)
+logs/
+*.log
+
+# ML model artifacts (can be large / contain sensitive training data)
+*.keras
+*.h5
+*.joblib
+*.pkl
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/

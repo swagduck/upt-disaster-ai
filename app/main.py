@@ -1,20 +1,23 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse # [IMPORT MỚI]
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-import os
 
+from app.core.config import settings
+from app.core.logger import get_logger
 from app.api.v1.endpoints.router import api_router
 from app.api.v1.endpoints import reactor
 from app.api.v1.endpoints import prediction
 from app.upt_engine.reactor_core import upt_reactor
 from app.services.earthquake_service import DisasterService
 
+logger = get_logger(__name__)
+
 app = FastAPI(
     title="UPT Disaster AI - Guardian System",
     description="Global Monitoring & Reactor Stability Interface",
-    version="28.1.0"
+    version="28.1.0",
 )
 
 app.add_middleware(
@@ -25,24 +28,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Static Files
+# ── Static Files ──────────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# [THÊM MỚI] Route trang chủ: Trả về giao diện chính thay vì lỗi 404
+
 @app.get("/")
 async def read_index():
-    return FileResponse('app/static/index.html')
+    return FileResponse("app/static/index.html")
 
-# Register Routers
+
+# ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(reactor.router, prefix="/api/v1/reactor", tags=["Reactor"])
 app.include_router(prediction.router, prefix="/api/v1/predict", tags=["AI Prediction"])
 
+
+# ── Lifecycle ─────────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup_event():
-    print(">>> SYSTEM BOOT SEQUENCE INITIATED <<<")
+    logger.info("=" * 60)
+    logger.info(">>>  UPT GUARDIAN SYSTEM BOOT SEQUENCE INITIATED  <<<")
+    logger.info(f"     Host: {settings.HOST}:{settings.PORT}")
+    logger.info(f"     DB  : {settings.DB_NAME}")
+    logger.info("=" * 60)
     upt_reactor.start_reactor()
     await DisasterService.fetch_all_realtime()
+    logger.info("[MAIN] System fully online.")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("[MAIN] Guardian System shutting down gracefully.")
+
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+    )
