@@ -43,8 +43,6 @@ function initGlobe() {
       .ringMaxRadius("maxR")
       .ringPropagationSpeed("propagationSpeed")
       .ringRepeatPeriod("repeatPeriod")
-      .pointsTransitionDuration(1)
-      .ringsTransitionDuration(1)
 
       // [XÓA] Dòng .customLayerData(satData) cũ đã bị xóa
       // .customLayerData([]) // Để trống hoặc xóa hẳn dòng này
