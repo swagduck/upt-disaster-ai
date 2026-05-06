@@ -855,10 +855,10 @@ window.updateProximityList = (data) => {
   if (!container) return;
 
   if (userLat === null || userLng === null) {
-    container.innerHTML = \`<div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 20px;">
-      <div style="font-size: 2rem; color: #00f3ff; font-family: var(--tech-font); margin-bottom: 5px;">\${data.length}</div>
+    container.innerHTML = `<div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 20px;">
+      <div style="font-size: 2rem; color: #00f3ff; font-family: var(--tech-font); margin-bottom: 5px;">${data.length}</div>
       TOTAL THREATS<br/>(AWAITING GPS)
-    </div>\`;
+    </div>`;
     return;
   }
 
@@ -874,7 +874,7 @@ window.updateProximityList = (data) => {
   const topThreats = threats.slice(0, 3);
 
   if (topThreats.length === 0) {
-    container.innerHTML = \`<div style="text-align: center; color: var(--neon-green); font-size: 0.8rem; margin-top: 20px;">NO THREATS DETECTED</div>\`;
+    container.innerHTML = `<div style="text-align: center; color: var(--neon-green); font-size: 0.8rem; margin-top: 20px;">NO THREATS DETECTED</div>`;
     return;
   }
 
@@ -884,17 +884,17 @@ window.updateProximityList = (data) => {
     if (t.dist < 500) distColor = "#ff003c";
     else if (t.dist < 2000) distColor = "#ffcc00";
 
-    html += \`
-      <div style="background: rgba(0,0,0,0.5); padding: 5px; border-left: 2px solid \${t.color}; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+    html += `
+      <div style="background: rgba(0,0,0,0.5); padding: 5px; border-left: 2px solid ${t.color}; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
         <div style="display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 65%;">
-          <span style="color: \${t.color}; font-size: 0.7rem; font-weight: bold;">\${t.type}</span>
-          <span style="color: #ccc; font-size: 0.6rem; overflow: hidden; text-overflow: ellipsis;">\${t.place}</span>
+          <span style="color: ${t.color}; font-size: 0.7rem; font-weight: bold;">${t.type}</span>
+          <span style="color: #ccc; font-size: 0.6rem; overflow: hidden; text-overflow: ellipsis;">${t.place}</span>
         </div>
-        <div style="color: \${distColor}; font-family: var(--code-font); font-size: 1rem;">
-          \${Math.round(t.dist).toLocaleString()}KM
+        <div style="color: ${distColor}; font-family: var(--code-font); font-size: 1rem;">
+          ${Math.round(t.dist).toLocaleString()}KM
         </div>
       </div>
-    \`;
+    `;
   });
   container.innerHTML = html;
 };
