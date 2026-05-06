@@ -240,8 +240,16 @@ function applyFilters() {
     // 3. QUAN TRỌNG: Tất cả các loại còn lại (SOLAR, FLOOD, TSUNAMI...)
     // sẽ được gộp vào bộ lọc "OTHER".
     // Nếu activeFilters["OTHER"] bật -> hiện. Tắt -> ẩn.
-    return activeFilters["OTHER"];
+    if (!activeFilters["OTHER"]) return false;
+
+    return true;
   });
+
+  // Lọc theo thời gian (Time-frame Filtering)
+  if (globalTimeFilter > 0) {
+    const cutoff = Date.now() - (globalTimeFilter * 60 * 60 * 1000);
+    filteredData = filteredData.filter(d => d.timestamp >= cutoff);
+  }
 
   // Gộp thêm dự báo AI nếu đang bật
   if (activeFilters["PREDICT"]) {
@@ -255,6 +263,8 @@ function applyFilters() {
     window.world.pointsData(filteredData);
     window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
   }
+  
+  updateProximityList(filteredData);
 }
 
 // 4. Backend Data Loop (ZERO MOCK)
@@ -647,6 +657,36 @@ document.addEventListener(
 );
 
 // UI Buttons
+let globalTimeFilter = 0;
+
+window.setTimeFilter = (hours) => {
+  globalTimeFilter = hours;
+  [1, 12, 24, 0].forEach(h => {
+    const btn = document.getElementById(h === 0 ? 'btn-time-all' : `btn-time-${h}h`);
+    if (btn) {
+      if (h === hours) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+  window.sfx.playBeep();
+  applyFilters();
+};
+
+window.exportCSV = () => {
+  if (allEventsCache.length === 0) return;
+  const headers = "Type,Place,Latitude,Longitude,Magnitude,Timestamp\n";
+  const rows = allEventsCache.map(d => `${d.type},"${d.place}",${d.lat},${d.lng},${d.value},${d.timestamp}`).join("\n");
+  const blob = new Blob([headers + rows], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', `disaster_report_${Date.now()}.csv`);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  printTerm("CSV Data Exported Successfully.", "sys");
+};
+
 window.updateFilterButtons = () => {
   const map = {
     QUAKE: { id: 'btn-quake', label: 'QUAKES' },
@@ -726,7 +766,6 @@ window.locateUser = async () => {
       window.world.pointOfView({ lat: userLat, lng: userLng, altitude: 1.5 }, 2000);
     }
     applyFilters();
-    calcNearestThreat();
     if (activeFilters["PREDICT"]) runNeuralPrediction();
 
   } catch (error) {
@@ -758,7 +797,6 @@ window.locateUser = async () => {
           if (window.world)
             window.world.pointOfView({ lat: userLat, lng: userLng, altitude: 1.5 }, 2000);
           applyFilters();
-          calcNearestThreat();
           if (activeFilters["PREDICT"]) runNeuralPrediction();
         },
         (gpsError) => {
@@ -775,7 +813,6 @@ window.locateUser = async () => {
   }
 };
 
-// --- INSPECTOR WITH DISTANCE (MODIFIED: ADD COORDINATES) ---
 window.showInspector = (d) => {
   document.getElementById("inspector").classList.add("active");
 
@@ -794,36 +831,72 @@ window.showInspector = (d) => {
     distanceHtml = `
         <div class="insp-row" style="border-top: 1px dashed #333; margin-top: 5px; padding-top: 5px;">
             <span class="insp-lbl">DISTANCE</span> 
-            <span class="insp-val" style="color:${distColor}; font-weight:bold;">${Math.round(
-      dist
-    ).toLocaleString()} KM</span>
+            <span class="insp-val" style="color:${distColor}; font-weight:bold;">${Math.round(dist).toLocaleString()} KM</span>
         </div>`;
   } else if (userLat === null) {
     distanceHtml = `<div class="insp-row" style="margin-top:5px; opacity:0.5; font-style:italic;"><span class="insp-lbl">DIST</span> <span class="insp-val">LOCATE ME FIRST</span></div>`;
   }
 
-  // --- [ĐOẠN CODE HIỂN THỊ TỌA ĐỘ ĐƯỢC THÊM VÀO DƯỚI ĐÂY] ---
-  const coordsHtml = `
-        <div class="insp-row">
-            <span class="insp-lbl">COORDS</span> 
-            <span class="insp-val" style="color: #fff; font-family: 'Consolas', monospace; font-size: 0.8rem;">
-                ${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}
-            </span>
-        </div>`;
+  const timeStr = d.timestamp ? new Date(d.timestamp).toLocaleString() : "Unknown";
 
   document.getElementById("inspector-content").innerHTML = `
-        <div class="insp-row"><span class="insp-lbl">CLASS</span> <strong style="color:${
-          d.color
-        }">${d.type}</strong></div>
-        <div class="insp-row"><span class="insp-lbl">LOC</span> <span class="insp-val" style="font-size:0.8rem;">${
-          d.place
-        }</span></div>
-        <div class="insp-row"><span class="insp-lbl">VAL</span> <span class="insp-val" style="color:${
-          d.color
-        }">${d.value.toFixed(1)}</span></div>
-        ${coordsHtml}
-        ${distanceHtml}
-    `;
+      <div class="insp-row"><span class="insp-lbl">TYPE</span> <span class="insp-val" style="color:${d.color}">${d.type}</span></div>
+      <div class="insp-row"><span class="insp-lbl">PLACE</span> <span class="insp-val" style="font-size:0.8rem">${d.place || "Unknown"}</span></div>
+      <div class="insp-row"><span class="insp-lbl">LATITUDE</span> <span class="insp-val">${(d.lat || 0).toFixed(4)}</span></div>
+      <div class="insp-row"><span class="insp-lbl">LONGITUDE</span> <span class="insp-val">${(d.lng || 0).toFixed(4)}</span></div>
+      <div class="insp-row"><span class="insp-lbl">MAGNITUDE</span> <span class="insp-val">${(d.value || 0).toFixed(2)}</span></div>
+      <div class="insp-row"><span class="insp-lbl">TIME</span> <span class="insp-val" style="font-size:0.75rem">${timeStr}</span></div>
+      ${distanceHtml}
+  `;
+};
+
+window.updateProximityList = (data) => {
+  const container = document.getElementById("proximity-list");
+  if (!container) return;
+
+  if (userLat === null || userLng === null) {
+    container.innerHTML = \`<div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 20px;">
+      <div style="font-size: 2rem; color: #00f3ff; font-family: var(--tech-font); margin-bottom: 5px;">\${data.length}</div>
+      TOTAL THREATS<br/>(AWAITING GPS)
+    </div>\`;
+    return;
+  }
+
+  let threats = [];
+  data.forEach(d => {
+    if (d.type !== "USER_LOC" && d.lat !== undefined && d.lng !== undefined) {
+      const dist = getDistance(userLat, userLng, d.lat, d.lng);
+      threats.push({ ...d, dist });
+    }
+  });
+
+  threats.sort((a, b) => a.dist - b.dist);
+  const topThreats = threats.slice(0, 3);
+
+  if (topThreats.length === 0) {
+    container.innerHTML = \`<div style="text-align: center; color: var(--neon-green); font-size: 0.8rem; margin-top: 20px;">NO THREATS DETECTED</div>\`;
+    return;
+  }
+
+  let html = "";
+  topThreats.forEach(t => {
+    let distColor = "#00f3ff";
+    if (t.dist < 500) distColor = "#ff003c";
+    else if (t.dist < 2000) distColor = "#ffcc00";
+
+    html += \`
+      <div style="background: rgba(0,0,0,0.5); padding: 5px; border-left: 2px solid \${t.color}; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <div style="display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 65%;">
+          <span style="color: \${t.color}; font-size: 0.7rem; font-weight: bold;">\${t.type}</span>
+          <span style="color: #ccc; font-size: 0.6rem; overflow: hidden; text-overflow: ellipsis;">\${t.place}</span>
+        </div>
+        <div style="color: \${distColor}; font-family: var(--code-font); font-size: 1rem;">
+          \${Math.round(t.dist).toLocaleString()}KM
+        </div>
+      </div>
+    \`;
+  });
+  container.innerHTML = html;
 };
 
 window.closeInspector = () => {

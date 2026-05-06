@@ -149,24 +149,9 @@
 
     <div class="hud-overlay">
       <div class="panel">
-        <h3>Nearest Threat</h3>
-        <div
-          style="
-            text-align: center;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-          "
-        >
-          <div id="val-prob" class="big-stat" style="font-size: 2rem">--</div>
-          <div class="sub-stat" id="lbl-prob">DISTANCE (KM)</div>
-          <div
-            id="nearest-name"
-            style="font-size: 0.7rem; color: #fff; margin-top: 5px"
-          >
-            AWAITING GPS
-          </div>
+        <h3>PROXIMITY ALERTS</h3>
+        <div id="proximity-list" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; overflow-y: auto; padding-right: 5px;">
+          <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 20px;">AWAITING GPS SIGNAL</div>
         </div>
       </div>
       <div class="panel">
@@ -240,6 +225,12 @@
           </div>
         </div>
 
+        <div class="filter-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 5px;">
+          <button id="btn-time-1h" class="filter-btn" onclick="setTimeFilter(1)">1H</button>
+          <button id="btn-time-12h" class="filter-btn" onclick="setTimeFilter(12)">12H</button>
+          <button id="btn-time-24h" class="filter-btn" onclick="setTimeFilter(24)">24H</button>
+          <button id="btn-time-all" class="filter-btn active" onclick="setTimeFilter(0)">ALL</button>
+        </div>
         <div class="filter-grid">
           <button
             id="btn-gps"
@@ -307,6 +298,17 @@
             onclick="togglePrediction()"
           >
             [ ] NEURAL AI
+          </button>
+          <button
+            class="filter-btn"
+            style="
+              border-color: var(--neon-green);
+              color: var(--neon-green);
+              grid-column: span 2;
+            "
+            onclick="exportCSV()"
+          >
+            [ EXPORT CSV ]
           </button>
         </div>
 

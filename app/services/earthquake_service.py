@@ -106,6 +106,7 @@ class DisasterService:
                             "energy_level": energy,
                             "anomaly_score": props.get("sig", 0) / 1000.0,
                             "raw_val": mag,
+                            "timestamp": props.get("time", 0),
                         })
                 else:
                     logger.error(
@@ -138,6 +139,14 @@ class DisasterService:
 
                         if cat in meta:
                             d_type, energy = meta[cat]
+                            date_str = ev["geometry"][0].get("date", "")
+                            ts = 0
+                            if date_str:
+                                try:
+                                    ts = int(datetime.fromisoformat(date_str.replace("Z", "+00:00")).timestamp() * 1000)
+                                except Exception:
+                                    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+                            
                             sensors.append({
                                 "type": d_type,
                                 "place": ev["title"],
@@ -145,6 +154,7 @@ class DisasterService:
                                 "energy_level": energy,
                                 "anomaly_score": 0.6,
                                 "raw_val": 5.0,
+                                "timestamp": ts,
                             })
                 else:
                     logger.error(
@@ -170,6 +180,15 @@ class DisasterService:
                             if "X" in class_type: energy = 1.0
 
                             total_cosmic_energy = max(total_cosmic_energy, energy)
+                            
+                            date_str = flare.get("beginTime", "")
+                            ts = 0
+                            if date_str:
+                                try:
+                                    ts = int(datetime.fromisoformat(date_str.replace("Z", "+00:00")).timestamp() * 1000)
+                                except Exception:
+                                    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+
                             sensors.append({
                                 "type": "SOLAR_FLARE",
                                 "place": f"Sunspot {flare.get('activeRegionNum', 'Unknown')} ({class_type})",
@@ -177,6 +196,7 @@ class DisasterService:
                                 "energy_level": energy,
                                 "anomaly_score": 0.99,
                                 "raw_val": energy * 10,
+                                "timestamp": ts,
                             })
                 else:
                     logger.warning(
