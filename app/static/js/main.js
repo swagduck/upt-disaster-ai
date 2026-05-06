@@ -425,6 +425,17 @@ function processBackendData(events) {
   } else {
     printTerm(`ALERT: New threat data detected! Synchronized ${combinedEvents.length} active threats.`, "err");
     window.sfx.playBeep();
+
+    // Fire browser notifications for notable events
+    combinedEvents.forEach(ev => {
+      const val = parseFloat(ev.value) || 0;
+      const isNotableQuake    = ev.type && ev.type.includes('QUAKE')    && val >= 5.5;
+      const isNotableVolcano  = ev.type && ev.type.includes('VOLCANO');
+      const isNotableStorm    = ev.type && ev.type.includes('STORM')    && val >= 6;
+      if (isNotableQuake || isNotableVolcano || isNotableStorm) {
+        sendDisasterAlert(ev);
+      }
+    });
   }
 }
 
@@ -681,6 +692,106 @@ document.addEventListener(
   },
   { once: true }
 );
+
+// ─── BROWSER NOTIFICATION SYSTEM ─────────────────────────────────────────────
+let notificationsEnabled = false;
+const notifiedEvents = new Set(); // Track already-notified events to avoid spam
+
+window.toggleNotifications = async () => {
+  const btn = document.getElementById('btn-notify');
+
+  if (notificationsEnabled) {
+    // Turn off
+    notificationsEnabled = false;
+    btn.innerText = '🔔 ALERTS: OFF';
+    btn.style.borderColor = 'var(--neon-gold)';
+    btn.style.color = 'var(--neon-gold)';
+    btn.style.background = 'transparent';
+    printTerm('Alert notifications disabled.', 'sys');
+    return;
+  }
+
+  // Request permission
+  if (!('Notification' in window)) {
+    printTerm('Browser does not support notifications.', 'err');
+    return;
+  }
+
+  let permission = Notification.permission;
+  if (permission === 'default') {
+    permission = await Notification.requestPermission();
+  }
+
+  if (permission === 'granted') {
+    notificationsEnabled = true;
+    btn.innerText = '🔔 ALERTS: ON';
+    btn.style.borderColor = 'var(--neon-green)';
+    btn.style.color = 'var(--neon-green)';
+    btn.style.background = 'rgba(0,255,100,0.1)';
+    printTerm('Alert notifications ENABLED. Major threats will trigger alerts.', 'sys');
+
+    // Send a welcome test notification
+    new Notification('☢ UPT Guardian System', {
+      body: 'Alert system online. You will be notified of major disaster events.',
+      icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>',
+      badge: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>',
+      silent: false
+    });
+  } else {
+    printTerm('Notification permission denied. Please allow in browser settings.', 'err');
+  }
+};
+
+function sendDisasterAlert(event) {
+  if (!notificationsEnabled || Notification.permission !== 'granted') return;
+
+  // Build a unique key so we don't spam the same event
+  const key = `${event.type}-${(event.lat || 0).toFixed(1)}-${(event.lng || 0).toFixed(1)}`;
+  if (notifiedEvents.has(key)) return;
+  notifiedEvents.add(key);
+
+  // Clear old keys if set gets too large
+  if (notifiedEvents.size > 200) notifiedEvents.clear();
+
+  const mag = event.value ? `M${parseFloat(event.value).toFixed(1)}` : '';
+  const loc  = event.place || 'Unknown Location';
+  let title, body, icon;
+
+  if (event.type && event.type.includes('QUAKE')) {
+    title = `🌍 MAJOR EARTHQUAKE DETECTED`;
+    body  = `${mag} — ${loc}`;
+    icon  = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>';
+  } else if (event.type && event.type.includes('WILDFIRE')) {
+    title = `🔥 WILDFIRE ALERT`;
+    body  = loc;
+    icon  = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>';
+  } else if (event.type && event.type.includes('VOLCANO')) {
+    title = `🌋 VOLCANO ACTIVITY`;
+    body  = loc;
+    icon  = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌋</text></svg>';
+  } else {
+    title = `⚠ DISASTER ALERT`;
+    body  = `${event.type} — ${loc}`;
+    icon  = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚠️</text></svg>';
+  }
+
+  const notif = new Notification(title, {
+    body,
+    icon,
+    tag: key,         // Prevents duplicate popups for same event
+    renotify: false,
+  });
+
+  // Click notification → open app and fly to event
+  notif.onclick = () => {
+    window.focus();
+    if (window.world && event.lat !== undefined) {
+      window.world.pointOfView({ lat: event.lat, lng: event.lng, altitude: 1.2 }, 2000);
+    }
+  };
+}
+
+// ─── END NOTIFICATION SYSTEM ─────────────────────────────────────────────────
 
 // UI Buttons
 let globalTimeFilter = 0;
