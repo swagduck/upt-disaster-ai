@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPT Disaster AI — Analytics Dashboard</title>
+  <meta name="description" content="Phân tích lịch sử thiên tai toàn cầu từ hệ thống UPT Guardian AI." />
+
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;700&family=VT323&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --neon-blue:   #00f3ff;
+      --neon-green:  #00ff66;
+      --neon-red:    #ff003c;
+      --neon-gold:   #ffd700;
+      --neon-orange: #ff6600;
+      --neon-purple: #bd00ff;
+      --neon-toxic:  #ccff00;
+      --bg:          #020810;
+      --panel-bg:    rgba(8, 18, 30, 0.92);
+      --border:      rgba(0, 243, 255, 0.2);
+      --tech-font:   'Orbitron', sans-serif;
+      --data-font:   'Rajdhani', sans-serif;
+      --code-font:   'VT323', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--neon-blue);
+      font-family: var(--data-font);
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(0,100,200,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(0,200,100,0.05) 0%, transparent 60%);
+    }
+
+    /* ─── SCANLINES ─── */
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 32px;
+      background: rgba(0, 5, 15, 0.95);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 0 40px rgba(0,243,255,0.08);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 20px; }
+    .back-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--neon-blue); padding: 8px 16px; cursor: pointer;
+      font-family: var(--code-font); font-size: 1rem;
+      transition: 0.2s; text-decoration: none; display: flex; align-items: center; gap: 6px;
+      clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+    }
+    .back-btn:hover { background: rgba(0,243,255,0.1); border-color: var(--neon-blue); }
+    .header-title { font-family: var(--tech-font); font-size: 1.4rem; font-weight: 900; letter-spacing: 3px; }
+    .header-title span { color: var(--neon-green); }
+    .header-subtitle { font-family: var(--code-font); font-size: 1rem; color: #555; }
+    .live-badge {
+      background: rgba(0,255,100,0.1); border: 1px solid var(--neon-green);
+      color: var(--neon-green); padding: 5px 12px;
+      font-family: var(--code-font); font-size: 0.9rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+    /* ─── TIME FILTER BAR ─── */
+    .time-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 32px;
+      background: rgba(0,5,15,0.7);
+      border-bottom: 1px solid rgba(0,243,255,0.08);
+    }
+    .time-bar span { font-family: var(--code-font); color: #555; font-size: 1rem; margin-right: 8px; }
+    .time-btn {
+      background: transparent; border: 1px solid #333; color: #666;
+      padding: 5px 14px; cursor: pointer; font-family: var(--code-font); font-size: 1rem;
+      transition: 0.2s;
+    }
+    .time-btn:hover { border-color: var(--neon-blue); color: var(--neon-blue); }
+    .time-btn.active { border-color: var(--neon-green); color: var(--neon-green); background: rgba(0,255,100,0.08); }
+    .refresh-btn {
+      margin-left: auto; background: transparent; border: 1px solid var(--neon-gold);
+      color: var(--neon-gold); padding: 5px 16px; cursor: pointer;
+      font-family: var(--code-font); font-size: 1rem; transition: 0.2s;
+    }
+    .refresh-btn:hover { background: rgba(255,215,0,0.1); }
+
+    /* ─── MAIN LAYOUT ─── */
+    .container { padding: 24px 32px; max-width: 1800px; margin: 0 auto; }
+
+    /* ─── KPI GRID ─── */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--panel-bg); border: 1px solid var(--border);
+      padding: 20px 24px; position: relative; overflow: hidden;
+      clip-path: polygon(0 0, 100% 0, 100% 80%, 92% 100%, 0 100%);
+      transition: 0.3s;
+    }
+    .kpi-card:hover { border-color: rgba(0,243,255,0.6); box-shadow: 0 0 25px rgba(0,243,255,0.12); }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+      background: var(--accent, var(--neon-blue));
+    }
+    .kpi-label { font-family: var(--tech-font); font-size: 0.6rem; letter-spacing: 2px; color: #666; margin-bottom: 10px; text-transform: uppercase; }
+    .kpi-value { font-family: var(--tech-font); font-size: 2.6rem; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--accent, var(--neon-blue)); line-height: 1; }
+    .kpi-sub { font-size: 0.75rem; color: #555; margin-top: 6px; letter-spacing: 1px; }
+    .kpi-icon { position: absolute; right: 16px; top: 16px; font-size: 1.8rem; opacity: 0.3; }
+
+    /* ─── CHARTS GRID ─── */
+    .charts-grid {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px;
+    }
+    .chart-card {
+      background: var(--panel-bg); border: 1px solid var(--border); padding: 20px;
+      clip-path: polygon(0 0, 100% 0, 100% 95%, 97% 100%, 0 100%);
+    }
+    .chart-title {
+      font-family: var(--tech-font); font-size: 0.7rem; letter-spacing: 2px; color: #666;
+      text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .chart-title::before { content: '//'; color: var(--neon-blue); }
+    .chart-container { position: relative; height: 240px; }
+
+    /* ─── BOTTOM GRID (bar + table) ─── */
+    .bottom-grid {
+      display: grid; grid-template-columns: 1fr 1.8fr; gap: 16px;
+    }
+
+    /* ─── TABLE ─── */
+    .table-card {
+      background: var(--panel-bg); border: 1px solid var(--border); padding: 20px;
+      clip-path: polygon(0 0, 100% 0, 100% 98%, 99% 100%, 0 100%);
+      overflow: hidden;
+    }
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .data-table th {
+      font-family: var(--tech-font); font-size: 0.6rem; letter-spacing: 1px; color: #555;
+      text-transform: uppercase; padding: 8px 10px; text-align: left;
+      border-bottom: 1px solid rgba(0,243,255,0.1);
+    }
+    .data-table td {
+      padding: 7px 10px; font-size: 0.85rem; color: #ccc;
+      border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle;
+    }
+    .data-table tr:hover td { background: rgba(0,243,255,0.04); color: #fff; }
+    .type-badge {
+      display: inline-block; padding: 2px 8px; font-family: var(--code-font); font-size: 0.85rem;
+      border-left: 2px solid currentColor;
+    }
+
+    /* ─── STATUS BAR ─── */
+    .status-bar {
+      padding: 10px 32px; border-top: 1px solid var(--border);
+      background: rgba(0,5,15,0.9); margin-top: 24px;
+      display: flex; align-items: center; gap: 20px;
+      font-family: var(--code-font); font-size: 0.9rem; color: #555;
+    }
+    .status-bar span { color: var(--neon-blue); }
+
+    /* ─── LOADING OVERLAY ─── */
+    #loading {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9000; font-family: var(--code-font);
+    }
+    #loading-text { font-size: 1.5rem; color: var(--neon-green); margin-top: 16px; }
+    .spinner {
+      width: 50px; height: 50px; border: 2px solid rgba(0,243,255,0.2);
+      border-top-color: var(--neon-blue); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-text">> QUERYING MONGODB ATLAS...</div>
+</div>
+
+<!-- ─── HEADER ─── -->
+<header class="header">
+  <div class="header-left">
+    <a href="/" class="back-btn">◄ GLOBE</a>
+    <div>
+      <div class="header-title">UPT <span>ANALYTICS</span></div>
+      <div class="header-subtitle">> HISTORICAL DISASTER INTELLIGENCE DASHBOARD</div>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div class="live-badge">● LIVE DATA</div>
+    <div id="last-updated" style="font-family:var(--code-font);color:#444;font-size:0.9rem;"></div>
+  </div>
+</header>
+
+<!-- ─── TIME FILTER ─── -->
+<div class="time-bar">
+  <span>TIME RANGE:</span>
+  <button class="time-btn" onclick="loadTrend(6, this)">6H</button>
+  <button class="time-btn active" onclick="loadTrend(24, this)">24H</button>
+  <button class="time-btn" onclick="loadTrend(72, this)">3D</button>
+  <button class="time-btn" onclick="loadTrend(168, this)">7D</button>
+  <button class="refresh-btn" onclick="initDashboard()">⟳ REFRESH</button>
+</div>
+
+<!-- ─── MAIN CONTENT ─── -->
+<div class="container">
+
+  <!-- KPI Row -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent: var(--neon-blue);">
+      <div class="kpi-icon">🌐</div>
+      <div class="kpi-label">Total Events Recorded</div>
+      <div class="kpi-value" id="kpi-total">--</div>
+      <div class="kpi-sub">ACROSS ALL SNAPSHOTS</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--neon-red);">
+      <div class="kpi-icon">📡</div>
+      <div class="kpi-label">Max Magnitude (All Time)</div>
+      <div class="kpi-value" id="kpi-maxmag">--</div>
+      <div class="kpi-sub">RICHTER SCALE</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--neon-green);">
+      <div class="kpi-icon">⏱</div>
+      <div class="kpi-label">Snapshots (Last 24H)</div>
+      <div class="kpi-value" id="kpi-24h">--</div>
+      <div class="kpi-sub">~1 PER MINUTE</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--neon-orange);">
+      <div class="kpi-icon">🔥</div>
+      <div class="kpi-label">Active Right Now</div>
+      <div class="kpi-value" id="kpi-live">--</div>
+      <div class="kpi-sub" id="kpi-live-type">LOADING...</div>
+    </div>
+  </div>
+
+  <!-- Trend + Donut -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">THREAT COUNT OVER TIME</div>
+      <div class="chart-container">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">HAZARD DISTRIBUTION (LIVE)</div>
+      <div class="chart-container">
+        <canvas id="donutChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bar + Table -->
+  <div class="bottom-grid">
+    <div class="chart-card">
+      <div class="chart-title">MAX MAGNITUDE OVER TIME</div>
+      <div class="chart-container">
+        <canvas id="magChart"></canvas>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="chart-title">TOP SEVERITY SNAPSHOTS</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>TIME (UTC)</th>
+            <th>TOTAL EVENTS</th>
+            <th>MAX MAG</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="4" style="text-align:center;color:#444;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── STATUS BAR ─── -->
+<div class="status-bar">
+  > DB SOURCE: <span id="status-source">—</span>
+  &nbsp;|&nbsp; TOTAL SNAPSHOTS: <span id="status-snapshots">—</span>
+  &nbsp;|&nbsp; SYSTEM: <span style="color:var(--neon-green)">UPT GUARDIAN AI v29.0</span>
+</div>
+
+<script>
+  let trendChartObj = null;
+  let magChartObj   = null;
+  let donutChartObj = null;
+
+  const CHART_DEFAULTS = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    animation: { duration: 600, easing: 'easeInOutQuart' }
+  };
+
+  function typeColor(type) {
+    if (!type) return '#aaa';
+    if (type.includes('QUAKE'))   return '#00f3ff';
+    if (type.includes('WILDFIRE') || type.includes('FIRE')) return '#ff6600';
+    if (type.includes('VOLCANO')) return '#ff00cc';
+    if (type.includes('STORM'))   return '#bd00ff';
+    if (type.includes('SOLAR'))   return '#fff';
+    if (type.includes('NUCLEAR')) return '#ccff00';
+    return '#aaaaaa';
+  }
+
+  async function loadSummary() {
+    const res  = await fetch('/api/v1/stats/summary');
+    const data = await res.json();
+
+    document.getElementById('kpi-total').innerText   = (data.total_events_recorded || 0).toLocaleString();
+    document.getElementById('kpi-maxmag').innerText  = data.max_magnitude_ever || '—';
+    document.getElementById('kpi-24h').innerText     = (data.snapshots_last_24h || 0).toLocaleString();
+    document.getElementById('status-source').innerText    = data.source || '—';
+    document.getElementById('status-snapshots').innerText = (data.total_snapshots || 0).toLocaleString();
+
+    const tc = data.type_counts || {};
+    const total = Object.values(tc).reduce((a,b)=>a+b, 0) || 1;
+    document.getElementById('kpi-live').innerText     = total.toLocaleString();
+    const topType = Object.entries(tc).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('kpi-live-type').innerText = topType ? `TOP: ${topType[0]} (${topType[1]})` : 'NO DATA';
+
+    // Donut chart
+    const labels = Object.keys(tc);
+    const values = Object.values(tc);
+    const colors = { QUAKE:'#00f3ff', FIRE:'#ff6600', VOLCANO:'#ff00cc', STORM:'#bd00ff', OTHER:'#888' };
+    const bgColors = labels.map(l => colors[l] || '#888');
+
+    if (donutChartObj) donutChartObj.destroy();
+    donutChartObj = new Chart(document.getElementById('donutChart'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: bgColors, borderColor: '#020810', borderWidth: 3 }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        plugins: {
+          legend: {
+            display: true, position: 'right',
+            labels: { color: '#888', font: { family: 'Rajdhani', size: 12 }, boxWidth: 12 }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  }
+
+  async function loadTrend(hours = 24, btn = null) {
+    // Update active button
+    if (btn) {
+      document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    const res  = await fetch(`/api/v1/stats/trend?hours=${hours}`);
+    const data = await res.json();
+    const pts  = data.points || [];
+
+    if (pts.length === 0) {
+      if (trendChartObj) trendChartObj.destroy();
+      if (magChartObj)   magChartObj.destroy();
+      renderEmptyState();
+      return;
+    }
+
+    // Downsample if too many points for readability
+    const MAX_POINTS = 100;
+    let sampled = pts;
+    if (pts.length > MAX_POINTS) {
+      const step = Math.ceil(pts.length / MAX_POINTS);
+      sampled = pts.filter((_, i) => i % step === 0);
+    }
+
+    const labels   = sampled.map(p => {
+      const d = new Date(p.time);
+      return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    });
+    const totals   = sampled.map(p => p.total);
+    const maxMags  = sampled.map(p => p.max_mag);
+
+    // ── Trend Line Chart ──
+    if (trendChartObj) trendChartObj.destroy();
+    trendChartObj = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Total Events',
+          data: totals,
+          borderColor: '#00f3ff',
+          backgroundColor: 'rgba(0,243,255,0.06)',
+          borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          x: { ticks: { color:'#444', maxTicksLimit: 8, font:{family:'Rajdhani'} }, grid: { color:'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color:'#444', font:{family:'Rajdhani'} }, grid: { color:'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    // ── Magnitude Chart ──
+    if (magChartObj) magChartObj.destroy();
+    magChartObj = new Chart(document.getElementById('magChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Max Magnitude',
+          data: maxMags,
+          borderColor: '#ff003c',
+          backgroundColor: 'rgba(255,0,60,0.06)',
+          borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true
+        }]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        scales: {
+          x: { ticks: { color:'#444', maxTicksLimit: 8, font:{family:'Rajdhani'} }, grid: { color:'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color:'#444', font:{family:'Rajdhani'} }, grid: { color:'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    // ── Top Snapshots Table ──
+    const topPts = [...pts].sort((a,b) => b.max_mag - a.max_mag).slice(0, 20);
+    const tbody  = document.getElementById('table-body');
+    tbody.innerHTML = topPts.map((p, i) => {
+      const d = new Date(p.time);
+      const timeStr = d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
+      const magColor = p.max_mag >= 7 ? '#ff003c' : p.max_mag >= 5 ? '#ffd700' : '#00f3ff';
+      return `<tr>
+        <td style="color:#555;">${i+1}</td>
+        <td style="font-family:var(--code-font);color:#888;">${timeStr}</td>
+        <td style="color:#fff;font-weight:700;">${p.total.toLocaleString()}</td>
+        <td style="color:${magColor};font-family:var(--tech-font);font-weight:900;">${p.max_mag}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderEmptyState() {
+    const msg = '<tr><td colspan="4" style="text-align:center;color:#444;padding:20px;">NO HISTORICAL DATA YET<br/><small style="font-size:0.7rem">System will accumulate data over time</small></td></tr>';
+    document.getElementById('table-body').innerHTML = msg;
+  }
+
+  async function initDashboard() {
+    document.getElementById('last-updated').innerText = '> UPDATING...';
+    try {
+      await Promise.all([loadSummary(), loadTrend(24)]);
+      document.getElementById('last-updated').innerText =
+        `> UPDATED: ${new Date().toLocaleTimeString('vi-VN', {hour12:false})}`;
+    } catch(e) {
+      console.error(e);
+      document.getElementById('last-updated').innerText = '> UPDATE FAILED';
+    }
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  // Boot
+  window.onload = () => {
+    document.getElementById('loading-text').innerText = '> LOADING ANALYTICS MODULE...';
+    initDashboard();
+    // Auto-refresh every 5 minutes
+    setInterval(initDashboard, 5 * 60 * 1000);
+  };
+</script>
+
+</body>
+</html>

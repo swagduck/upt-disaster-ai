@@ -37,6 +37,11 @@ async def read_index():
     return FileResponse("app/static/index.html")
 
 
+@app.get("/dashboard")
+async def read_dashboard():
+    return FileResponse("app/static/dashboard.html")
+
+
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(reactor.router, prefix="/api/v1/reactor", tags=["Reactor"])
