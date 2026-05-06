@@ -89,6 +89,10 @@ class AudioSynth {
     gain.connect(this.masterGain);
     osc.start();
     osc.stop(this.ctx.currentTime + duration);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   }
 
   playBeep() {
@@ -110,6 +114,10 @@ class AudioSynth {
     gain.connect(this.masterGain);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.5);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   }
 
   // --- SONAR RADAR SOUND ---
@@ -158,6 +166,17 @@ class AudioSynth {
     noiseGain.connect(this.masterGain);
 
     noise.start(t);
+    noise.stop(t + 1.5);
+
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+    noise.onended = () => {
+      noise.disconnect();
+      filter.disconnect();
+      noiseGain.disconnect();
+    };
   }
 }
 window.sfx = new AudioSynth();
@@ -803,7 +822,7 @@ document.getElementById("btn-link").addEventListener("click", () => {
         if (window.waveChart && window.waveChart.data) {
           window.waveChart.data.datasets[0].data.push(data.k_eff);
           window.waveChart.data.datasets[0].data.shift();
-          window.waveChart.update();
+          window.waveChart.update('none');
         }
         if (data.core_temp > 2000) window.sfx.playAlarm();
       } catch (e) {}
