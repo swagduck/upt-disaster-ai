@@ -290,17 +290,18 @@ async function fetchAllDataLoop() {
 }
 
 let lastEventsHash = "";
+let currentCounts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, OTHER: 0, NUKE: 0 };
 
 function processBackendData(events) {
   const currentHash = JSON.stringify(events);
+  const isFirstLoad = lastEventsHash === "";
   if (currentHash === lastEventsHash) {
-    printTerm(`UPT-CACHE verified. No new threats.`);
-    return;
+    return; // Silently skip if no new events
   }
   lastEventsHash = currentHash;
 
   let combinedEvents = [];
-  let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0, OTHER: 0 };
+  let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0, OTHER: 0, NUKE: 0 };
 
   events.forEach((e) => {
     let color = "#aaaaaa";
@@ -346,6 +347,7 @@ function processBackendData(events) {
   // Add Nuclear Plants
   if (window.nuclearPlants) {
     window.nuclearPlants.forEach((n) => {
+      counts.NUKE++;
       combinedEvents.push({
         lat: n.lat,
         lng: n.lng,
@@ -363,6 +365,7 @@ function processBackendData(events) {
 
   allEventsCache = combinedEvents;
   currentNodeCount = combinedEvents.length;
+  currentCounts = counts;
 
   const countEl = document.getElementById("val-prob");
   if (countEl) countEl.innerText = combinedEvents.length;
@@ -375,11 +378,18 @@ function processBackendData(events) {
       counts.STORM,
       counts.OTHER,
     ];
-    window.radarChart.update();
+    window.radarChart.update('none');
   }
 
   applyFilters();
-  printTerm(`Synced ${combinedEvents.length} threats via UPT-CACHE.`);
+  updateFilterButtons();
+
+  if (isFirstLoad) {
+    printTerm(`Initial sync: ${combinedEvents.length} global threats loaded.`, "sys");
+  } else {
+    printTerm(`ALERT: New threat data detected! Synchronized ${combinedEvents.length} active threats.`, "err");
+    window.sfx.playBeep();
+  }
 }
 
 // 5. AI Functions (REAL DATA LOGIC)
@@ -637,6 +647,26 @@ document.addEventListener(
 );
 
 // UI Buttons
+window.updateFilterButtons = () => {
+  const map = {
+    QUAKE: { id: 'btn-quake', label: 'QUAKES' },
+    VOLCANO: { id: 'btn-volcano', label: 'VOLCANO' },
+    STORM: { id: 'btn-storm', label: 'STORMS' },
+    FIRE: { id: 'btn-fire', label: 'FIRES' },
+    OTHER: { id: 'btn-other', label: 'OTHERS' },
+    NUKE: { id: 'btn-nuke', label: 'NUKES' }
+  };
+  for (const [type, config] of Object.entries(map)) {
+    const btn = document.getElementById(config.id);
+    if (btn) {
+      const count = currentCounts[type] || 0;
+      btn.innerText = activeFilters[type] ? `[x] ${config.label} (${count})` : `[ ] ${config.label} (${count})`;
+      if (activeFilters[type]) btn.classList.add("active");
+      else btn.classList.remove("active");
+    }
+  }
+};
+
 window.togglePrediction = () => {
   activeFilters["PREDICT"] = !activeFilters["PREDICT"];
   const btn = document.getElementById("btn-predict");
@@ -655,8 +685,7 @@ window.togglePrediction = () => {
 window.toggleFilter = (type, btn) => {
   if (window.world) window.world.controls().autoRotate = false;
   activeFilters[type] = !activeFilters[type];
-  btn.innerText = activeFilters[type] ? `[x] ${type}S` : `[ ] ${type}S`;
-  btn.classList.toggle("active");
+  updateFilterButtons();
   window.sfx.playBeep();
   applyFilters();
 };
