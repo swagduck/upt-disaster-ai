@@ -183,11 +183,16 @@ window.sfx = new AudioSynth();
 
 // 3. Helper Functions & UI
 const termOut = document.getElementById("term-output");
+const MAX_TERM_LINES = 60;
 function printTerm(msg, type = "") {
   const div = document.createElement("div");
   div.className = `term-line ${type}`;
   div.innerText = `> ${msg}`;
   termOut.appendChild(div);
+  // Cap terminal lines to prevent DOM bloat
+  while (termOut.childElementCount > MAX_TERM_LINES) {
+    termOut.removeChild(termOut.firstChild);
+  }
   termOut.scrollTop = termOut.scrollHeight;
 }
 
@@ -261,10 +266,20 @@ function applyFilters() {
   // Cập nhật lên quả cầu
   if (window.world) {
     window.world.pointsData(filteredData);
-    window.world.ringsData(filteredData.filter((d) => d.maxR > 0));
+    // Cap rings to top 30 by maxR to avoid GPU overload
+    const ringsData = filteredData.filter((d) => d.maxR > 0)
+                                  .sort((a, b) => b.maxR - a.maxR)
+                                  .slice(0, 30);
+    window.world.ringsData(ringsData);
   }
   
-  updateProximityList(filteredData);
+  // Debounce proximity list — only recalculate if GPS is set
+  if (userLat !== null && userLng !== null) {
+    clearTimeout(window._proximityDebounce);
+    window._proximityDebounce = setTimeout(() => updateProximityList(filteredData), 300);
+  } else {
+    updateProximityList(filteredData);
+  }
 }
 
 // 4. Backend Data Loop (ZERO MOCK)
@@ -299,12 +314,22 @@ async function fetchAllDataLoop() {
   }
 }
 
-let lastEventsHash = "";
+let lastEventsHash = 0;
 let currentCounts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, OTHER: 0, NUKE: 0 };
 
+// Fast numeric hash — avoids JSON.stringify on large arrays every 60s
+function fastHash(events) {
+  let h = events.length;
+  for (let i = 0; i < Math.min(events.length, 20); i++) {
+    const e = events[i];
+    h = (h * 31 + (e.lat * 1000 | 0) + (e.raw_val * 100 | 0)) >>> 0;
+  }
+  return h;
+}
+
 function processBackendData(events) {
-  const currentHash = JSON.stringify(events);
-  const isFirstLoad = lastEventsHash === "";
+  const currentHash = fastHash(events);
+  const isFirstLoad = lastEventsHash === 0;
   if (currentHash === lastEventsHash) {
     return; // Silently skip if no new events
   }
@@ -351,6 +376,7 @@ function processBackendData(events) {
       maxR: maxR,
       propagationSpeed: 5,
       repeatPeriod: 800,
+      timestamp: e.timestamp || 0,
     });
   });
 
