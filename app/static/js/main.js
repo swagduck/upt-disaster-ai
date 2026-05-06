@@ -289,7 +289,16 @@ async function fetchAllDataLoop() {
   }
 }
 
+let lastEventsHash = "";
+
 function processBackendData(events) {
+  const currentHash = JSON.stringify(events);
+  if (currentHash === lastEventsHash) {
+    printTerm(`UPT-CACHE verified. No new threats.`);
+    return;
+  }
+  lastEventsHash = currentHash;
+
   let combinedEvents = [];
   let counts = { QUAKE: 0, FIRE: 0, VOLCANO: 0, STORM: 0, ICE: 0, OTHER: 0 };
 
