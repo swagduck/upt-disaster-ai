@@ -100,7 +100,7 @@ body {
 
 /* HUD */
 .hud-overlay {
-  position: absolute; bottom: 15px; left: 15px; right: 15px; height: 28vh;
+  position: absolute; bottom: 15px; left: 15px; right: 15px; height: 32vh;
   display: grid; grid-template-columns: 0.8fr 1.5fr 1fr 1.2fr; gap: 10px; z-index: 10; pointer-events: none;
 }
 .panel {
@@ -120,7 +120,7 @@ h3 { margin: 0 0 8px 0; font-family: var(--tech-font); font-size: 0.7rem; letter
 }
 .btn-link.active { background: var(--neon-red); border-color: var(--neon-red); color: #fff; }
 
-.filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+.filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 5px; }
 .filter-btn {
   background: transparent; border: 1px solid #444; color: #666; cursor: pointer; padding: 5px;
   font-family: var(--code-font); font-size: 0.8rem; transition: 0.2s;
