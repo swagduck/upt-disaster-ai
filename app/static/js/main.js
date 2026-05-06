@@ -669,10 +669,12 @@ window.locateUser = () => {
         calcNearestThreat();
         if (activeFilters["PREDICT"]) runNeuralPrediction();
       },
-      () => {
-        printTerm("GPS Failed.", "err");
+      (error) => {
+        console.warn("GPS Error:", error);
+        printTerm("GPS Failed: " + (error.message || "Timeout"), "err");
         btn.innerText = "[!] GPS FAIL";
-      }
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
     );
   } else {
     printTerm("Geolocation not supported.", "err");
