@@ -633,51 +633,88 @@ window.toggleFilter = (type, btn) => {
   applyFilters();
 };
 
-window.locateUser = () => {
+window.locateUser = async () => {
   const btn = document.getElementById("btn-gps");
   const statusLoc = document.getElementById("status-loc");
-  if (navigator.geolocation) {
-    printTerm("Triangulating...", "sys");
-    btn.innerText = "[...] LOCATING";
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        userLat = position.coords.latitude;
-        userLng = position.coords.longitude;
-        btn.innerText = "[x] GPS LOCKED";
-        btn.classList.add("active");
-        statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(2)}`;
-        statusLoc.style.color = "var(--neon-blue)";
-        printTerm(`GPS: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`, "sys");
-        window.sfx.playBeep();
+  
+  printTerm("Triangulating IP Coordinates...", "sys");
+  btn.innerText = "[...] LOCATING";
 
-        userEventMarker = {
-          lat: userLat,
-          lng: userLng,
-          alt: 0.02,
-          color: "#00f3ff",
-          type: "USER_LOC",
-          place: "HOME BASE",
-          value: 0,
-          maxR: 5,
-        };
-        if (window.world)
-          window.world.pointOfView(
-            { lat: userLat, lng: userLng, altitude: 1.5 },
-            2000
-          );
-        applyFilters();
-        calcNearestThreat();
-        if (activeFilters["PREDICT"]) runNeuralPrediction();
-      },
-      (error) => {
-        console.warn("GPS Error:", error);
-        printTerm("GPS Failed: " + (error.message || "Timeout"), "err");
-        btn.innerText = "[!] GPS FAIL";
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
-    );
-  } else {
-    printTerm("Geolocation not supported.", "err");
+  try {
+    const res = await fetch("https://get.geojs.io/v1/ip/geo.json");
+    if (!res.ok) throw new Error("Network response was not ok");
+    const data = await res.json();
+    
+    userLat = parseFloat(data.latitude);
+    userLng = parseFloat(data.longitude);
+    
+    btn.innerText = "[x] LOC LOCKED";
+    btn.classList.add("active");
+    statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(2)}`;
+    statusLoc.style.color = "var(--neon-blue)";
+    printTerm(`IP LOC: ${userLat.toFixed(4)}, ${userLng.toFixed(4)} (${data.city || 'Unknown'})`, "sys");
+    window.sfx.playBeep();
+
+    userEventMarker = {
+      lat: userLat,
+      lng: userLng,
+      alt: 0.02,
+      color: "#00f3ff",
+      type: "USER_LOC",
+      place: "HOME BASE",
+      value: 0,
+      maxR: 5,
+    };
+    if (window.world) {
+      window.world.pointOfView({ lat: userLat, lng: userLng, altitude: 1.5 }, 2000);
+    }
+    applyFilters();
+    calcNearestThreat();
+    if (activeFilters["PREDICT"]) runNeuralPrediction();
+
+  } catch (error) {
+    console.warn("IP Geo Error:", error);
+    printTerm("IP Scan failed, falling back to satellite...", "err");
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+          btn.innerText = "[x] GPS LOCKED";
+          btn.classList.add("active");
+          statusLoc.innerText = `${userLat.toFixed(2)},${userLng.toFixed(2)}`;
+          statusLoc.style.color = "var(--neon-blue)";
+          printTerm(`GPS: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`, "sys");
+          window.sfx.playBeep();
+  
+          userEventMarker = {
+            lat: userLat,
+            lng: userLng,
+            alt: 0.02,
+            color: "#00f3ff",
+            type: "USER_LOC",
+            place: "HOME BASE",
+            value: 0,
+            maxR: 5,
+          };
+          if (window.world)
+            window.world.pointOfView({ lat: userLat, lng: userLng, altitude: 1.5 }, 2000);
+          applyFilters();
+          calcNearestThreat();
+          if (activeFilters["PREDICT"]) runNeuralPrediction();
+        },
+        (gpsError) => {
+          console.warn("GPS Error:", gpsError);
+          printTerm("GPS Failed: " + (gpsError.message || "Timeout"), "err");
+          btn.innerText = "[!] LOC FAIL";
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      printTerm("Geolocation totally failed.", "err");
+      btn.innerText = "[!] LOC FAIL";
+    }
   }
 };
 
