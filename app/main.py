@@ -11,6 +11,8 @@ from app.api.v1.endpoints import reactor
 from app.api.v1.endpoints import prediction
 from app.upt_engine.reactor_core import upt_reactor
 from app.services.earthquake_service import DisasterService
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter, cyber_rate_limit_handler
 
 logger = get_logger(__name__)
 
@@ -19,6 +21,9 @@ app = FastAPI(
     description="Global Monitoring & Reactor Stability Interface",
     version="28.1.0",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, cyber_rate_limit_handler)
 
 app.add_middleware(
     CORSMiddleware,

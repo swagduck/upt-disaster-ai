@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import List, Optional
@@ -7,6 +7,7 @@ from app.services.earthquake_service import DisasterService
 from app.upt_engine.formulas import UPTMath
 from app.upt_engine.deep_core import guardian_brain
 from app.core.logger import get_logger
+from app.core.limiter import limiter
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -124,7 +125,8 @@ async def get_ai_status():
 
 
 @router.post("/train")
-async def trigger_training():
+@limiter.limit("5/minute")
+async def trigger_training(request: Request):
     """Force the AI to learn from the current realtime cache."""
     current_data = DisasterService.get_latest_data()
     if not current_data:
@@ -141,7 +143,8 @@ async def trigger_training():
 
 
 @router.post("/forecast")
-async def forecast_disaster(req: NeuralPredictionRequest):
+@limiter.limit("10/minute")
+async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
     """AI-powered risk forecast at a specific coordinate."""
     risk = await run_in_threadpool(
         guardian_brain.predict_risk, req.lat, req.lon, req.simulated_energy, 0.5
