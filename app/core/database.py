@@ -27,7 +27,21 @@ class Database:
             Database.db = Database.client[db_name]
             logger.info(f"[DATABASE] Connected to MongoDB Atlas: {db_name}")
 
-            # Create time-based index for fast range queries
+            # Initialize raw_logs as Time-Series collection if it doesn't exist
+            if "raw_logs" not in Database.db.list_collection_names():
+                try:
+                    Database.db.create_collection(
+                        "raw_logs",
+                        timeseries={
+                            "timeField": "timestamp",
+                            "granularity": "minutes"
+                        }
+                    )
+                    logger.info("[DATABASE] Initialized 'raw_logs' as Time-Series Collection.")
+                except Exception as e:
+                    logger.warning(f"[DATABASE] Could not create Time-Series collection (might not be supported): {e}")
+
+            # Ensure index exists (useful if it's a regular collection)
             Database.db.raw_logs.create_index("timestamp")
 
         except ConnectionFailure as e:

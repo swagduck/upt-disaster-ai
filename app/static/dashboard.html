@@ -116,9 +116,18 @@
       background: var(--accent, var(--neon-blue));
     }
     .kpi-label { font-family: var(--tech-font); font-size: 0.6rem; letter-spacing: 2px; color: #666; margin-bottom: 10px; text-transform: uppercase; }
-    .kpi-value { font-family: var(--tech-font); font-size: 2.6rem; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--accent, var(--neon-blue)); line-height: 1; }
+    .kpi-value { font-family: var(--tech-font); font-size: 2.6rem; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--accent, var(--neon-blue)); line-height: 1; transition: opacity 0.3s; }
     .kpi-sub { font-size: 0.75rem; color: #555; margin-top: 6px; letter-spacing: 1px; }
     .kpi-icon { position: absolute; right: 16px; top: 16px; font-size: 1.8rem; opacity: 0.3; }
+
+    @keyframes kpi-update {
+      0% { box-shadow: 0 0 0 0 var(--accent); border-color: var(--accent); }
+      50% { box-shadow: 0 0 25px 5px rgba(255, 255, 255, 0.2); border-color: var(--accent); }
+      100% { box-shadow: 0 0 0 0 transparent; border-color: var(--border); }
+    }
+    .kpi-card.updating {
+      animation: kpi-update 1.2s ease-out;
+    }
 
     /* ─── CHARTS GRID ─── */
     .charts-grid {
@@ -314,8 +323,21 @@
 
   const CHART_DEFAULTS = {
     responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    animation: { duration: 600, easing: 'easeInOutQuart' }
+    plugins: { 
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(2, 8, 16, 0.95)',
+        titleFont: { family: 'Rajdhani', size: 14 },
+        bodyFont: { family: 'Orbitron', size: 13 },
+        borderColor: 'rgba(0, 243, 255, 0.5)',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 4,
+        displayColors: false
+      }
+    },
+    animation: { duration: 800, easing: 'easeOutQuart' },
+    interaction: { mode: 'index', intersect: false }
   };
 
   function typeColor(type) {
@@ -330,6 +352,9 @@
   }
 
   async function loadSummary() {
+    document.querySelectorAll('.kpi-card').forEach(c => c.classList.add('updating'));
+    setTimeout(() => document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('updating')), 1200);
+
     const res  = await fetch('/api/v1/stats/summary');
     const data = await res.json();
 

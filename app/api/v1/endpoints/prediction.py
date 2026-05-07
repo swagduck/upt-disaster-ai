@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -142,7 +143,9 @@ async def trigger_training():
 @router.post("/forecast")
 async def forecast_disaster(req: NeuralPredictionRequest):
     """AI-powered risk forecast at a specific coordinate."""
-    risk = guardian_brain.predict_risk(req.lat, req.lon, req.simulated_energy, 0.5)
+    risk = await run_in_threadpool(
+        guardian_brain.predict_risk, req.lat, req.lon, req.simulated_energy, 0.5
+    )
 
     alert_level = "NORMAL"
     if risk > 0.5: alert_level = "WARNING"

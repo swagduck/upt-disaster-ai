@@ -244,7 +244,7 @@ class DisasterService:
                         "max_magnitude": max(s["raw_val"] for s in sensors) if sensors else 0,
                         "sensors_data": sensors,
                     }
-                    collection.insert_one(log_entry)
+                    await asyncio.to_thread(collection.insert_one, log_entry)
                     logger.debug("[DISASTER SVC] Snapshot saved to MongoDB.")
             except Exception as e:
                 logger.error(f"[DISASTER SVC] MongoDB save failed: {e}")
