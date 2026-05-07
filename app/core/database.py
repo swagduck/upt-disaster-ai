@@ -21,7 +21,8 @@ class Database:
             return
 
         try:
-            Database.client = MongoClient(uri)
+            # Thiết lập timeout 3 giây để tránh treo ứng dụng khi không kết nối được MongoDB trên Render
+            Database.client = MongoClient(uri, serverSelectionTimeoutMS=3000)
             # Verify connectivity
             Database.client.admin.command("ping")
             Database.db = Database.client[db_name]
