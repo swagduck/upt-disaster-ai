@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import asyncio
 
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -62,7 +63,8 @@ async def startup_event():
     logger.info(f"     DB  : {settings.DB_NAME}")
     logger.info("=" * 60)
     upt_reactor.start_reactor()
-    await DisasterService.fetch_all_realtime()
+    # Chạy tác vụ tải dữ liệu realtime dưới nền để không chặn việc mở cổng (port binding) của Uvicorn trên Render
+    asyncio.create_task(DisasterService.fetch_all_realtime())
     logger.info("[MAIN] System fully online.")
 
 
