@@ -20,18 +20,23 @@ class DeepGuardian:
         # Buffer stores the global real-time state (updated by EarthquakeService)
         self.realtime_buffer = deque(maxlen=self.look_back)
 
-        # TensorFlow device config
-        gpus = tf.config.list_physical_devices("GPU")
-        if gpus:
-            logger.info(f"[DEEP CORE] 🚀 NVIDIA GPU Active: {len(gpus)} device(s).")
-        else:
-            logger.warning("[DEEP CORE] No GPU found — running in CPU Mode.")
+    def initialize(self):
+        """Khởi tạo mô hình TensorFlow và huấn luyện từ MongoDB bất đồng bộ (tránh treo lúc khởi động)"""
+        try:
+            # TensorFlow device config
+            gpus = tf.config.list_physical_devices("GPU")
+            if gpus:
+                logger.info(f"[DEEP CORE] 🚀 NVIDIA GPU Active: {len(gpus)} device(s).")
+            else:
+                logger.warning("[DEEP CORE] No GPU found — running in CPU Mode.")
 
-        self._build_brain()
+            self._build_brain()
 
-        if Database.db is not None:
-            logger.info("[DEEP CORE] 🧠 Loading memory patterns from MongoDB...")
-            self.train_from_memory()
+            if Database.db is not None:
+                logger.info("[DEEP CORE] 🧠 Loading memory patterns from MongoDB...")
+                self.train_from_memory()
+        except Exception as e:
+            logger.error(f"[DEEP CORE] Error during async initialization: {e}", exc_info=True)
 
     def _build_brain(self):
         self.model = tf.keras.models.Sequential()

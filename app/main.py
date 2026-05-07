@@ -11,6 +11,7 @@ from app.api.v1.endpoints.router import api_router
 from app.api.v1.endpoints import reactor
 from app.api.v1.endpoints import prediction
 from app.upt_engine.reactor_core import upt_reactor
+from app.upt_engine.deep_core import guardian_brain
 from app.services.earthquake_service import DisasterService
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter, cyber_rate_limit_handler
@@ -63,6 +64,8 @@ async def startup_event():
     logger.info(f"     DB  : {settings.DB_NAME}")
     logger.info("=" * 60)
     upt_reactor.start_reactor()
+    # Khởi tạo mô hình AI và huấn luyện từ MongoDB dưới nền để không chặn việc mở cổng (port binding) của Uvicorn
+    asyncio.create_task(asyncio.to_thread(guardian_brain.initialize))
     # Chạy tác vụ tải dữ liệu realtime dưới nền để không chặn việc mở cổng (port binding) của Uvicorn trên Render
     asyncio.create_task(DisasterService.fetch_all_realtime())
     logger.info("[MAIN] System fully online.")
