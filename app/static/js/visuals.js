@@ -41,7 +41,8 @@ function initGlobe() {
             colGeo = new THREE.CylinderGeometry(0.8, 0.8, colHeight, 6);
             colGeo.translate(0, colHeight / 2, 0);
         } else {
-            colGeo = new THREE.CylinderGeometry(0.1, 0.6, colHeight, 8);
+            // Cột thiên tai lớn hơn để dễ nhìn và dễ click
+            colGeo = new THREE.CylinderGeometry(0.4, 0.8, colHeight, 8);
             colGeo.translate(0, colHeight / 2, 0);
         }
 
@@ -117,6 +118,15 @@ function initGlobe() {
         if (obj.userData.isAI) {
             obj.userData.column.rotation.y += 0.05;
             obj.userData.column.rotation.z += 0.02;
+        }
+      })
+      .onCustomLayerHover((d) => {
+        if (window.world) {
+            // Ngừng xoay địa cầu khi hover vào một cột để dễ click
+            window.world.controls().autoRotate = !d;
+            
+            // Đổi con trỏ chuột thành pointer nếu đang hover
+            document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
         }
       })
       .onCustomLayerClick((d) => {
