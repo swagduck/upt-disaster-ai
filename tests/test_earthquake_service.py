@@ -15,7 +15,6 @@ class TestExtractFeatures:
     def guardian(self):
         # Prevent DB calls and TF model build during test collection
         with patch("app.core.database.Database.connect"), \
-             patch("tensorflow.keras.models.Sequential"), \
              patch("app.upt_engine.deep_core.DeepGuardian.train_from_memory"):
             from app.upt_engine.deep_core import DeepGuardian
             self.brain = DeepGuardian.__new__(DeepGuardian)

@@ -12,12 +12,7 @@ slowapi==0.1.9
 
 # --- DATA & AI ---
 pymongo
-scikit-learn
-pandas
-joblib
-
-# [LEVEL 3 - GPU POWER]
-tensorflow-cpu
+# TensorFlow và các thư viện nặng đã bị gỡ bỏ để chạy trên Render Free (512MB RAM)
 
 # --- TESTING ---
 pytest
