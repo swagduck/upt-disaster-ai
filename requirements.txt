@@ -22,3 +22,7 @@ tensorflow
 # --- TESTING ---
 pytest
 pytest-asyncio
+anyio[trio]
+
+# --- CACHING ---
+fastapi-cache2

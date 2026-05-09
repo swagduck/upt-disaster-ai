@@ -1,3 +1,10 @@
+"""
+MongoDB connection manager with lazy initialization.
+
+Connection is established on first use (via ``ensure_connected()``),
+not at import time — making the module test-friendly and avoiding
+blocking the import chain when the DB is unreachable.
+"""
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 
@@ -8,16 +15,22 @@ logger = get_logger(__name__)
 
 
 class Database:
-    client: MongoClient = None
+    client: MongoClient | None = None
     db = None
+    _connected: bool = False
 
     @staticmethod
     def connect():
+        """Attempt to connect to MongoDB Atlas. Safe to call multiple times."""
+        if Database._connected:
+            return
+
         uri = settings.MONGO_URI
         db_name = settings.DB_NAME
 
         if not uri:
             logger.warning("[DATABASE] No MONGO_URI configured — running without persistence.")
+            Database._connected = True  # Mark as "attempted" so we don't retry
             return
 
         try:
@@ -49,13 +62,18 @@ class Database:
             logger.error(f"[DATABASE] Connection failed: {e}")
         except Exception as e:
             logger.exception(f"[DATABASE] Unexpected error during connect: {e}")
+        finally:
+            Database._connected = True
+
+    @staticmethod
+    def ensure_connected():
+        """Lazy connection — call this before first DB use."""
+        if not Database._connected:
+            Database.connect()
 
     @staticmethod
     def get_collection(name):
+        Database.ensure_connected()
         if Database.db is not None:
             return Database.db[name]
         return None
-
-
-# Establish connection at import time
-Database.connect()

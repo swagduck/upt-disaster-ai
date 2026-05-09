@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from fastapi_cache.decorator import cache
 from typing import List, Optional
 
 from app.services.earthquake_service import DisasterService
@@ -8,6 +9,7 @@ from app.upt_engine.formulas import UPTMath
 from app.upt_engine.deep_core import guardian_brain
 from app.core.logger import get_logger
 from app.core.limiter import limiter
+from app.core.security import require_api_key
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -79,6 +81,7 @@ async def predict_disaster(request: PredictionRequest):
 
 
 @router.get("/realtime/usgs")
+@cache(expire=30)
 async def get_realtime_prediction():
     """Fetch live USGS + NASA data and compute UPT metrics."""
     real_sensors = await DisasterService.fetch_all_realtime()
@@ -115,16 +118,17 @@ async def get_realtime_prediction():
 
 
 @router.get("/status")
+@cache(expire=60)
 async def get_ai_status():
     """Return the current state of the Guardian AI brain."""
     return {
         "status": "ONLINE" if guardian_brain.is_trained else "INITIALIZING",
-        "knowledge_base_size": len(guardian_brain.X_buffer),
-        "model_type": "RandomForestRegressor (Scikit-Learn)",
+        "buffer_size": len(guardian_brain.realtime_buffer),
+        "model_type": "LSTM (TensorFlow/Keras)",
     }
 
 
-@router.post("/train")
+@router.post("/train", dependencies=[Depends(require_api_key)])
 @limiter.limit("5/minute")
 async def trigger_training(request: Request):
     """Force the AI to learn from the current realtime cache."""
@@ -142,7 +146,7 @@ async def trigger_training(request: Request):
     }
 
 
-@router.post("/forecast")
+@router.post("/forecast", dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
 async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
     """AI-powered risk forecast at a specific coordinate."""

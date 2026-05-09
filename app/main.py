@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -6,6 +8,7 @@ import uvicorn
 import asyncio
 
 from app.core.config import settings
+from app.core.database import Database
 from app.core.logger import get_logger
 from app.api.v1.endpoints.router import api_router
 from app.api.v1.endpoints import reactor
@@ -16,20 +19,59 @@ from app.services.earthquake_service import DisasterService
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter, cyber_rate_limit_handler
 
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+
 logger = get_logger(__name__)
+
+
+# ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup & shutdown lifecycle managed in one place."""
+    # ── STARTUP ───────────────────────────────────────────────────────────────
+    logger.info("=" * 60)
+    logger.info(">>>  UPT GUARDIAN SYSTEM BOOT SEQUENCE INITIATED  <<<")
+    logger.info(f"     Host: {settings.HOST}:{settings.PORT}")
+    logger.info(f"     DB  : {settings.DB_NAME}")
+    logger.info(f"     CORS: {settings.cors_origins}")
+    logger.info("=" * 60)
+
+    # Lazy DB connection (was previously at import time)
+    Database.connect()
+
+    upt_reactor.start_reactor()
+
+    # Khởi tạo Caching (In-Memory)
+    FastAPICache.init(InMemoryBackend(), prefix="upt-cache")
+
+    # Khởi tạo mô hình AI và huấn luyện từ MongoDB dưới nền
+    asyncio.create_task(asyncio.to_thread(guardian_brain.initialize))
+    # Chạy tác vụ tải dữ liệu realtime dưới nền
+    asyncio.create_task(DisasterService.fetch_all_realtime())
+
+    logger.info("[MAIN] System fully online.")
+
+    yield  # ── App runs here ──
+
+    # ── SHUTDOWN ──────────────────────────────────────────────────────────────
+    logger.info("[MAIN] Guardian System shutting down gracefully.")
+
 
 app = FastAPI(
     title="UPT Disaster AI - Guardian System",
     description="Global Monitoring & Reactor Stability Interface",
-    version="28.1.0",
+    version="28.2.0",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, cyber_rate_limit_handler)
 
+# ── CORS — reads from settings.cors_origins ───────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,27 +95,6 @@ async def read_dashboard():
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(reactor.router, prefix="/api/v1/reactor", tags=["Reactor"])
 app.include_router(prediction.router, prefix="/api/v1/predict", tags=["AI Prediction"])
-
-
-# ── Lifecycle ─────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup_event():
-    logger.info("=" * 60)
-    logger.info(">>>  UPT GUARDIAN SYSTEM BOOT SEQUENCE INITIATED  <<<")
-    logger.info(f"     Host: {settings.HOST}:{settings.PORT}")
-    logger.info(f"     DB  : {settings.DB_NAME}")
-    logger.info("=" * 60)
-    upt_reactor.start_reactor()
-    # Khởi tạo mô hình AI và huấn luyện từ MongoDB dưới nền để không chặn việc mở cổng (port binding) của Uvicorn
-    asyncio.create_task(asyncio.to_thread(guardian_brain.initialize))
-    # Chạy tác vụ tải dữ liệu realtime dưới nền để không chặn việc mở cổng (port binding) của Uvicorn trên Render
-    asyncio.create_task(DisasterService.fetch_all_realtime())
-    logger.info("[MAIN] System fully online.")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("[MAIN] Guardian System shutting down gracefully.")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import asyncio
 
 from app.upt_engine.reactor_core import upt_reactor
 from app.core.logger import get_logger
+from app.core.security import require_api_key
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -14,7 +15,7 @@ class ReactorControlRequest(BaseModel):
     enable_ai_safety: bool = True
 
 
-@router.post("/simulate")
+@router.post("/simulate", dependencies=[Depends(require_api_key)])
 async def simulate_reactor(control: ReactorControlRequest):
     """Apply a manual external stress to the running reactor."""
     try:
@@ -26,14 +27,11 @@ async def simulate_reactor(control: ReactorControlRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/scram")
+@router.post("/scram", dependencies=[Depends(require_api_key)])
 async def manual_scram():
-    """Trigger emergency reactor shutdown (SCRAM)."""
+    """Trigger emergency reactor shutdown (SCRAM) via the reactor's own state machine."""
     logger.critical("[REACTOR API] 🚨 Manual SCRAM initiated by operator.")
-    upt_reactor.control_rods = 100.0
-    upt_reactor.neutron_flux = 0.0
-    upt_reactor.k_eff = 0.0
-    upt_reactor.core_temp = 300.0
+    upt_reactor.trigger_phase_detuning()
     return {"status": "SCRAM_EXECUTED", "message": "Manual SCRAM initiated. Reactor Shutdown."}
 
 
@@ -55,7 +53,7 @@ async def websocket_reactor_status(websocket: WebSocket):
 
 
 # ── Internal Hook for Earthquake Service ─────────────────────────────────────
-@router.post("/inject-event")
+@router.post("/inject-event", dependencies=[Depends(require_api_key)])
 async def inject_real_event(magnitude: float):
     """Internal endpoint called when a major earthquake is detected."""
     shock = 0.0

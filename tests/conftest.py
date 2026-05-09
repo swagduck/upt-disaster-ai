@@ -4,6 +4,14 @@ Shared pytest fixtures for UPT Disaster AI test suite.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+
+@pytest.fixture(autouse=True)
+def init_cache():
+    FastAPICache.init(InMemoryBackend(), prefix="test-cache")
+    yield
+
 
 # ── Reactor Fixture ───────────────────────────────────────────────────────────
 @pytest.fixture

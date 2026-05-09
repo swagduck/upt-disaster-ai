@@ -47,10 +47,34 @@ class Settings(BaseSettings):
         description="Telegram chat ID to receive alerts.",
     )
 
+    # ── Security ─────────────────────────────────────────────────────────────
+    ALLOWED_ORIGINS: str = Field(
+        default="*",
+        description=(
+            "Comma-separated list of allowed CORS origins. "
+            "Use '*' ONLY for local dev. Example: 'https://myapp.com,https://staging.myapp.com'"
+        ),
+    )
+    API_SECRET_KEY: Optional[str] = Field(
+        default=None,
+        description=(
+            "Secret key for protecting sensitive endpoints (SCRAM, inject-event, train). "
+            "Endpoints are unprotected when absent (local dev only)."
+        ),
+    )
+
     # ── Server ────────────────────────────────────────────────────────────────
     HOST: str = Field(default="0.0.0.0", description="Uvicorn bind host.")
     PORT: int = Field(default=8000, description="Uvicorn bind port.")
     DEBUG: bool = Field(default=False, description="Enable hot-reload / debug mode.")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Parse ALLOWED_ORIGINS string into a list."""
+        raw = self.ALLOWED_ORIGINS.strip()
+        if raw == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 # ── Singleton instance (import this everywhere) ───────────────────────────────

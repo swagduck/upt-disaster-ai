@@ -1,6 +1,7 @@
 import asyncio
 import random
 import math
+import threading
 from datetime import datetime
 
 from app.core.logger import get_logger
@@ -18,6 +19,7 @@ class UPTReactorCore:
     CONST_RES_FREQ = 2.148
 
     def __init__(self):
+        self._lock = threading.RLock()
         self.is_running = False
         self.status_code = "OFFLINE"
 
@@ -39,25 +41,27 @@ class UPTReactorCore:
         self.geomagnetic_residual = 0.0
 
     def start_reactor(self):
-        if not self.is_running:
-            self.is_running = True
-            self.status_code = "STARTUP"
-            logger.info(
-                f"[UPT-RC] ☢️  Ignition Sequence Initiated. "
-                f"F_res locked at {self.CONST_RES_FREQ} GHz."
-            )
-            self.r_plasma = 0.5
-            self.neutron_flux = 1.0
-            asyncio.create_task(self._run_simulation_loop())
+        with self._lock:
+            if not self.is_running:
+                self.is_running = True
+                self.status_code = "STARTUP"
+                logger.info(
+                    f"[UPT-RC] ☢️  Ignition Sequence Initiated. "
+                    f"F_res locked at {self.CONST_RES_FREQ} GHz."
+                )
+                self.r_plasma = 0.5
+                self.neutron_flux = 1.0
+                asyncio.create_task(self._run_simulation_loop())
 
     def trigger_phase_detuning(self):
-        if self.status_code == "SCRAM":
-            return
-        logger.critical("[UPT-RC] 🚨 EMERGENCY SCRAM: PHASE DE-TUNING SHOCK EXECUTED!")
-        self.status_code = "SCRAM"
-        self.control_rods = 100.0
-        self.phase_noise = 10.0
-        self.r_plasma = 0.0
+        with self._lock:
+            if self.status_code == "SCRAM":
+                return
+            logger.critical("[UPT-RC] 🚨 EMERGENCY SCRAM: PHASE DE-TUNING SHOCK EXECUTED!")
+            self.status_code = "SCRAM"
+            self.control_rods = 100.0
+            self.phase_noise = 10.0
+            self.r_plasma = 0.0
 
     def inject_cosmic_interference(self, coupling_factor: float):
         """
@@ -74,14 +78,16 @@ class UPTReactorCore:
 
     def update_external_stress(self, stress_level: float):
         """Direct physical impact from seismic events."""
-        if stress_level > 0.5:
-            logger.warning(f"[UPT-RC] ⚠️  Seismic Wave Impact: {stress_level:.4f}")
-            self.phase_noise += stress_level * 0.5
+        with self._lock:
+            if stress_level > 0.5:
+                logger.warning(f"[UPT-RC] ⚠️  Seismic Wave Impact: {stress_level:.4f}")
+                self.phase_noise += stress_level * 0.5
 
     async def _run_simulation_loop(self):
         while self.is_running:
             try:
-                self._tick_physics()
+                with self._lock:
+                    self._tick_physics()
                 await asyncio.sleep(1)
             except Exception as e:
                 logger.error(f"[UPT-RC] Simulation loop error: {e}", exc_info=True)
@@ -157,18 +163,19 @@ class UPTReactorCore:
             self.trigger_phase_detuning()
 
     def get_status(self):
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "status": self.status_code,
-            "core_temp": round(self.core_temp, 1),
-            "neutron_flux": round(self.neutron_flux, 2),
-            "k_eff": round(self.k_eff, 4),
-            "control_rods": round(self.control_rods, 1),
-            "r_plasma": round(self.r_plasma, 4),
-            "phase_noise": round(self.phase_noise, 3),
-            "generated_power": round(self.neutron_flux * 5, 2),
-            "magnetic_residual": round(self.geomagnetic_residual, 3),
-        }
+        with self._lock:
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "status": self.status_code,
+                "core_temp": round(self.core_temp, 1),
+                "neutron_flux": round(self.neutron_flux, 2),
+                "k_eff": round(self.k_eff, 4),
+                "control_rods": round(self.control_rods, 1),
+                "r_plasma": round(self.r_plasma, 4),
+                "phase_noise": round(self.phase_noise, 3),
+                "generated_power": round(self.neutron_flux * 5, 2),
+                "magnetic_residual": round(self.geomagnetic_residual, 3),
+            }
 
 
 upt_reactor = UPTReactorCore()
