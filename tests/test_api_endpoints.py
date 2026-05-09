@@ -8,7 +8,8 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from httpx import AsyncClient, ASGITransport
 
-from app.main import app
+with patch("app.upt_engine.deep_core.Database"):
+    from app.main import app
 
 
 @pytest.fixture

@@ -12,6 +12,8 @@ slowapi==0.1.9
 
 # --- DATA & AI ---
 pymongo
+scikit-learn
+numpy
 # TensorFlow và các thư viện nặng đã bị gỡ bỏ để chạy trên Render Free (512MB RAM)
 
 # --- TESTING ---
