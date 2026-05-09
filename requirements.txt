@@ -17,7 +17,7 @@ pandas
 joblib
 
 # [LEVEL 3 - GPU POWER]
-tensorflow
+tensorflow-cpu
 
 # --- TESTING ---
 pytest
