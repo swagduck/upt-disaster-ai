@@ -8,11 +8,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from httpx import AsyncClient, ASGITransport
 
-# Patch heavy dependencies BEFORE importing app
-# This prevents TensorFlow init, MongoDB connection, etc. during test collection
-with patch("app.upt_engine.deep_core.Database"):
-    with patch("app.upt_engine.deep_core.tf"):
-        from app.main import app
+from app.main import app
 
 
 @pytest.fixture
