@@ -16,13 +16,15 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// Lưu datum đang hover/click — highlight được áp trong customThreeObjectUpdate
-let _hoveredDatum = null;
-let _selectedDatum = null;
+// ID của datum đang hover/click (dùng _uid để tránh vấn đề reference equality)
+let _hoveredUid = null;
+let _selectedUid = null;
+let _inspectorOpen = false; // flag để biết inspector đang mở
 
-// Expose để closeInspector trong main.js gọi bỏ highlight khi đóng bảng
+// Expose để main.js gọi khi đóng inspector
 window.clearSelectedHighlight = () => {
-  _selectedDatum = null;
+  _selectedUid = null;
+  _inspectorOpen = false;
 };
 
 function initGlobe() {
@@ -127,30 +129,40 @@ function initGlobe() {
             obj.userData.column.rotation.z += 0.02;
         }
 
-        // Highlight dùng reference equality (cùng object datum)
+        // ── HIGHLIGHT (dùng _uid để so sánh an toàn) ────────────────────────
         const col = obj.userData.column;
         const baseOpacity = col.material._baseOpacity || 0.6;
-        if (d === _selectedDatum) {
-            col.scale.set(1.6, 1.6, 1.6);
+        const uid = d._uid || null;
+
+        if (uid && uid === _selectedUid) {
+            // SELECTED: phóng to + sáng tối đa + đổi màu trắng
+            col.scale.set(1.8, 1.8, 1.8);
             col.material.opacity = 1.0;
-        } else if (d === _hoveredDatum) {
-            col.scale.set(1.3, 1.3, 1.3);
-            col.material.opacity = 0.9;
+            col.material.color.set(0xffffff);
+        } else if (uid && uid === _hoveredUid) {
+            // HOVER: phóng to vừa + sáng hơn + đổi màu vàng
+            col.scale.set(1.4, 1.4, 1.4);
+            col.material.opacity = 1.0;
+            col.material.color.set(0xffff00);
         } else {
+            // Bình thường: kích thước và màu gốc
             col.scale.set(1, 1, 1);
             col.material.opacity = baseOpacity;
+            col.material.color.set(d.color || '#aaaaaa');
         }
       })
       .onCustomLayerHover((d) => {
-        _hoveredDatum = d || null;
-        if (window.world) {
+        _hoveredUid = d ? (d._uid || null) : null;
+        if (window.world && !_inspectorOpen) {
+            // Chỉ dừng/tiếp tục xoay khi inspector chưa mở
             window.world.controls().autoRotate = !d;
-            document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
         }
+        document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
       })
       .onCustomLayerClick((d) => {
         if (!d) return;
-        _selectedDatum = d;
+        _selectedUid = d._uid || null;
+        _inspectorOpen = true;
         if (window.sfx) window.sfx.playBeep();
         if (window.world) window.world.controls().autoRotate = false;
         window.world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);

@@ -372,6 +372,7 @@ function processBackendData(events) {
       propagationSpeed: 5,
       repeatPeriod: 800,
       timestamp: e.timestamp || 0,
+      _uid: `${e.lat}_${e.lon}_${e.type}`,
     });
   });
 
@@ -390,6 +391,7 @@ function processBackendData(events) {
         maxR: 20,
         propagationSpeed: 1,
         repeatPeriod: 3000,
+        _uid: `NUKE_${n.lat}_${n.lng}`,
       });
     });
   }
