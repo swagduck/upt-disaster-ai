@@ -16,14 +16,38 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// ID của datum đang hover/click (dùng _uid để tránh vấn đề reference equality)
+// Map từ _uid -> Three.js Group, để highlight trực tiếp khi event bắn
+const _uidToGroup = new Map();
 let _hoveredUid = null;
 let _selectedUid = null;
-let _inspectorOpen = false; // flag để biết inspector đang mở
+let _inspectorOpen = false;
 
-// Expose để main.js gọi khi đóng inspector
+function _applyHighlight(group, mode, d) {
+  const col = group && group.userData && group.userData.column;
+  if (!col) return;
+  const baseOpacity = col.material._baseOpacity || 0.6;
+  if (mode === 'selected') {
+    col.scale.set(1.8, 1.8, 1.8);
+    col.material.opacity = 1.0;
+    col.material.color.set(0xffffff);
+  } else if (mode === 'hover') {
+    col.scale.set(1.4, 1.4, 1.4);
+    col.material.opacity = 1.0;
+    col.material.color.set(0xffff00);
+  } else {
+    col.scale.set(1, 1, 1);
+    col.material.opacity = baseOpacity;
+    col.material.color.set(d && d.color ? d.color : '#aaaaaa');
+  }
+}
+
 window.clearSelectedHighlight = () => {
-  _selectedUid = null;
+  if (_selectedUid) {
+    const obj = _uidToGroup.get(_selectedUid);
+    const d = obj && obj.__data;
+    _applyHighlight(obj, 'none', d);
+    _selectedUid = null;
+  }
   _inspectorOpen = false;
 };
 
@@ -96,10 +120,12 @@ function initGlobe() {
           speed: (d.propagationSpeed || 2) * 0.005,
           animOffset: Math.random(),
           isAI: isAI,
-          oriented: false // FIX: chỉ orient 1 lần, không tích lũy rotateX mỗi frame
+          oriented: false
         };
 
         group.__data = d;
+        // Đăng ký vào map để event handler có thể tìm và highlight trực tiếp
+        if (d._uid) _uidToGroup.set(d._uid, group);
         return group;
       })
       .customLayerLabel(d => d.place || d.type) // Kích hoạt tương tác Hover/Click cho Custom Layer
@@ -128,41 +154,36 @@ function initGlobe() {
             obj.userData.column.rotation.y += 0.05;
             obj.userData.column.rotation.z += 0.02;
         }
-
-        // ── HIGHLIGHT (dùng _uid để so sánh an toàn) ────────────────────────
-        const col = obj.userData.column;
-        const baseOpacity = col.material._baseOpacity || 0.6;
-        const uid = d._uid || null;
-
-        if (uid && uid === _selectedUid) {
-            // SELECTED: phóng to + sáng tối đa + đổi màu trắng
-            col.scale.set(1.8, 1.8, 1.8);
-            col.material.opacity = 1.0;
-            col.material.color.set(0xffffff);
-        } else if (uid && uid === _hoveredUid) {
-            // HOVER: phóng to vừa + sáng hơn + đổi màu vàng
-            col.scale.set(1.4, 1.4, 1.4);
-            col.material.opacity = 1.0;
-            col.material.color.set(0xffff00);
-        } else {
-            // Bình thường: kích thước và màu gốc
-            col.scale.set(1, 1, 1);
-            col.material.opacity = baseOpacity;
-            col.material.color.set(d.color || '#aaaaaa');
-        }
       })
-      .onCustomLayerHover((d) => {
+      .onCustomLayerHover((d, prevD) => {
+        // Bỏ highlight hover cũ
+        if (_hoveredUid && _hoveredUid !== _selectedUid) {
+            const prevGroup = _uidToGroup.get(_hoveredUid);
+            _applyHighlight(prevGroup, 'none', prevGroup && prevGroup.__data);
+        }
         _hoveredUid = d ? (d._uid || null) : null;
+        // Áp highlight hover mới trực tiếp
+        if (_hoveredUid && _hoveredUid !== _selectedUid) {
+            const group = _uidToGroup.get(_hoveredUid);
+            _applyHighlight(group, 'hover', d);
+        }
         if (window.world && !_inspectorOpen) {
-            // Chỉ dừng/tiếp tục xoay khi inspector chưa mở
             window.world.controls().autoRotate = !d;
         }
         document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
       })
       .onCustomLayerClick((d) => {
         if (!d) return;
+        // Bỏ highlight selected cũ
+        if (_selectedUid) {
+            const prevGroup = _uidToGroup.get(_selectedUid);
+            _applyHighlight(prevGroup, 'none', prevGroup && prevGroup.__data);
+        }
         _selectedUid = d._uid || null;
         _inspectorOpen = true;
+        // Áp highlight selected trực tiếp
+        const selGroup = _uidToGroup.get(_selectedUid);
+        _applyHighlight(selGroup, 'selected', d);
         if (window.sfx) window.sfx.playBeep();
         if (window.world) window.world.controls().autoRotate = false;
         window.world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
