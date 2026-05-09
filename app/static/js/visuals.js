@@ -16,31 +16,13 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// Track các đối tượng được hover/click để highlight
-let _hoveredObj = null;
-let _selectedObj = null;
+// Lưu datum đang hover/click — highlight được áp trong customThreeObjectUpdate
+let _hoveredDatum = null;
+let _selectedDatum = null;
 
-function _setHighlight(obj, mode) {
-  if (!obj || !obj.userData || !obj.userData.column) return;
-  const col = obj.userData.column;
-  if (mode === 'selected') {
-    col.scale.set(1.6, 1.6, 1.6);
-    col.material.opacity = 1.0;
-  } else if (mode === 'hover') {
-    col.scale.set(1.3, 1.3, 1.3);
-    col.material.opacity = 0.9;
-  } else {
-    col.scale.set(1, 1, 1);
-    col.material.opacity = col.material._baseOpacity || 0.6;
-  }
-}
-
-// Expose để closeInspector trong main.js có thể gọi để bỏ highlight selected
+// Expose để closeInspector trong main.js gọi bỏ highlight khi đóng bảng
 window.clearSelectedHighlight = () => {
-  if (_selectedObj) {
-    _setHighlight(_selectedObj, 'none');
-    _selectedObj = null;
-  }
+  _selectedDatum = null;
 };
 
 function initGlobe() {
@@ -131,15 +113,9 @@ function initGlobe() {
         // Chạy Animation cho Vòng sóng độc lập (Không bị giật khi Filter)
         if (obj.userData.maxR > 0) {
             obj.userData.animOffset += obj.userData.speed;
-            if (obj.userData.animOffset > 1) {
-                obj.userData.animOffset = 0;
-            }
-            
+            if (obj.userData.animOffset > 1) obj.userData.animOffset = 0;
             const t = obj.userData.animOffset;
-            const currentScale = 1 + t * obj.userData.maxR * 2;
-            
-            obj.userData.ring.scale.set(currentScale, currentScale, currentScale);
-            // Mờ dần về 0 khi lan rộng ra
+            obj.userData.ring.scale.set(1 + t * obj.userData.maxR * 2, 1 + t * obj.userData.maxR * 2, 1);
             obj.userData.ring.material.opacity = (1 - Math.pow(t, 2)) * 0.8;
         }
 
@@ -148,39 +124,34 @@ function initGlobe() {
             obj.userData.column.rotation.y += 0.05;
             obj.userData.column.rotation.z += 0.02;
         }
+
+        // Highlight: So sánh datum d với datum đang được hover/selected
+        const col = obj.userData.column;
+        const baseOpacity = col.material._baseOpacity || 0.6;
+        if (_selectedDatum && d.lat === _selectedDatum.lat && d.lng === _selectedDatum.lng) {
+            col.scale.set(1.6, 1.6, 1.6);
+            col.material.opacity = 1.0;
+        } else if (_hoveredDatum && d.lat === _hoveredDatum.lat && d.lng === _hoveredDatum.lng) {
+            col.scale.set(1.3, 1.3, 1.3);
+            col.material.opacity = 0.9;
+        } else {
+            col.scale.set(1, 1, 1);
+            col.material.opacity = baseOpacity;
+        }
       })
-      .onCustomLayerHover((d, prevD, obj) => {
+      .onCustomLayerHover((d) => {
+        _hoveredDatum = d || null;
         if (window.world) {
             window.world.controls().autoRotate = !d;
             document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
         }
-
-        // Bỏ highlight hover trên đối tượng cũ (trừ khi đang được selected)
-        if (_hoveredObj && _hoveredObj !== _selectedObj) {
-            _setHighlight(_hoveredObj, 'none');
-        }
-        // Áp highlight hover lên đối tượng mới (trừ khi đang được selected)
-        _hoveredObj = obj || null;
-        if (_hoveredObj && _hoveredObj !== _selectedObj) {
-            _setHighlight(_hoveredObj, 'hover');
-        }
       })
-      .onCustomLayerClick((d, obj) => {
+      .onCustomLayerClick((d) => {
         if (!d) return;
+        _selectedDatum = d;
         if (window.sfx) window.sfx.playBeep();
         if (window.world) window.world.controls().autoRotate = false;
         window.world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
-
-        // Bỏ highlight selected trên đối tượng cũ
-        if (_selectedObj && _selectedObj !== obj) {
-            _setHighlight(_selectedObj, 'none');
-        }
-        // Áp highlight selected (to hơn + sáng hơn) lên đối tượng vừa bấm
-        _selectedObj = obj || null;
-        if (_selectedObj) {
-            _setHighlight(_selectedObj, 'selected');
-        }
-
         if (window.showInspector) window.showInspector(d);
       });
 
