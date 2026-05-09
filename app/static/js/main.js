@@ -1033,6 +1033,8 @@ window.updateProximityList = (data) => {
 
 window.closeInspector = () => {
   document.getElementById("inspector").classList.remove("active");
+  // Bỏ highlight của cột đã chọn
+  if (window.clearSelectedHighlight) window.clearSelectedHighlight();
   if (window.world) {
     window.world.controls().autoRotate = true;
     window.world.pointOfView({ altitude: 2.5 }, 2000);

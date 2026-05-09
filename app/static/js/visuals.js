@@ -16,6 +16,33 @@ window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
+// Track các đối tượng được hover/click để highlight
+let _hoveredObj = null;
+let _selectedObj = null;
+
+function _setHighlight(obj, mode) {
+  if (!obj || !obj.userData || !obj.userData.column) return;
+  const col = obj.userData.column;
+  if (mode === 'selected') {
+    col.scale.set(1.6, 1.6, 1.6);
+    col.material.opacity = 1.0;
+  } else if (mode === 'hover') {
+    col.scale.set(1.3, 1.3, 1.3);
+    col.material.opacity = 0.9;
+  } else {
+    col.scale.set(1, 1, 1);
+    col.material.opacity = col.material._baseOpacity || 0.6;
+  }
+}
+
+// Expose để closeInspector trong main.js có thể gọi để bỏ highlight selected
+window.clearSelectedHighlight = () => {
+  if (_selectedObj) {
+    _setHighlight(_selectedObj, 'none');
+    _selectedObj = null;
+  }
+};
+
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
@@ -54,6 +81,8 @@ function initGlobe() {
           blending: THREE.AdditiveBlending,
         });
         const column = new THREE.Mesh(colGeo, colMat);
+        // Lưu opacity gốc để restore khi bỏ highlight
+        colMat._baseOpacity = isAI ? 0.8 : 0.6;
         group.add(column);
 
         // --- 2. Vẽ Vòng Sóng (Wave Ring) ---
@@ -120,20 +149,38 @@ function initGlobe() {
             obj.userData.column.rotation.z += 0.02;
         }
       })
-      .onCustomLayerHover((d) => {
+      .onCustomLayerHover((d, prevD, obj) => {
         if (window.world) {
-            // Ngừng xoay địa cầu khi hover vào một cột để dễ click
             window.world.controls().autoRotate = !d;
-            
-            // Đổi con trỏ chuột thành pointer nếu đang hover
             document.getElementById("globe-viz").style.cursor = d ? 'pointer' : 'default';
         }
+
+        // Bỏ highlight hover trên đối tượng cũ (trừ khi đang được selected)
+        if (_hoveredObj && _hoveredObj !== _selectedObj) {
+            _setHighlight(_hoveredObj, 'none');
+        }
+        // Áp highlight hover lên đối tượng mới (trừ khi đang được selected)
+        _hoveredObj = obj || null;
+        if (_hoveredObj && _hoveredObj !== _selectedObj) {
+            _setHighlight(_hoveredObj, 'hover');
+        }
       })
-      .onCustomLayerClick((d) => {
+      .onCustomLayerClick((d, obj) => {
         if (!d) return;
         if (window.sfx) window.sfx.playBeep();
         if (window.world) window.world.controls().autoRotate = false;
         window.world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
+
+        // Bỏ highlight selected trên đối tượng cũ
+        if (_selectedObj && _selectedObj !== obj) {
+            _setHighlight(_selectedObj, 'none');
+        }
+        // Áp highlight selected (to hơn + sáng hơn) lên đối tượng vừa bấm
+        _selectedObj = obj || null;
+        if (_selectedObj) {
+            _setHighlight(_selectedObj, 'selected');
+        }
+
         if (window.showInspector) window.showInspector(d);
       });
 
