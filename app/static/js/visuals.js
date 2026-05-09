@@ -119,8 +119,7 @@ function initGlobe() {
             obj.userData.column.rotation.z += 0.02;
         }
       })
-      .onCustomLayerClick((obj) => {
-        const d = obj.__data;
+      .onCustomLayerClick((d) => {
         if (!d) return;
         if (window.sfx) window.sfx.playBeep();
         if (window.world) window.world.controls().autoRotate = false;
