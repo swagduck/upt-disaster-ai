@@ -56,8 +56,8 @@ function initGlobe() {
         group.add(column);
 
         // --- 2. Vẽ Vòng Sóng (Wave Ring) ---
-        // Vòng sóng chỉ được vẽ nếu có maxR > 0
-        const ringGeo = new THREE.RingGeometry(0.8, 1.5, 32);
+        // Vòng sóng được thiết kế là một viền mảnh, lan tỏa ra xung quanh
+        const ringGeo = new THREE.RingGeometry(1.4, 1.5, 32); // Viền mỏng
         const ringMat = new THREE.MeshBasicMaterial({
           color: d.color,
           transparent: true,
@@ -68,6 +68,7 @@ function initGlobe() {
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = -Math.PI / 2; // Đặt nằm ngang so với cột
+        ring.raycast = function() {}; // QUAN TRỌNG: Vô hiệu hóa click vào vòng sóng để không che mất Cột
         
         if (d.maxR > 0) {
             group.add(ring);
@@ -87,6 +88,7 @@ function initGlobe() {
         group.__data = d;
         return group;
       })
+      .customLayerLabel(d => d.place || d.type) // Kích hoạt tương tác Hover/Click cho Custom Layer
       .customThreeObjectUpdate((obj, d) => {
         // Cập nhật vị trí lên bề mặt quả cầu (alt = 0)
         Object.assign(obj.position, window.world.getCoords(d.lat, d.lng, 0));
