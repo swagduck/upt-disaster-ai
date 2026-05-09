@@ -63,13 +63,13 @@ function initGlobe() {
           blending: THREE.AdditiveBlending,
         });
         const column = new THREE.Mesh(colGeo, colMat);
-        // Lưu opacity gốc để restore khi bỏ highlight
         colMat._baseOpacity = isAI ? 0.8 : 0.6;
+        // FIX: gắn __data vào cả mesh con để Globe.gl tìm được datum khi raycast trúng cylinder
+        column.__data = d;
         group.add(column);
 
         // --- 2. Vẽ Vòng Sóng (Wave Ring) ---
-        // Vòng sóng được thiết kế là một viền mảnh, lan tỏa ra xung quanh
-        const ringGeo = new THREE.RingGeometry(1.4, 1.5, 32); // Viền mỏng
+        const ringGeo = new THREE.RingGeometry(1.4, 1.5, 32);
         const ringMat = new THREE.MeshBasicMaterial({
           color: d.color,
           transparent: true,
@@ -79,36 +79,38 @@ function initGlobe() {
           depthWrite: false
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = -Math.PI / 2; // Đặt nằm ngang so với cột
-        ring.raycast = function() {}; // QUAN TRỌNG: Vô hiệu hóa click vào vòng sóng để không che mất Cột
-        
+        ring.rotation.x = -Math.PI / 2;
+        ring.raycast = function() {}; // Tắt raycast vòng sóng, không cản click vào cột
+        ring.__data = d; // safety
+
         if (d.maxR > 0) {
             group.add(ring);
         }
 
-        // Lưu trữ biến state animation
         group.userData = {
           ring: ring,
           column: column,
           maxR: d.maxR || 0,
           speed: (d.propagationSpeed || 2) * 0.005,
-          animOffset: Math.random(), // Chạy lệch pha nhau
-          isAI: isAI
+          animOffset: Math.random(),
+          isAI: isAI,
+          oriented: false // FIX: chỉ orient 1 lần, không tích lũy rotateX mỗi frame
         };
 
-        // Quan trọng: Gắn dữ liệu gốc để dùng cho sự kiện Click
         group.__data = d;
         return group;
       })
       .customLayerLabel(d => d.place || d.type) // Kích hoạt tương tác Hover/Click cho Custom Layer
       .customThreeObjectUpdate((obj, d) => {
-        // Cập nhật vị trí lên bề mặt quả cầu (alt = 0)
         Object.assign(obj.position, window.world.getCoords(d.lat, d.lng, 0));
-        
-        // Hướng trục Y của Cụm ra ngoài không gian
-        const lookDir = obj.position.clone().multiplyScalar(2);
-        obj.lookAt(lookDir);
-        obj.rotateX(Math.PI / 2);
+
+        // FIX: chỉ orient lần đầu, tránh rotateX tích lũy mỗi frame
+        if (!obj.userData.oriented) {
+            const lookDir = obj.position.clone().multiplyScalar(2);
+            obj.lookAt(lookDir);
+            obj.rotateX(Math.PI / 2);
+            obj.userData.oriented = true;
+        }
 
         // Chạy Animation cho Vòng sóng độc lập (Không bị giật khi Filter)
         if (obj.userData.maxR > 0) {
@@ -125,13 +127,13 @@ function initGlobe() {
             obj.userData.column.rotation.z += 0.02;
         }
 
-        // Highlight: So sánh datum d với datum đang được hover/selected
+        // Highlight dùng reference equality (cùng object datum)
         const col = obj.userData.column;
         const baseOpacity = col.material._baseOpacity || 0.6;
-        if (_selectedDatum && d.lat === _selectedDatum.lat && d.lng === _selectedDatum.lng) {
+        if (d === _selectedDatum) {
             col.scale.set(1.6, 1.6, 1.6);
             col.material.opacity = 1.0;
-        } else if (_hoveredDatum && d.lat === _hoveredDatum.lat && d.lng === _hoveredDatum.lng) {
+        } else if (d === _hoveredDatum) {
             col.scale.set(1.3, 1.3, 1.3);
             col.material.opacity = 0.9;
         } else {
