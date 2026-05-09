@@ -52,7 +52,8 @@ async def predict_disaster(request: PredictionRequest):
     prob_index = UPTMath.calculate_collapse_probability(
         avg_anomaly, avg_energy, request.geo_vulnerability
     )
-    resonance = UPTMath.calculate_resonance(request.sensors)
+    sensor_dicts = [s.model_dump() for s in request.sensors]
+    resonance = UPTMath.calculate_resonance(sensor_dicts)
     stability = UPTMath.calculate_stability(
         resonance, request.environmental_noise, request.active_dampening
     )

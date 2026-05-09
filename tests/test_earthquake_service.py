@@ -4,6 +4,7 @@ and app.services.earthquake_service.DisasterService (mocked HTTP calls).
 """
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
+import httpx
 
 
 # ── _extract_features (DeepGuardian) ─────────────────────────────────────────
@@ -75,15 +76,15 @@ class TestDisasterServiceFetch:
     @pytest.mark.asyncio
     async def test_processes_usgs_earthquake(self, usgs_geojson):
         """A magnitude 6.5 event must be added to sensor list and trigger reactor shock."""
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = usgs_geojson
 
-        empty_resp = MagicMock()
+        empty_resp = MagicMock(spec=httpx.Response)
         empty_resp.status_code = 200
         empty_resp.json.return_value = {"events": []}  # EONET
 
-        solar_resp = MagicMock()
+        solar_resp = MagicMock(spec=httpx.Response)
         solar_resp.status_code = 200
         solar_resp.json.return_value = []  # DONKI
 
@@ -120,15 +121,15 @@ class TestDisasterServiceFetch:
                 }
             ]
         }
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = usgs_data
 
-        empty_resp = MagicMock()
+        empty_resp = MagicMock(spec=httpx.Response)
         empty_resp.status_code = 200
         empty_resp.json.return_value = {"events": []}
 
-        solar_resp = MagicMock()
+        solar_resp = MagicMock(spec=httpx.Response)
         solar_resp.status_code = 200
         solar_resp.json.return_value = []
 
@@ -154,15 +155,15 @@ class TestDisasterServiceFetch:
     @pytest.mark.asyncio
     async def test_no_telegram_when_bot_not_configured(self, usgs_geojson):
         """Alerts must silently no-op when Telegram is not configured."""
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = usgs_geojson
 
-        empty_resp = MagicMock()
+        empty_resp = MagicMock(spec=httpx.Response)
         empty_resp.status_code = 200
         empty_resp.json.return_value = {"events": []}
 
-        solar_resp = MagicMock()
+        solar_resp = MagicMock(spec=httpx.Response)
         solar_resp.status_code = 200
         solar_resp.json.return_value = []
 
