@@ -1,99 +1,130 @@
-// --- VISUALIZATION MODULE (Clean Version) ---
+// --- VISUALIZATION MODULE (Custom Layer V2) ---
 
-// 1. Dữ liệu tĩnh (Chỉ giữ lại Nhà máy điện hạt nhân vì nó là toạ độ thật cố định)
 const nuclearPlants = [
   { name: "Fukushima Daiichi", lat: 37.421, lng: 141.033, desc: "Japan" },
   { name: "Zaporizhzhia", lat: 47.512, lng: 34.586, desc: "Ukraine" },
   { name: "Kashiwazaki-Kariwa", lat: 37.429, lng: 138.596, desc: "Japan" },
   { name: "Diablo Canyon", lat: 35.211, lng: -120.855, desc: "USA" },
-  {
-    name: "Kori Nuclear Power Plant",
-    lat: 35.316,
-    lng: 129.292,
-    desc: "South Korea",
-  },
+  { name: "Kori Nuclear Power Plant", lat: 35.316, lng: 129.292, desc: "South Korea" },
   { name: "Bruce Nuclear Gen", lat: 44.325, lng: -81.599, desc: "Canada" },
   { name: "Gravelines", lat: 51.015, lng: 2.136, desc: "France" },
 ];
 
 window.nuclearPlants = nuclearPlants;
 
-// Khai báo biến toàn cục
 window.world = null;
 window.waveChart = null;
 window.radarChart = null;
 
-// 2. Khởi tạo Globe
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
-      // --- CẤU HÌNH HÌNH ẢNH ---
       .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
       .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
       .atmosphereColor("#00f3ff")
       .atmosphereAltitude(0.25)
-      // -------------------------------
 
-      .pointAltitude("alt")
-      .pointColor("color")
-      .pointRadius(0.5)
-      .pointsMerge(false)
-      .ringColor("color")
-      .ringMaxRadius("maxR")
-      .ringPropagationSpeed("propagationSpeed")
-      .ringRepeatPeriod("repeatPeriod")
+      // Cấu hình Custom Layer cho Cột và Vòng sóng
+      .customThreeObject((d) => {
+        const group = new THREE.Group();
+        const isNuclear = d.type === "NUCLEAR PLANT";
+        const isAI = d.type === "AI PREDICTION";
 
-      // [XÓA] Dòng .customLayerData(satData) cũ đã bị xóa
-      // .customLayerData([]) // Để trống hoặc xóa hẳn dòng này
-
-      .customThreeObjectUpdate((obj, d) => {
-        Object.assign(
-          obj.position,
-          window.world.getCoords(d.lat, d.lng, d.alt)
-        );
-        obj.rotation.y += 0.1;
-
-        // Hiệu ứng AI
-        if (d.type === "AI PREDICTION") {
-          obj.rotation.x += 0.05;
-          obj.rotation.z += 0.05;
+        // --- 1. Vẽ Cột Năng Lượng (Column) ---
+        const colHeight = Math.max((d.alt || 0) * 15, isNuclear ? 4 : 0.5);
+        let colGeo;
+        if (isAI) {
+            colGeo = new THREE.IcosahedronGeometry(1.5, 0);
+            colGeo.translate(0, 1.5, 0);
+        } else if (isNuclear) {
+            colGeo = new THREE.CylinderGeometry(0.8, 0.8, colHeight, 6);
+            colGeo.translate(0, colHeight / 2, 0);
+        } else {
+            colGeo = new THREE.CylinderGeometry(0.1, 0.6, colHeight, 8);
+            colGeo.translate(0, colHeight / 2, 0);
         }
-      })
-      .onPointClick((d) => {
-        if (window.sfx) window.sfx.playBeep();
-        if (window.world) window.world.controls().autoRotate = false;
-        window.world.pointOfView(
-          { lat: d.lat, lng: d.lng, altitude: 1.2 },
-          1500
-        );
-        if (window.showInspector) window.showInspector(d);
-      });
 
-    // --- LOGIC HÌNH KHỐI 3D ---
-    window.world.customThreeObject((d) => {
-      let geometry, material;
-
-      if (d.type === "NUCLEAR PLANT") {
-        geometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
-        material = new THREE.MeshBasicMaterial({ color: d.color });
-      } else if (d.type === "AI PREDICTION") {
-        geometry = new THREE.IcosahedronGeometry(1.5, 0);
-        material = new THREE.MeshBasicMaterial({
+        const colMat = new THREE.MeshBasicMaterial({
           color: d.color,
-          wireframe: true,
+          transparent: true,
+          opacity: isAI ? 0.8 : 0.6,
+          wireframe: isAI,
+          blending: THREE.AdditiveBlending,
+        });
+        const column = new THREE.Mesh(colGeo, colMat);
+        group.add(column);
+
+        // --- 2. Vẽ Vòng Sóng (Wave Ring) ---
+        // Vòng sóng chỉ được vẽ nếu có maxR > 0
+        const ringGeo = new THREE.RingGeometry(0.8, 1.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: d.color,
           transparent: true,
           opacity: 0.8,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
         });
-      }
-      // [XÓA] Logic vẽ SATELLITE (Hình cầu)
-      else {
-        geometry = new THREE.TetrahedronGeometry(1.2);
-        material = new THREE.MeshBasicMaterial({ color: d.color });
-      }
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2; // Đặt nằm ngang so với cột
+        
+        if (d.maxR > 0) {
+            group.add(ring);
+        }
 
-      return new THREE.Mesh(geometry, material);
-    });
+        // Lưu trữ biến state animation
+        group.userData = {
+          ring: ring,
+          column: column,
+          maxR: d.maxR || 0,
+          speed: (d.propagationSpeed || 2) * 0.005,
+          animOffset: Math.random(), // Chạy lệch pha nhau
+          isAI: isAI
+        };
+
+        // Quan trọng: Gắn dữ liệu gốc để dùng cho sự kiện Click
+        group.__data = d;
+        return group;
+      })
+      .customThreeObjectUpdate((obj, d) => {
+        // Cập nhật vị trí lên bề mặt quả cầu (alt = 0)
+        Object.assign(obj.position, window.world.getCoords(d.lat, d.lng, 0));
+        
+        // Hướng trục Y của Cụm ra ngoài không gian
+        const lookDir = obj.position.clone().multiplyScalar(2);
+        obj.lookAt(lookDir);
+        obj.rotateX(Math.PI / 2);
+
+        // Chạy Animation cho Vòng sóng độc lập (Không bị giật khi Filter)
+        if (obj.userData.maxR > 0) {
+            obj.userData.animOffset += obj.userData.speed;
+            if (obj.userData.animOffset > 1) {
+                obj.userData.animOffset = 0;
+            }
+            
+            const t = obj.userData.animOffset;
+            const currentScale = 1 + t * obj.userData.maxR * 2;
+            
+            obj.userData.ring.scale.set(currentScale, currentScale, currentScale);
+            // Mờ dần về 0 khi lan rộng ra
+            obj.userData.ring.material.opacity = (1 - Math.pow(t, 2)) * 0.8;
+        }
+
+        // Xoay khối cầu AI
+        if (obj.userData.isAI) {
+            obj.userData.column.rotation.y += 0.05;
+            obj.userData.column.rotation.z += 0.02;
+        }
+      })
+      .onCustomLayerClick((obj) => {
+        const d = obj.__data;
+        if (!d) return;
+        if (window.sfx) window.sfx.playBeep();
+        if (window.world) window.world.controls().autoRotate = false;
+        window.world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.2 }, 1500);
+        if (window.showInspector) window.showInspector(d);
+      });
 
     window.world.controls().autoRotate = true;
     window.world.controls().autoRotateSpeed = 0.15;
@@ -102,7 +133,6 @@ function initGlobe() {
   }
 }
 
-// 3. Khởi tạo Biểu đồ (Giữ nguyên)
 function initCharts() {
   Chart.defaults.color = "#666";
   Chart.defaults.font.family = "Rajdhani";

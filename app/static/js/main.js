@@ -265,12 +265,7 @@ function applyFilters() {
 
   // Cập nhật lên quả cầu
   if (window.world) {
-    window.world.pointsData(filteredData);
-    // Cap rings to top 30 by maxR to avoid GPU overload
-    const ringsData = filteredData.filter((d) => d.maxR > 0)
-                                  .sort((a, b) => b.maxR - a.maxR)
-                                  .slice(0, 30);
-    window.world.ringsData(ringsData);
+    window.world.customLayerData(filteredData);
   }
   
   // Debounce proximity list — only recalculate if GPS is set
