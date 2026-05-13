@@ -73,6 +73,9 @@ class AlertService:
             if not phone:
                 continue
                 
+            # Chuẩn hóa số điện thoại: Xóa khoảng trắng
+            phone = phone.replace(" ", "")
+                
             try:
                 client.messages.create(
                     body=msg_body,
