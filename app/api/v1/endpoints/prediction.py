@@ -208,7 +208,7 @@ async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
         "model_type": "HistGradientBoosting Time-Series"
     }
 
-@router.get("/global-scan", dependencies=[Depends(require_api_key)])
+@router.get("/global-scan")
 @limiter.limit("5/minute")
 async def global_scan(request: Request):
     """AI-powered risk forecast for major global fault lines."""

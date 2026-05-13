@@ -200,6 +200,55 @@
       .kpi-grid { grid-template-columns: repeat(2, 1fr); }
       .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
     }
+
+    /* ─── AI SCAN PANEL ─── */
+    .scan-panel {
+      background: var(--panel-bg); border: 1px solid rgba(189,0,255,0.3);
+      padding: 20px; margin-bottom: 24px;
+      clip-path: polygon(0 0, 100% 0, 100% 96%, 98% 100%, 0 100%);
+    }
+    .scan-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .scan-title {
+      font-family: var(--tech-font); font-size: 0.7rem; letter-spacing: 2px; color: #666;
+      text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+    }
+    .scan-title::before { content: '//'; color: var(--neon-purple); }
+    .scan-btn {
+      background: rgba(189,0,255,0.1); border: 1px solid var(--neon-purple);
+      color: var(--neon-purple); padding: 6px 18px; cursor: pointer;
+      font-family: var(--tech-font); font-size: 0.65rem; letter-spacing: 2px;
+      transition: 0.2s;
+    }
+    .scan-btn:hover { background: rgba(189,0,255,0.25); box-shadow: 0 0 15px rgba(189,0,255,0.3); }
+    .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .scan-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+    }
+    .scan-row {
+      display: flex; align-items: center; gap: 10px; padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .scan-name {
+      font-family: var(--data-font); font-size: 0.88rem; color: #aaa;
+      width: 170px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .scan-bar-wrap {
+      flex: 1; background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; overflow: hidden;
+    }
+    .scan-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+    .scan-pct {
+      font-family: var(--tech-font); font-size: 0.75rem; width: 42px; text-align: right; flex-shrink: 0;
+    }
+    .scan-badge {
+      font-family: var(--code-font); font-size: 0.75rem;
+      padding: 1px 6px; border-left: 2px solid currentColor; width: 72px; flex-shrink: 0;
+    }
+    #scan-status {
+      font-family: var(--code-font); font-size: 0.85rem; color: #555;
+      margin-top: 12px; text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -305,6 +354,20 @@
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- AI SCAN PANEL -->
+  <div class="scan-panel">
+    <div class="scan-header">
+      <div class="scan-title">AI RISK ASSESSMENT — GLOBAL FAULT LINE SCAN</div>
+      <button class="scan-btn" id="scan-btn" onclick="runScan()">&#9658; RUN SCAN</button>
+    </div>
+    <div class="scan-grid" id="scan-grid">
+      <div style="grid-column:span 2;text-align:center;color:#444;font-family:var(--code-font);padding:20px;">
+        Press [RUN SCAN] to query the Guardian AI for real-time global risk assessment.
+      </div>
+    </div>
+    <div id="scan-status"></div>
   </div>
 
 </div>
@@ -507,6 +570,56 @@
       document.getElementById('last-updated').innerText = '> UPDATE FAILED';
     }
     document.getElementById('loading').style.display = 'none';
+  }
+
+  async function runScan() {
+    const btn = document.getElementById('scan-btn');
+    const grid = document.getElementById('scan-grid');
+    const status = document.getElementById('scan-status');
+    btn.disabled = true;
+    btn.textContent = '... SCANNING';
+    status.textContent = '> Querying Guardian AI for 20 hotspots...';
+    grid.innerHTML = '<div style="grid-column:span 2;text-align:center;color:#555;font-family:var(--code-font);padding:20px;"><div class="spinner" style="margin:auto"></div></div>';
+
+    try {
+      const res  = await fetch('/api/v1/predict/global-scan');
+      const data = await res.json();
+      const regions = data.data || [];
+
+      if (regions.length === 0) {
+        grid.innerHTML = '<div style="grid-column:span 2;text-align:center;color:#555;font-family:var(--code-font);padding:20px;">No data. AI may not be trained yet.</div>';
+        return;
+      }
+
+      // Sort by risk descending
+      regions.sort((a, b) => b.risk_score - a.risk_score);
+
+      grid.innerHTML = regions.map(r => {
+        const pct  = (r.risk_score * 100).toFixed(1);
+        const isCrit = r.alert_level === 'CRITICAL';
+        const isWarn = r.alert_level === 'WARNING';
+        const color  = isCrit ? 'var(--neon-red)' : (isWarn ? 'var(--neon-gold)' : 'var(--neon-green)');
+        return `
+          <div class="scan-row">
+            <div class="scan-name" title="${r.name}">${r.name}</div>
+            <div class="scan-bar-wrap">
+              <div class="scan-bar" style="width:${pct}%;background:${color};"></div>
+            </div>
+            <div class="scan-pct" style="color:${color};">${pct}%</div>
+            <div class="scan-badge" style="color:${color};">${r.alert_level}</div>
+          </div>`;
+      }).join('');
+
+      const crits = regions.filter(r => r.alert_level === 'CRITICAL').length;
+      const warns = regions.filter(r => r.alert_level === 'WARNING').length;
+      status.innerHTML = `> Scan complete &mdash; <span style="color:var(--neon-red)">${crits} CRITICAL</span> | <span style="color:var(--neon-gold)">${warns} WARNING</span> | ${regions.length - crits - warns} NORMAL`;
+    } catch(e) {
+      status.textContent = '> Scan failed. Check server connection.';
+      grid.innerHTML = '';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '\u25b8 RUN SCAN';
+    }
   }
 
   // Boot
