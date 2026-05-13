@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from collections import deque
 
 from app.core.database import Database
@@ -13,6 +14,7 @@ class DeepGuardian:
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.look_back = 20  # Tăng lên 20 để có tầm nhìn dài hơn (Time-Series)
         self.is_trained = False
+        self.metrics = {"mse": 0.0, "mae": 0.0, "accuracy_score": 0.0}
         
         # HistGradientBoostingRegressor: siêu tiết kiệm RAM và cực kỳ mạnh mẽ
         self.model = HistGradientBoostingRegressor(
@@ -100,7 +102,34 @@ class DeepGuardian:
         logger.info(
             f"[DEEP CORE] ✅ LITE Training complete — {len(X)} sequences learned from memory using HistGradientBoosting."
         )
+        
+        # Đánh giá độ chính xác ngay trên tập dữ liệu này
+        self.evaluate_accuracy(X, y)
+        
         return len(X)
+
+    def evaluate_accuracy(self, X, y):
+        """Đánh giá độ chính xác của AI trên tập dữ liệu."""
+        if len(X) == 0:
+            return
+            
+        try:
+            preds = self.model.predict(np.array(X))
+            mse = mean_squared_error(y, preds)
+            mae = mean_absolute_error(y, preds)
+            
+            # Tính điểm Accuracy Score tương đối (1 - sai số tuyệt đối trung bình so với biên độ)
+            # Vì target y nằm trong khoảng [0, 1] nên max error có thể là 1.
+            accuracy_score = max(0.0, (1.0 - mae)) * 100
+            
+            self.metrics = {
+                "mse": round(mse, 4),
+                "mae": round(mae, 4),
+                "accuracy_score": round(accuracy_score, 2)
+            }
+            logger.info(f"[DEEP CORE] AI Accuracy Evaluated: {self.metrics['accuracy_score']}% (MSE={self.metrics['mse']})")
+        except Exception as e:
+            logger.error(f"[DEEP CORE] Evaluation failed: {e}")
 
     def update_realtime_state(self, sensors):
         features = self._extract_features(sensors)

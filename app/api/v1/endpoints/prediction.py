@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from fastapi_cache.decorator import cache
+from fastapi import BackgroundTasks
 from typing import List, Optional
 
 from app.services.earthquake_service import DisasterService
@@ -10,6 +11,7 @@ from app.upt_engine.deep_core import guardian_brain
 from app.core.logger import get_logger
 from app.core.limiter import limiter
 from app.core.security import require_api_key
+from app.services.alert_service import AlertService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -35,6 +37,10 @@ class NeuralPredictionRequest(BaseModel):
     lat: float
     lon: float
     simulated_energy: float = 0.5
+
+class SubscribeAlertRequest(BaseModel):
+    phone_number: str
+    region: str = "GLOBAL"
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -128,6 +134,25 @@ async def get_ai_status():
         "model_type": "Gradient Boosting (Scikit-Learn)",
     }
 
+@router.get("/evaluation")
+async def get_ai_evaluation():
+    """Return the current accuracy metrics of the Guardian AI."""
+    if not guardian_brain.is_trained:
+        return {"status": "NO_DATA", "message": "Model has not been trained yet."}
+    return {
+        "status": "EVALUATED",
+        "metrics": guardian_brain.metrics
+    }
+
+@router.post("/subscribe-alerts")
+@limiter.limit("5/minute")
+async def subscribe_alerts(req: SubscribeAlertRequest, request: Request):
+    """Subscribe a phone number to SMS alerts."""
+    success = AlertService.subscribe(req.phone_number, req.region)
+    if success:
+        return {"message": f"Successfully subscribed {req.phone_number} to disaster alerts."}
+    return {"error": "Subscription failed. Check server logs."}
+
 
 @router.post("/train", dependencies=[Depends(require_api_key)])
 @limiter.limit("5/minute")
@@ -149,7 +174,7 @@ async def trigger_training(request: Request):
 
 @router.post("/forecast", dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
-async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
+async def forecast_disaster(req: NeuralPredictionRequest, request: Request, background_tasks: BackgroundTasks):
     """AI-powered risk forecast at a specific coordinate."""
     risk = await run_in_threadpool(
         guardian_brain.predict_risk, req.lat, req.lon, req.simulated_energy, 0.5
@@ -157,7 +182,13 @@ async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
 
     alert_level = "NORMAL"
     if risk > 0.5: alert_level = "WARNING"
-    if risk > 0.8: alert_level = "CRITICAL"
+    if risk > 0.8: 
+        alert_level = "CRITICAL"
+        # Gửi SMS qua Background Tasks để không làm chậm API
+        background_tasks.add_task(
+            AlertService.send_critical_alert, 
+            req.lat, req.lon, risk, alert_level
+        )
 
     logger.info(
         f"[PREDICTION API] AI forecast at ({req.lat}, {req.lon}): "

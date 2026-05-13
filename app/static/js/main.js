@@ -590,6 +590,22 @@ window.processCommand = async function (cmd) {
       );
     return;
   }
+  if (cmd === "eval" || cmd === "metrics") {
+    printTerm("Querying AI Accuracy Metrics...", "ai");
+    fetch("/api/v1/predict/evaluation")
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "EVALUATED") {
+          printTerm(`--- AI ACCURACY REPORT ---`, "sys");
+          printTerm(`Accuracy Score: ${data.metrics.accuracy_score}%`, "tf");
+          printTerm(`MSE: ${data.metrics.mse} | MAE: ${data.metrics.mae}`, "sys");
+        } else {
+          printTerm(`AI Evaluation: ${data.message}`, "err");
+        }
+      })
+      .catch(e => printTerm("Evaluation Failed.", "err"));
+    return;
+  }
 
   // Reactor
   if (cmd === "scram" || cmd === "shutdown") {
@@ -638,10 +654,37 @@ window.processCommand = async function (cmd) {
 
   if (cmd === "help")
     printTerm(
-      "Commands: scan, locate, train, predict, scram, mute, [location]...",
+      "Commands: scan, locate, train, predict, eval, scram, mute, [location]...",
       "sys"
     );
   else printTerm("Command not recognized.", "err");
+};
+
+window.subscribeSMS = async function() {
+  const phoneInput = document.getElementById("sms-phone");
+  const phone = phoneInput.value.trim();
+  if(!phone || phone.length < 5) {
+    printTerm("Invalid phone number format.", "err");
+    return;
+  }
+  
+  printTerm(`Registering ${phone} for SMS Alerts...`, "sys");
+  try {
+    const res = await fetch("/api/v1/predict/subscribe-alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone_number: phone, region: "GLOBAL" })
+    });
+    const data = await res.json();
+    if(res.ok) {
+      printTerm(data.message, "tf");
+      phoneInput.value = "";
+    } else {
+      printTerm(data.error || "Subscription failed.", "err");
+    }
+  } catch(e) {
+    printTerm("Network error during subscription.", "err");
+  }
 };
 
 function setAllFilters(state) {

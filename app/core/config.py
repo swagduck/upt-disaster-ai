@@ -47,6 +47,20 @@ class Settings(BaseSettings):
         description="Telegram chat ID to receive alerts.",
     )
 
+    # ── Twilio Alerts ─────────────────────────────────────────────────────────
+    TWILIO_ACCOUNT_SID: Optional[str] = Field(
+        default=None,
+        description="Twilio Account SID.",
+    )
+    TWILIO_AUTH_TOKEN: Optional[str] = Field(
+        default=None,
+        description="Twilio Auth Token.",
+    )
+    TWILIO_FROM_NUMBER: Optional[str] = Field(
+        default=None,
+        description="Twilio Phone Number to send from.",
+    )
+
     # ── Security ─────────────────────────────────────────────────────────────
     ALLOWED_ORIGINS: str = Field(
         default="*",
