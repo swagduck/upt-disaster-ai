@@ -125,7 +125,7 @@ async def get_ai_status():
     return {
         "status": "ONLINE" if guardian_brain.is_trained else "INITIALIZING",
         "buffer_size": len(guardian_brain.realtime_buffer),
-        "model_type": "LSTM (TensorFlow/Keras)",
+        "model_type": "Gradient Boosting (Scikit-Learn)",
     }
 
 

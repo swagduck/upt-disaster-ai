@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.neural_network import MLPRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.preprocessing import MinMaxScaler
 from collections import deque
 
@@ -11,21 +11,22 @@ logger = get_logger(__name__)
 class DeepGuardian:
     def __init__(self):
         self.scaler = MinMaxScaler(feature_range=(0, 1))
-        self.look_back = 5
+        self.look_back = 20  # Tăng lên 20 để có tầm nhìn dài hơn (Time-Series)
         self.is_trained = False
         
-        # MLP Neural Network (Lightweight AI)
-        self.model = MLPRegressor(
-            hidden_layer_sizes=(32, 16),
-            max_iter=50, # Fast training
+        # HistGradientBoostingRegressor: siêu tiết kiệm RAM và cực kỳ mạnh mẽ
+        self.model = HistGradientBoostingRegressor(
+            max_iter=200, 
+            learning_rate=0.1,
+            max_depth=5,
             random_state=42
         )
 
         self.realtime_buffer = deque(maxlen=self.look_back)
 
     def initialize(self):
-        """Khởi tạo mô hình AI Lightweight (MLP) và huấn luyện từ MongoDB."""
-        logger.info("[DEEP CORE] 🧠 DeepGuardian LITE initialized. Connecting to memory...")
+        """Khởi tạo AI và huấn luyện từ MongoDB."""
+        logger.info("[DEEP CORE] 🧠 DeepGuardian initialized. Connecting to memory...")
         try:
             if Database.db is not None:
                 self.train_from_memory()
@@ -38,7 +39,14 @@ class DeepGuardian:
 
         avg_energy = np.mean([s.get("energy_level", 0) for s in sensors])
         avg_anomaly = np.mean([s.get("anomaly_score", 0) for s in sensors])
-        max_mag = max(s.get("raw_val", 0) for s in sensors)
+        
+        # An toàn khi list rỗng
+        max_mag = 0.0
+        try:
+            max_mag = max(s.get("raw_val", 0) for s in sensors)
+        except ValueError:
+            pass
+            
         event_count_norm = min(len(sensors) / 200.0, 1.0)
 
         cosmic_energy = 0.0
@@ -54,8 +62,9 @@ class DeepGuardian:
             return 0
 
         try:
-            logs = list(col.find().sort("timestamp", -1).limit(1000))
-            logs.reverse() # chronological order
+            # Tăng dữ liệu lên 3000 vì Gradient Boosting xử lý rất nhanh mà không tốn RAM
+            logs = list(col.find().sort("timestamp", -1).limit(3000))
+            logs.reverse() # chronologically ascending
         except Exception as e:
             logger.error(f"[DEEP CORE] Failed to read training data from DB: {e}")
             return 0
@@ -78,31 +87,32 @@ class DeepGuardian:
         dataset_scaled = self.scaler.transform(dataset)
 
         X, y = [], []
-        # Flatten the look_back window into a 1D array of look_back*5 size
+        # Kỹ thuật Trượt Cửa Sổ (Time-Series Windowing)
         for i in range(self.look_back, len(dataset_scaled)):
             window = dataset_scaled[i - self.look_back: i, :]
             X.append(window.flatten())
-            y.append(dataset_scaled[i, 2])  # Target: next MaxMag
+            # Target: Dự đoán mức độ rủi ro chung của chu kỳ kế tiếp (dựa vào max_mag và anomaly)
+            target_risk = (dataset_scaled[i, 1] + dataset_scaled[i, 2]) / 2.0
+            y.append(target_risk)
 
         self.model.fit(np.array(X), np.array(y))
         self.is_trained = True
         logger.info(
-            f"[DEEP CORE] ✅ LITE Training complete — {len(X)} sequences learned from memory."
+            f"[DEEP CORE] ✅ LITE Training complete — {len(X)} sequences learned from memory using HistGradientBoosting."
         )
         return len(X)
 
     def update_realtime_state(self, sensors):
         features = self._extract_features(sensors)
         self.realtime_buffer.append(features)
-        logger.debug(f"[DEEP CORE] Realtime buffer updated.")
+        logger.debug(f"[DEEP CORE] Realtime buffer updated. Size: {len(self.realtime_buffer)}/{self.look_back}")
 
     def learn(self, sensors):
         return self.update_realtime_state(sensors)
 
     def predict_risk(self, lat, lon, local_energy, local_anomaly):
         """
-        Predicted Risk = Global Instability (MLP) × Local Vulnerability factor.
-        Falls back to formula-based estimate when buffer is insufficient.
+        Predicted Risk = Global Instability (Gradient Boosting) × Local Vulnerability factor.
         """
         if len(self.realtime_buffer) < self.look_back:
             return local_energy * 0.7 + local_anomaly * 0.3
@@ -113,14 +123,16 @@ class DeepGuardian:
         try:
             raw_seq = np.array(list(self.realtime_buffer))
             seq_scaled = self.scaler.transform(raw_seq)
-            # Flatten window to 1D
+            # Làm phẳng cửa sổ
             input_flattened = seq_scaled.flatten().reshape(1, -1)
             global_instability = float(self.model.predict(input_flattened)[0])
             final_risk = global_instability * (0.5 + local_energy)
-            return min(final_risk, 1.0)
+            
+            # Đảm bảo rủi ro từ 0 -> 1
+            return min(max(final_risk, 0.0), 1.0)
 
         except Exception as e:
-            logger.error(f"[DEEP CORE] MLP prediction failed: {e}", exc_info=True)
+            logger.error(f"[DEEP CORE] Gradient Boosting prediction failed: {e}", exc_info=True)
             return 0.5
 
 guardian_brain = DeepGuardian()
