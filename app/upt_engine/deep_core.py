@@ -97,14 +97,28 @@ class DeepGuardian:
             target_risk = (dataset_scaled[i, 1] + dataset_scaled[i, 2]) / 2.0
             y.append(target_risk)
 
-        self.model.fit(np.array(X), np.array(y))
-        self.is_trained = True
-        logger.info(
-            f"[DEEP CORE] ✅ LITE Training complete — {len(X)} sequences learned from memory using HistGradientBoosting."
-        )
+        X = np.array(X)
+        y = np.array(y)
+
+        # Chia dữ liệu theo thời gian (Chronological Split): 80% học, 20% mới nhất để thi
+        split_idx = int(len(X) * 0.8)
+        X_train, X_test = X[:split_idx], X[split_idx:]
+        y_train, y_test = y[:split_idx], y[split_idx:]
+
+        if len(X_train) == 0 or len(X_test) == 0:
+            # Fallback nếu dữ liệu quá ít
+            self.model.fit(X, y)
+            self.is_trained = True
+            self.evaluate_accuracy(X, y)
+        else:
+            self.model.fit(X_train, y_train)
+            self.is_trained = True
+            logger.info(
+                f"[DEEP CORE] ✅ Training complete: {len(X_train)} train samples. Evaluation on {len(X_test)} test samples."
+            )
+            # Đánh giá ĐỘ CHÍNH XÁC THỰC TẾ trên tập Test (dữ liệu tương lai giả lập)
+            self.evaluate_accuracy(X_test, y_test)
         
-        # Đánh giá độ chính xác ngay trên tập dữ liệu này
-        self.evaluate_accuracy(X, y)
         
         return len(X)
 
