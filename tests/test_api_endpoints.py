@@ -72,7 +72,7 @@ async def test_get_ai_status(client):
     assert resp.status_code == 200
     body = resp.json()
     assert "status" in body
-    assert body["model_type"] == "LSTM (TensorFlow/Keras)"
+    assert body["model_type"] == "Gradient Boosting (Scikit-Learn)"
     assert "buffer_size" in body
 
 
