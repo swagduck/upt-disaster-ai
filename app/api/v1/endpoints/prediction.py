@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+import math
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from fastapi_cache.decorator import cache
@@ -38,7 +39,29 @@ class NeuralPredictionRequest(BaseModel):
     simulated_energy: float = 0.5
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# ── Helper ────────────────────────────────────────────────────────────────────
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Tính khoảng cách (km) giữa 2 toạ độ trên mặt cầu."""
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+def _calc_local_energy(lat: float, lon: float, events: list, radius_km: float = 800.0) -> float:
+    """Tính mức năng lượng cục bộ thực tế tại toạ độ (lat, lon)."""
+    total = 0.0
+    for e in events:
+        e_lat = e.get("lat") or e.get("lat")
+        e_lon = e.get("lon") or e.get("lng")
+        if e_lat is None or e_lon is None:
+            continue
+        dist = _haversine_km(lat, lon, e_lat, e_lon)
+        if dist < radius_km:
+            energy = e.get("energy_level", 0.0)
+            impact = energy * (1 - dist / radius_km)
+            total += max(0.0, impact)
+    return min(total / 2.0, 1.0)
 
 @router.post("/predict")
 async def predict_disaster(request: PredictionRequest):
@@ -211,10 +234,18 @@ async def global_scan(request: Request):
         {"name": "Hokkaido, Japan", "lat": 43.2, "lon": 142.8}
     ]
     
+    # Lấy dữ liệu thiên tai đang xảy ra thực tế từ cache
+    live_events = DisasterService.get_latest_data()
+    
     results = []
     for spot in HOTSPOTS:
+        # Tính năng lượng cục bộ THỰC TẾ dựa trên các thiên tai đang xảy ra gần điểm đó
+        local_energy = _calc_local_energy(spot["lat"], spot["lon"], live_events)
+        # Dị thường cục bộ: tỉ lệ với mật độ sự kiện xung quanh
+        local_anomaly = min(local_energy * 1.2, 1.0)
+        
         risk = await run_in_threadpool(
-            guardian_brain.predict_risk, spot["lat"], spot["lon"], 0.5, 0.5
+            guardian_brain.predict_risk, spot["lat"], spot["lon"], local_energy, local_anomaly
         )
         alert_level = "NORMAL"
         if risk > 0.5: alert_level = "WARNING"
@@ -224,7 +255,8 @@ async def global_scan(request: Request):
             "name": spot["name"],
             "lat": spot["lat"],
             "lon": spot["lon"],
-            "risk_score": risk,
+            "risk_score": round(risk, 3),
+            "local_energy": round(local_energy, 3),
             "alert_level": alert_level
         })
         
