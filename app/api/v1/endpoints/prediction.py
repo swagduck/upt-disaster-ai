@@ -249,9 +249,10 @@ async def global_scan(request: Request):
         local_energy = _calc_local_energy(spot["lat"], spot["lon"], live_events)
 
         # 2. Pha trộn năng lượng live với rủi ro nền địa tầng lịch sử.
-        #    Nếu không có sự kiện live (local_energy=0), base_risk chiếm toàn bộ tín hiệu.
-        #    Nếu có sự kiện live lớn, nó sẽ đẩy tín hiệu lên cao hơn rõ rệt.
-        blended_energy = local_energy * 0.65 + spot["base_risk"] * 0.35
+        #    50/50: Cân bằng giữa tín hiệu thời gian thực và đặc tính địa chất nền.
+        #    Đảm bảo các vùng nguy hiểm (Tokyo, Sumatra) duy trì thứ hạng địa chất
+        #    ngay cả khi không có live events tại thời điểm scan.
+        blended_energy = local_energy * 0.50 + spot["base_risk"] * 0.50
 
         # 3. Dị thường cục bộ: tỉ lệ với mật độ sự kiện xung quanh, cộng thêm nền địa tầng
         local_anomaly = min(blended_energy * 1.2, 1.0)
