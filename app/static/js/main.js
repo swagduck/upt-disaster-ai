@@ -488,7 +488,7 @@ async function runNeuralPrediction() {
       if (e.type === "USER_LOC" || e.type.includes("SOLAR")) return;
       const dist = getDistance(targetLat, targetLon, e.lat, e.lng);
       if (dist < SCAN_RADIUS_KM) {
-        const impact = e.alt * 2 * (1 - dist / SCAN_RADIUS_KM);
+        const impact = e.alt * (1 - dist / SCAN_RADIUS_KM); // Giảm hệ số nhân từ *2 xuống để bớt nhạy
         localEnergySum += Math.max(0, impact);
         eventCount++;
       }

@@ -126,7 +126,8 @@ class DeepGuardian:
             # Làm phẳng cửa sổ
             input_flattened = seq_scaled.flatten().reshape(1, -1)
             global_instability = float(self.model.predict(input_flattened)[0])
-            final_risk = global_instability * (0.5 + local_energy)
+            # Giảm độ nhạy: Cân bằng 70% bất ổn toàn cầu và 30% rủi ro cục bộ thay vì nhân hệ số
+            final_risk = (global_instability * 0.7) + (local_energy * 0.3)
             
             # Đảm bảo rủi ro từ 0 -> 1
             return min(max(final_risk, 0.0), 1.0)
