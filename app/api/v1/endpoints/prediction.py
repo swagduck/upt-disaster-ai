@@ -52,8 +52,8 @@ def _calc_local_energy(lat: float, lon: float, events: list, radius_km: float = 
     """Tính mức năng lượng cục bộ thực tế tại toạ độ (lat, lon)."""
     total = 0.0
     for e in events:
-        e_lat = e.get("lat") or e.get("lat")
-        e_lon = e.get("lon") or e.get("lng")
+        e_lat = e.get("lat")
+        e_lon = e.get("lon")
         if e_lat is None or e_lon is None:
             continue
         dist = _haversine_km(lat, lon, e_lat, e_lon)
@@ -61,7 +61,9 @@ def _calc_local_energy(lat: float, lon: float, events: list, radius_km: float = 
             energy = e.get("energy_level", 0.0)
             impact = energy * (1 - dist / radius_km)
             total += max(0.0, impact)
-    return min(total / 2.0, 1.0)
+    # Dùng log1p để tránh bão hòa (saturation) ở các khu vực nhiều động đất nhỏ
+    # log1p(x) / log1p(10) cho phép khoảng 10 đơn vị năng lượng = 1.0
+    return min(math.log1p(total) / math.log1p(10), 1.0)
 
 @router.post("/predict")
 async def predict_disaster(request: PredictionRequest):
