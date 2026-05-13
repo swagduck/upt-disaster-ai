@@ -157,10 +157,19 @@ class DeepGuardian:
 
     def predict_risk(self, lat, lon, local_energy, local_anomaly):
         """
-        Predicted Risk = Global Instability (Gradient Boosting) × Local Vulnerability factor.
+        Predicted Risk = Global Instability (Gradient Boosting) + Location-Specific Factor.
+
+        Công thức tái cân bằng:
+          - global_instability (40%): Xu hướng bất ổn toàn cầu từ AI — giống nhau cho mọi vùng
+            tại cùng một thời điểm, phản ánh "nhiệt độ" chung của hành tinh.
+          - location_factor (60%): Tín hiệu ĐỊA PHƯƠNG riêng biệt của từng hotspot, kết hợp:
+              • local_energy  (60% của 60%): Năng lượng pha trộn live + base_risk địa tầng
+              • local_anomaly (40% của 60%): Mật độ dị thường cục bộ quanh tọa độ đó
+        Tổng hợp: mỗi hotspot luôn cho ra điểm số riêng biệt, không bị san bằng bởi hệ số toàn cầu.
         """
         if len(self.realtime_buffer) < self.look_back:
-            return local_energy * 0.7 + local_anomaly * 0.3
+            # Chưa đủ buffer: dựa hoàn toàn vào tín hiệu địa phương
+            return min(local_energy * 0.6 + local_anomaly * 0.4, 1.0)
 
         if not self.is_trained:
             return (local_energy + local_anomaly) / 2.0
@@ -168,12 +177,17 @@ class DeepGuardian:
         try:
             raw_seq = np.array(list(self.realtime_buffer))
             seq_scaled = self.scaler.transform(raw_seq)
-            # Làm phẳng cửa sổ
             input_flattened = seq_scaled.flatten().reshape(1, -1)
             global_instability = float(self.model.predict(input_flattened)[0])
-            # Giảm độ nhạy: Cân bằng 70% bất ổn toàn cầu và 30% rủi ro cục bộ thay vì nhân hệ số
-            final_risk = (global_instability * 0.7) + (local_energy * 0.3)
-            
+
+            # Tín hiệu địa phương: kết hợp năng lượng pha trộn + dị thường cục bộ
+            # local_energy ở đây là blended_energy (live * 0.65 + base_risk * 0.35)
+            location_factor = (local_energy * 0.6) + (local_anomaly * 0.4)
+
+            # Global trend (40%) + Location-specific signal (60%)
+            # → Các vùng có base_risk / live events khác nhau sẽ phân hóa rõ rệt hơn
+            final_risk = (global_instability * 0.4) + (location_factor * 0.6)
+
             # Đảm bảo rủi ro từ 0 -> 1
             return min(max(final_risk, 0.0), 1.0)
 
