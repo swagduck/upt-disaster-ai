@@ -463,92 +463,49 @@ async function trainModel() {
 
 async function runNeuralPrediction() {
   if (!activeFilters["PREDICT"]) return;
-  printTerm("Querying Guardian AI...", "ai");
+  printTerm("=== GUARDIAN GLOBAL SCAN INITIATED ===", "ai");
+  printTerm("Scanning 20 major fault lines & hotspots...", "sys");
   window.sfx.playPredict();
 
-  let targetLat = 36.2;
-  let targetLon = 138.2;
-
-  if (userLat !== null && userLng !== null) {
-    targetLat = userLat;
-    targetLon = userLng;
-  } else if (window.world) {
-    const pov = window.world.pointOfView();
-    targetLat = pov.lat;
-    targetLon = pov.lng;
-  }
-
-  // --- REAL LOCAL CALCULATION ---
-  let localEnergySum = 0.0;
-  let eventCount = 0;
-  const SCAN_RADIUS_KM = 800;
-
-  if (allEventsCache && allEventsCache.length > 0) {
-    allEventsCache.forEach((e) => {
-      if (e.type === "USER_LOC" || e.type.includes("SOLAR")) return;
-      const dist = getDistance(targetLat, targetLon, e.lat, e.lng);
-      if (dist < SCAN_RADIUS_KM) {
-        const impact = e.alt * (1 - dist / SCAN_RADIUS_KM); // Giảm hệ số nhân từ *2 xuống để bớt nhạy
-        localEnergySum += Math.max(0, impact);
-        eventCount++;
-      }
-    });
-  }
-
-  const realLocalEnergy = Math.min(localEnergySum / 2.0, 1.0);
-  printTerm(
-    `Analyzing Local Vector: ${eventCount} events. Density: ${realLocalEnergy.toFixed(
-      2
-    )}`,
-    "sys"
-  );
-
   try {
-    const res = await fetch("/api/v1/predict/forecast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lat: targetLat,
-        lon: targetLon,
-        simulated_energy: realLocalEnergy,
-      }),
-    });
+    const res = await fetch("/api/v1/predict/global-scan");
     const data = await res.json();
-    const isCritical = data.alert_level === "CRITICAL";
-    const typeStr = isCritical ? "err" : "sys";
 
-    printTerm(
-      `AI FORECAST @ [${targetLat.toFixed(1)}, ${targetLon.toFixed(1)}]:`,
-      "ai"
-    );
-    printTerm(
-      `RISK LEVEL: ${(data.predicted_risk * 100).toFixed(1)}% [${
-        data.alert_level
-      }]`,
-      typeStr
-    );
-
-    if (data.predicted_risk > 0.8)
-      printTerm(">> REASON: GLOBAL INSTABILITY + LOCAL THREAT", "err");
-
-    if (data.predicted_risk > 0.0) {
-      predictionEvents = [
-        {
-          lat: targetLat,
-          lng: targetLon,
-          alt: 0.1,
-          color: isCritical ? "#ff0000" : "#ffffff",
-          type: "AI PREDICTION",
-          place: `RISK ZONE (${data.alert_level})`,
-          value: data.predicted_risk * 10,
-          maxR: isCritical ? 15 : 8,
-          propagationSpeed: 2,
-          repeatPeriod: 1000,
-        },
-      ];
-    } else {
-      predictionEvents = [];
+    if (!data.data || data.data.length === 0) {
+      printTerm("No scan data returned.", "err");
+      return;
     }
+
+    const criticalZones = data.data.filter(r => r.alert_level === "CRITICAL");
+    const warningZones  = data.data.filter(r => r.alert_level === "WARNING");
+
+    printTerm(`Scan complete: ${data.count} regions analyzed.`, "sys");
+    printTerm(`CRITICAL: ${criticalZones.length} | WARNING: ${warningZones.length}`, criticalZones.length > 0 ? "err" : "sys");
+
+    if (criticalZones.length > 0) {
+      criticalZones.forEach(r => {
+        printTerm(`>> [CRITICAL] ${r.name} - Risk: ${(r.risk_score * 100).toFixed(1)}%`, "err");
+      });
+    }
+
+    // Chuyển đổi dữ liệu quét thành các điểm vẽ trên quả cầu 3D
+    predictionEvents = data.data.map((r, idx) => {
+      const isCrit = r.alert_level === "CRITICAL";
+      const isWarn = r.alert_level === "WARNING";
+      const color  = isCrit ? "#ff003c" : (isWarn ? "#ffaa00" : "#00ff88");
+      return {
+        _uid: `pred_${idx}`,
+        lat: r.lat,
+        lng: r.lon,
+        alt: Math.max(r.risk_score * 0.3, 0.05),
+        color: color,
+        type: "AI PREDICTION",
+        place: `${r.name} — Risk: ${(r.risk_score * 100).toFixed(1)}% [${r.alert_level}]`,
+        maxR: isCrit ? 12 : (isWarn ? 6 : 2),
+        propagationSpeed: 2,
+      };
+    });
+
     applyFilters();
   } catch (e) {
     console.error(e);
@@ -660,32 +617,7 @@ window.processCommand = async function (cmd) {
   else printTerm("Command not recognized.", "err");
 };
 
-window.subscribeSMS = async function() {
-  const phoneInput = document.getElementById("sms-phone");
-  const phone = phoneInput.value.trim();
-  if(!phone || phone.length < 5) {
-    printTerm("Invalid phone number format.", "err");
-    return;
-  }
-  
-  printTerm(`Registering ${phone} for SMS Alerts...`, "sys");
-  try {
-    const res = await fetch("/api/v1/predict/subscribe-alerts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone_number: phone, region: "GLOBAL" })
-    });
-    const data = await res.json();
-    if(res.ok) {
-      printTerm(data.message, "tf");
-      phoneInput.value = "";
-    } else {
-      printTerm(data.error || "Subscription failed.", "err");
-    }
-  } catch(e) {
-    printTerm("Network error during subscription.", "err");
-  }
-};
+
 
 function setAllFilters(state) {
   // ... (Logic giữ nguyên, lược bỏ để gọn vì không thay đổi logic) ...

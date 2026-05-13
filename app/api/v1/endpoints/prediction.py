@@ -11,7 +11,6 @@ from app.upt_engine.deep_core import guardian_brain
 from app.core.logger import get_logger
 from app.core.limiter import limiter
 from app.core.security import require_api_key
-from app.services.alert_service import AlertService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -37,10 +36,6 @@ class NeuralPredictionRequest(BaseModel):
     lat: float
     lon: float
     simulated_energy: float = 0.5
-
-class SubscribeAlertRequest(BaseModel):
-    phone_number: str
-    region: str = "GLOBAL"
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -144,15 +139,6 @@ async def get_ai_evaluation():
         "metrics": guardian_brain.metrics
     }
 
-@router.post("/subscribe-alerts")
-@limiter.limit("5/minute")
-async def subscribe_alerts(req: SubscribeAlertRequest, request: Request):
-    """Subscribe a phone number to SMS alerts."""
-    success = AlertService.subscribe(req.phone_number, req.region)
-    if success:
-        return {"message": f"Successfully subscribed {req.phone_number} to disaster alerts."}
-    return {"error": "Subscription failed. Check server logs."}
-
 
 @router.post("/train", dependencies=[Depends(require_api_key)])
 @limiter.limit("5/minute")
@@ -174,7 +160,7 @@ async def trigger_training(request: Request):
 
 @router.post("/forecast", dependencies=[Depends(require_api_key)])
 @limiter.limit("10/minute")
-async def forecast_disaster(req: NeuralPredictionRequest, request: Request, background_tasks: BackgroundTasks):
+async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
     """AI-powered risk forecast at a specific coordinate."""
     risk = await run_in_threadpool(
         guardian_brain.predict_risk, req.lat, req.lon, req.simulated_energy, 0.5
@@ -182,21 +168,70 @@ async def forecast_disaster(req: NeuralPredictionRequest, request: Request, back
 
     alert_level = "NORMAL"
     if risk > 0.5: alert_level = "WARNING"
-    if risk > 0.8: 
-        alert_level = "CRITICAL"
-        # Gửi SMS qua Background Tasks để không làm chậm API
-        background_tasks.add_task(
-            AlertService.send_critical_alert, 
-            req.lat, req.lon, risk, alert_level
-        )
+    if risk > 0.8: alert_level = "CRITICAL"
 
     logger.info(
         f"[PREDICTION API] AI forecast at ({req.lat}, {req.lon}): "
-        f"risk={risk:.3f} | {alert_level}"
+        f"Risk {risk:.2f} -> {alert_level}"
     )
+
     return {
-        "location": {"lat": req.lat, "lon": req.lon},
-        "predicted_risk": risk,
+        "lat": req.lat,
+        "lon": req.lon,
+        "risk_score": risk,
         "alert_level": alert_level,
-        "ai_confidence": 0.92,
+        "model_type": "HistGradientBoosting Time-Series"
+    }
+
+@router.get("/global-scan", dependencies=[Depends(require_api_key)])
+@limiter.limit("5/minute")
+async def global_scan(request: Request):
+    """AI-powered risk forecast for major global fault lines."""
+    # Các điểm nóng đứt gãy kiến tạo (Ring of Fire, v.v...)
+    HOTSPOTS = [
+        {"name": "Tokyo, Japan", "lat": 35.6, "lon": 139.6},
+        {"name": "California, USA", "lat": 36.7, "lon": -119.4},
+        {"name": "Santiago, Chile", "lat": -33.4, "lon": -70.6},
+        {"name": "Manila, Philippines", "lat": 14.5, "lon": 120.9},
+        {"name": "Jakarta, Indonesia", "lat": -6.2, "lon": 106.8},
+        {"name": "Istanbul, Turkey", "lat": 41.0, "lon": 28.9},
+        {"name": "Wellington, NZ", "lat": -41.2, "lon": 174.7},
+        {"name": "Taiwan", "lat": 23.6, "lon": 120.9},
+        {"name": "Mexico City", "lat": 19.4, "lon": -99.1},
+        {"name": "Tehran, Iran", "lat": 35.6, "lon": 51.3},
+        {"name": "Lima, Peru", "lat": -12.0, "lon": -77.0},
+        {"name": "Naples, Italy", "lat": 40.8, "lon": 14.2},
+        {"name": "Iceland", "lat": 64.9, "lon": -19.0},
+        {"name": "Alaska, USA", "lat": 64.2, "lon": -149.4},
+        {"name": "Hawaii, USA", "lat": 19.8, "lon": -155.8},
+        {"name": "Sumatra, Indonesia", "lat": 0.5, "lon": 101.5},
+        {"name": "Fiji", "lat": -17.7, "lon": 178.0},
+        {"name": "Kathmandu, Nepal", "lat": 27.7, "lon": 85.3},
+        {"name": "San Francisco, USA", "lat": 37.7, "lon": -122.4},
+        {"name": "Hokkaido, Japan", "lat": 43.2, "lon": 142.8}
+    ]
+    
+    results = []
+    for spot in HOTSPOTS:
+        risk = await run_in_threadpool(
+            guardian_brain.predict_risk, spot["lat"], spot["lon"], 0.5, 0.5
+        )
+        alert_level = "NORMAL"
+        if risk > 0.5: alert_level = "WARNING"
+        if risk > 0.8: alert_level = "CRITICAL"
+        
+        results.append({
+            "name": spot["name"],
+            "lat": spot["lat"],
+            "lon": spot["lon"],
+            "risk_score": risk,
+            "alert_level": alert_level
+        })
+        
+    logger.info(f"[PREDICTION API] Global scan completed for {len(HOTSPOTS)} regions.")
+    
+    return {
+        "status": "COMPLETED",
+        "count": len(results),
+        "data": results
     }
