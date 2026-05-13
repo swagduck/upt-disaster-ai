@@ -195,7 +195,7 @@ class DisasterService:
                                 "lat": 90.0, "lon": 0.0,
                                 "energy_level": energy,
                                 "anomaly_score": 0.99,
-                                "raw_val": energy * 10,
+                                "raw_val": 0.0,  # Không phải Richter — dùng energy_level để đo cường độ
                                 "timestamp": ts,
                             })
                 else:
@@ -241,7 +241,12 @@ class DisasterService:
                     log_entry = {
                         "timestamp": datetime.now(timezone.utc),
                         "total_events": len(sensors),
-                        "max_magnitude": max(s["raw_val"] for s in sensors) if sensors else 0,
+                        # Chỉ lấy max magnitude từ EARTHQUAKE — tránh Solar Flare raw_val (energy*10)
+                        # làm nhiễu giá trị (Solar Flare X-class có raw_val=10, không phải Richter).
+                        "max_magnitude": max(
+                            (s["raw_val"] for s in sensors if s.get("type") == "EARTHQUAKE"),
+                            default=0
+                        ),
                         "sensors_data": sensors,
                     }
                     await asyncio.to_thread(collection.insert_one, log_entry)
