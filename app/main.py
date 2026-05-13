@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import asyncio
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from app.core.config import settings
 from app.core.database import Database
 from app.core.logger import get_logger
@@ -23,6 +25,16 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 
 logger = get_logger(__name__)
+
+# ── Background job: fetch real-time data & retrain AI ────────────────────────
+async def _scheduled_fetch():
+    """Tự động chạy mỗi 5 phút: fetch USGS/NASA → cập nhật AI buffer."""
+    logger.info("[SCHEDULER] ⏱ Auto-fetch triggered.")
+    try:
+        await DisasterService.fetch_all_realtime()
+        logger.info("[SCHEDULER] ✅ Data refreshed successfully.")
+    except Exception as e:
+        logger.error(f"[SCHEDULER] ❌ Auto-fetch failed: {e}")
 
 
 # ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────────
@@ -45,17 +57,34 @@ async def lifespan(app: FastAPI):
     # Khởi tạo Caching (In-Memory)
     FastAPICache.init(InMemoryBackend(), prefix="upt-cache")
 
+    # Lần fetch đầu tiên ngay khi boot
+    asyncio.create_task(DisasterService.fetch_all_realtime())
+
     # Khởi tạo mô hình AI và huấn luyện từ MongoDB dưới nền
     asyncio.create_task(asyncio.to_thread(guardian_brain.initialize))
-    # Chạy tác vụ tải dữ liệu realtime dưới nền
-    asyncio.create_task(DisasterService.fetch_all_realtime())
+
+    # ── Kích hoạt APScheduler: tự động fetch mỗi 5 phút ──────────────────────
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(
+        _scheduled_fetch,
+        trigger="interval",
+        minutes=5,
+        id="disaster_fetch",
+        replace_existing=True,
+        max_instances=1,          # Không chạy chồng nhau nếu bị chậm
+        misfire_grace_time=60,    # Bỏ qua nếu trễ > 60 giây
+    )
+    scheduler.start()
+    logger.info("[SCHEDULER] ✅ APScheduler started — auto-fetch every 5 minutes.")
 
     logger.info("[MAIN] System fully online.")
 
     yield  # ── App runs here ──
 
     # ── SHUTDOWN ──────────────────────────────────────────────────────────────
+    scheduler.shutdown(wait=False)
     logger.info("[MAIN] Guardian System shutting down gracefully.")
+
 
 
 app = FastAPI(
