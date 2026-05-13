@@ -89,12 +89,14 @@ class DeepGuardian:
         dataset_scaled = self.scaler.transform(dataset)
 
         X, y = [], []
-        # Kỹ thuật Trượt Cửa Sổ (Time-Series Windowing)
-        for i in range(self.look_back, len(dataset_scaled)):
+        # Kỹ thuật Trượt Cửa Sổ (Time-Series Windowing) với Tầm nhìn Tương lai (Forecast Horizon)
+        forecast_horizon = 5  # Dự đoán xa hơn 5 nhịp thời gian vào tương lai
+        
+        for i in range(self.look_back, len(dataset_scaled) - forecast_horizon):
             window = dataset_scaled[i - self.look_back: i, :]
             X.append(window.flatten())
-            # Target: Dự đoán mức độ rủi ro chung của chu kỳ kế tiếp (dựa vào max_mag và anomaly)
-            target_risk = (dataset_scaled[i, 1] + dataset_scaled[i, 2]) / 2.0
+            # Target: Dự đoán mức độ rủi ro chung ở TƯƠNG LAI (i + forecast_horizon)
+            target_risk = (dataset_scaled[i + forecast_horizon, 1] + dataset_scaled[i + forecast_horizon, 2]) / 2.0
             y.append(target_risk)
 
         X = np.array(X)
