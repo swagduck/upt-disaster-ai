@@ -17,8 +17,8 @@ def init_cache():
 @pytest.fixture
 def fresh_reactor():
     """Return a brand-new UPTReactorCore instance (not the running singleton)."""
-    # Patch asyncio.create_task so start_reactor() doesn't need an event loop
-    with patch("asyncio.create_task"):
+    # Patch threading.Thread so start_reactor() doesn't need an event loop
+    with patch("threading.Thread"):
         from app.upt_engine.reactor_core import UPTReactorCore
         reactor = UPTReactorCore()
     return reactor

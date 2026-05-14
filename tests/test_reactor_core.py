@@ -8,7 +8,7 @@ from unittest.mock import patch
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def make_reactor():
     """Return a fresh UPTReactorCore without touching the running singleton."""
-    with patch("asyncio.create_task"):
+    with patch("threading.Thread"):
         from app.upt_engine.reactor_core import UPTReactorCore
         return UPTReactorCore()
 
@@ -39,27 +39,24 @@ class TestStartReactor:
 
     def test_sets_running_flag(self):
         r = make_reactor()
-        with patch("asyncio.create_task") as mock_task:
+        with patch("threading.Thread") as mock_thread:
             r.start_reactor()
-            mock_task.call_args[0][0].close()
         assert r.is_running
 
     def test_sets_startup_status(self):
         r = make_reactor()
-        with patch("asyncio.create_task") as mock_task:
+        with patch("threading.Thread") as mock_thread:
             r.start_reactor()
-            mock_task.call_args[0][0].close()
         assert r.status_code == "STARTUP"
 
     def test_idempotent_double_start(self):
         """Calling start_reactor twice must not reset state."""
         r = make_reactor()
-        with patch("asyncio.create_task") as mock_task:
+        with patch("threading.Thread") as mock_thread:
             r.start_reactor()
             r.start_reactor()
-            mock_task.call_args[0][0].close()
-        # create_task should only have been called once
-        assert mock_task.call_count == 1
+        # Thread start should only have been called once
+        assert mock_thread.call_count == 1
 
 
 # ── trigger_phase_detuning ────────────────────────────────────────────────────
