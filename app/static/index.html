@@ -36,14 +36,7 @@
 
     <div id="defcon-bar"><div id="defcon-level">DEFCON 5</div></div>
 
-    <a href="/dashboard" style="
-      position: absolute; top: 10px; right: 20px; z-index: 30;
-      background: rgba(0,255,100,0.08); border: 1px solid rgba(0,255,100,0.4);
-      color: #00ff66; padding: 8px 16px; font-family: 'Orbitron', sans-serif;
-      font-size: 0.65rem; letter-spacing: 2px; text-decoration: none;
-      clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
-      transition: 0.3s;
-    " onmouseover="this.style.background='rgba(0,255,100,0.2)'" onmouseout="this.style.background='rgba(0,255,100,0.08)'">
+    <a href="/dashboard" class="dashboard-link">
       📊 ANALYTICS
     </a>
 
@@ -76,31 +69,14 @@
             <li><span class="cmd-key">mute</span> - Audio Off</li>
           </ul>
         </div>
-        <div
-          style="
-            grid-column: 1/-1;
-            text-align: center;
-            margin-top: 20px;
-            color: var(--neon-blue);
-            border-top: 1px solid #333;
-            padding-top: 10px;
-          "
-        >
+        <div class="help-footer">
           PRESS <span class="cmd-key">H</span> TO CLOSE
         </div>
       </div>
     </div>
 
     <div id="terminal">
-      <div
-        style="
-          background: var(--neon-green);
-          padding: 5px;
-          font-size: 0.9rem;
-          color: #000;
-          font-weight: bold;
-        "
-      >
+      <div class="term-header">
         root@upt-commander:~#
       </div>
       <div id="term-output"></div>
@@ -119,40 +95,12 @@
     </div>
 
     <div id="inspector">
-      <h2
-        style="
-          font-family: var(--tech-font);
-          color: var(--neon-blue);
-          margin: 0 0 5px 0;
-          font-size: 1rem;
-        "
-      >
+      <h2 class="inspector-title">
         TARGET ANALYSIS
       </h2>
-      <div
-        style="
-          width: 100%;
-          height: 1px;
-          background: var(--neon-blue);
-          margin-bottom: 15px;
-          opacity: 0.5;
-        "
-      ></div>
+      <div class="inspector-divider"></div>
       <div id="inspector-content">Selecting...</div>
-      <button
-        onclick="window.closeInspector()"
-        style="
-          width: 100%;
-          margin-top: 20px;
-          background: transparent;
-          border: 1px solid #555;
-          color: #888;
-          padding: 8px;
-          cursor: pointer;
-          font-family: var(--tech-font);
-          font-size: 0.8rem;
-        "
-      >
+      <button onclick="window.closeInspector()" class="inspector-dismiss">
         // DISMISS
       </button>
     </div>
@@ -160,49 +108,32 @@
     <div class="hud-overlay">
       <div class="panel">
         <h3>PROXIMITY ALERTS</h3>
-        <div id="proximity-list" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; overflow-y: auto; padding-right: 5px;">
-          <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 20px;">AWAITING GPS SIGNAL</div>
+        <div id="proximity-list" class="proximity-container">
+          <div class="proximity-empty">AWAITING GPS SIGNAL</div>
         </div>
       </div>
       <div class="panel">
         <h3>Reactor Status (Live)</h3>
-        <div style="flex: 1; width: 100%; min-height: 0">
+        <div class="chart-container">
           <canvas id="waveChart"></canvas>
         </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            margin-top: 5px;
-            font-size: 0.75rem;
-            color: #666;
-          "
-        >
-          <span>FLUX: <span id="val-flux" style="color: #fff">--</span></span>
-          <span>TEMP: <span id="val-temp" style="color: #fff">-- K</span></span>
+        <div class="reactor-stats">
+          <span>FLUX: <span id="val-flux" class="stat-val">--</span></span>
+          <span>TEMP: <span id="val-temp" class="stat-val">-- K</span></span>
         </div>
       </div>
       <div class="panel">
         <h3>Hazard Distribution</h3>
-        <div style="flex: 1; width: 100%; min-height: 0">
+        <div class="chart-container">
           <canvas id="radarChart"></canvas>
         </div>
       </div>
 
-      <div class="panel" style="border-color: rgba(255, 0, 60, 0.3)">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <h3 style="color: var(--neon-red); margin: 0">Tactical Ops</h3>
-          <div style="position: relative; width: 30px; height: 30px">
-            <svg
-              viewBox="0 0 36 36"
-              style="width: 100%; height: 100%; transform: rotate(-90deg)"
-            >
+      <div class="panel tactical-panel">
+        <div class="tactical-header">
+          <h3 class="tactical-title">Tactical Ops</h3>
+          <div class="scan-indicator">
+            <svg viewBox="0 0 36 36" class="scan-svg">
               <path
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none"
@@ -218,24 +149,13 @@
                 stroke-dasharray="100, 100"
               />
             </svg>
-            <div
-              id="scan-text"
-              style="
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-family: 'VT323';
-                color: #fff;
-                font-size: 0.8rem;
-              "
-            >
+            <div id="scan-text" class="scan-text-overlay">
               60
             </div>
           </div>
         </div>
 
-        <div class="filter-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="filter-grid filter-grid-4">
           <button id="btn-time-1h" class="filter-btn" onclick="setTimeFilter(1)">1H</button>
           <button id="btn-time-12h" class="filter-btn" onclick="setTimeFilter(12)">12H</button>
           <button id="btn-time-24h" class="filter-btn" onclick="setTimeFilter(24)">24H</button>
@@ -244,12 +164,7 @@
         <div class="filter-grid">
           <button
             id="btn-gps"
-            class="filter-btn"
-            style="
-              border-color: var(--neon-blue);
-              color: var(--neon-blue);
-              grid-column: span 2;
-            "
+            class="filter-btn btn-span-2 btn-color-blue"
             onclick="locateUser()"
           >
             [ ] LOCATE ME (GPS)
@@ -291,59 +206,34 @@
           </button>
           <button
             id="btn-nuke"
-            class="filter-btn active"
-            style="border-color: var(--neon-toxic); color: var(--neon-toxic)"
+            class="filter-btn active btn-color-nuke"
             onclick="toggleFilter('NUKE', this)"
           >
             [x] NUKES
           </button>
           <button
             id="btn-predict"
-            class="filter-btn"
-            style="
-              border-color: var(--neon-purple);
-              color: var(--neon-purple);
-              grid-column: span 2;
-            "
+            class="filter-btn btn-span-2 btn-color-purple"
             onclick="togglePrediction()"
           >
             [ ] NEURAL AI
           </button>
           <button
-            class="filter-btn"
-            style="
-              border-color: var(--neon-green);
-              color: var(--neon-green);
-              grid-column: span 2;
-            "
+            class="filter-btn btn-span-2 btn-color-green"
             onclick="exportCSV()"
           >
             [ EXPORT CSV ]
           </button>
           <button
             id="btn-notify"
-            class="filter-btn"
-            style="
-              border-color: var(--neon-gold);
-              color: var(--neon-gold);
-              grid-column: span 2;
-            "
+            class="filter-btn btn-span-2 btn-color-gold"
             onclick="toggleNotifications()"
           >
             🔔 ALERTS: OFF
           </button>
         </div>
 
-        <div
-          style="
-            font-family: var(--code-font);
-            color: #888;
-            flex: 1;
-            font-size: 0.8rem;
-            padding: 5px;
-            overflow: hidden;
-          "
-        >
+        <div class="reactor-status-log">
           > REACTOR: <span id="status-model">OFFLINE</span><br />
           > USER_LOC: <span id="status-loc">UNKNOWN</span>
         </div>

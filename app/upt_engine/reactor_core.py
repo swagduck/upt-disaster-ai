@@ -51,7 +51,12 @@ class UPTReactorCore:
                 )
                 self.r_plasma = 0.5
                 self.neutron_flux = 1.0
-                asyncio.create_task(self._run_simulation_loop())
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._run_simulation_loop())
+                except RuntimeError:
+                    # Chạy trên thread riêng biệt nếu không có event loop (ví dụ: trong unit tests)
+                    threading.Thread(target=lambda: asyncio.run(self._run_simulation_loop()), daemon=True).start()
 
     def trigger_phase_detuning(self):
         with self._lock:

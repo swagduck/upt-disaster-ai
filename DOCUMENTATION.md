@@ -245,7 +245,7 @@ guardian_brain.initialize() / train_from_memory()
 | Method | Endpoint | Mô tả | Auth |
 |--------|----------|-------|------|
 | `GET` | `/status` | Trạng thái AI model (ONLINE/INITIALIZING) | — |
-| `GET` | `/evaluation` | Độ chính xác AI (MSE, MAE, Accuracy %) | — |
+| `GET` | `/evaluation` | Độ chính xác AI (MSE, MAE, Tolerance Accuracy %) | — |
 | `GET` | `/global-scan` | Quét rủi ro tại 20 điểm nóng toàn cầu | — |
 | `POST` | `/forecast` | Dự báo rủi ro tại toạ độ bất kỳ | ✅ X-API-Key |
 | `POST` | `/train` | Kích hoạt huấn luyện AI từ MongoDB | ✅ X-API-Key |
@@ -322,7 +322,7 @@ local_energy = log1p(total) / log1p(10)  # Tránh bão hòa 100%
 | `locate` | Xác định vị trí GPS của người dùng |
 | `train` | Kích hoạt huấn luyện AI từ MongoDB |
 | `predict` | Dự báo rủi ro tại vị trí hiện tại |
-| `eval` / `metrics` | Hiển thị độ chính xác AI (MSE, MAE, Accuracy %) |
+| `eval` / `metrics` | Hiển thị độ chính xác AI (MSE, MAE, Tolerance Accuracy %) |
 | `scram` / `shutdown` | Dừng khẩn cấp lò phản ứng |
 | `mute` | Tắt âm thanh |
 | `vietnam` | Di chuyển camera đến Việt Nam |
@@ -353,7 +353,7 @@ local_energy = log1p(total) / log1p(10)  # Tránh bão hòa 100%
 
 ---
 
-## 8. CẤU HÌNH & BIẾN MÔI TRƯỜNG
+# 8. CẤU HÌNH & BIẾN MÔI TRƯỜNG
 
 File `.env` (xem `.env.example` để tham khảo):
 
@@ -368,11 +368,6 @@ NASA_API_KEY=DEMO_KEY          # Lấy tại api.nasa.gov
 # Telegram Alerts (tuỳ chọn)
 TELEGRAM_TOKEN=                # Token từ @BotFather
 TELEGRAM_CHAT_ID=              # Chat ID nhận alert
-
-# Twilio SMS (tuỳ chọn, cần tài khoản trả phí để gửi quốc tế)
-TWILIO_ACCOUNT_SID=AC...
-TWILIO_AUTH_TOKEN=...
-TWILIO_FROM_NUMBER=+19382232570
 
 # Security
 ALLOWED_ORIGINS=https://your-app.onrender.com,http://localhost:8000
@@ -420,9 +415,6 @@ Mỗi document là một **snapshot dữ liệu thiên tai** tại một thời 
   ]
 }
 ```
-
-### Collection: `alerts_subscribers` *(Không còn dùng trong bản hiện tại)*
-Lưu số điện thoại đăng ký nhận SMS alerts.
 
 ---
 
@@ -476,7 +468,7 @@ pytest + pytest-asyncio    # Testing
 
 | Tính năng | Mô tả | Độ phức tạp |
 |-----------|-------|-------------|
-| Email Alerts (SendGrid) | Gửi alert qua email miễn phí, không bị giới hạn quốc gia như Twilio | 🟢 Dễ |
+| Email Alerts (SendGrid) | Gửi alert qua email miễn phí | 🟢 Dễ |
 | Export PDF Report | Xuất báo cáo AI scan ra PDF | 🟢 Dễ |
 | Historical Playback | Thanh timeline để tua lại lịch sử thiên tai | 🟡 Trung bình |
 | Crowdsourced Reports | Người dùng báo cáo thiên tai trực tiếp trên bản đồ | 🟡 Trung bình |
@@ -488,9 +480,10 @@ pytest + pytest-asyncio    # Testing
 ## 14. GHI CHÚ PHÁT TRIỂN
 
 ### Về Độ Chính Xác AI
-- Với dữ liệu được thu thập theo chu kỳ ngắn (vài phút/lần), thiên tai ít thay đổi nhanh → AI dễ đạt 99% trên tập test ngắn hạn
-- Sau khi hệ thống chạy **1-3 tháng** và thu thập đủ dữ liệu lịch sử, model sẽ học được các quy luật dài hạn thực sự
-- **Forecast Horizon = 5** giúp tránh "học vẹt" bằng cách bắt AI dự đoán xa hơn vào tương lai
+- Với dữ liệu được thu thập theo chu kỳ ngắn (vài phút/lần), thiên tai ít thay đổi nhanh. Thay vì dùng classification accuracy, dự án sử dụng **Tolerance Accuracy** tính bằng `max(0, 1 - MAE) * 100` để đo lường tỷ lệ chênh lệch tuyệt đối so với biên độ rủi ro (0-1).
+- Vấn đề **Data Leakage** đã được fix bằng cách chia dữ liệu theo dạng Chronological (train/test split) **trước khi** tiến hành fit biến đổi `MinMaxScaler`.
+- Sau khi hệ thống chạy **1-3 tháng** và thu thập đủ dữ liệu lịch sử, model sẽ học được các quy luật dài hạn thực sự.
+- **Forecast Horizon = 5** giúp tránh "học vẹt" bằng cách bắt AI dự đoán xa hơn vào tương lai.
 
 ### Về Local Energy Calculation
 - Sử dụng công thức **Haversine** để tính khoảng cách địa lý chính xác trên mặt cầu

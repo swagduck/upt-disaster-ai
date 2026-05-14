@@ -554,7 +554,7 @@ window.processCommand = async function (cmd) {
       .then(data => {
         if(data.status === "EVALUATED") {
           printTerm(`--- AI ACCURACY REPORT ---`, "sys");
-          printTerm(`Accuracy Score: ${data.metrics.accuracy_score}%`, "tf");
+          printTerm(`Tolerance Accuracy: ${data.metrics.tolerance_accuracy}%`, "tf");
           printTerm(`MSE: ${data.metrics.mse} | MAE: ${data.metrics.mae}`, "sys");
         } else {
           printTerm(`AI Evaluation: ${data.message}`, "err");

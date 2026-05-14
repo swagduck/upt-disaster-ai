@@ -14,7 +14,7 @@ class DeepGuardian:
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.look_back = 20  # Tăng lên 20 để có tầm nhìn dài hơn (Time-Series)
         self.is_trained = False
-        self.metrics = {"mse": 0.0, "mae": 0.0, "accuracy_score": 0.0}
+        self.metrics = {"mse": 0.0, "mae": 0.0, "tolerance_accuracy": 0.0}
         
         # HistGradientBoostingRegressor: siêu tiết kiệm RAM và cực kỳ mạnh mẽ
         self.model = HistGradientBoostingRegressor(
@@ -85,7 +85,14 @@ class DeepGuardian:
             data.append(features)
 
         dataset = np.array(data)
-        self.scaler.fit(dataset)
+        
+        # Chia dữ liệu theo thời gian (Chronological Split) trước khi fit Scaler để tránh Data Leakage
+        split_idx = int(len(dataset) * 0.8)
+        if split_idx > 0:
+            self.scaler.fit(dataset[:split_idx])
+        else:
+            self.scaler.fit(dataset)
+            
         dataset_scaled = self.scaler.transform(dataset)
 
         X, y = [], []
@@ -134,16 +141,16 @@ class DeepGuardian:
             mse = mean_squared_error(y, preds)
             mae = mean_absolute_error(y, preds)
             
-            # Tính điểm Accuracy Score tương đối (1 - sai số tuyệt đối trung bình so với biên độ)
+            # Tính điểm Tolerance Accuracy (1 - sai số tuyệt đối trung bình so với biên độ)
             # Vì target y nằm trong khoảng [0, 1] nên max error có thể là 1.
-            accuracy_score = max(0.0, (1.0 - mae)) * 100
+            tolerance_accuracy = max(0.0, (1.0 - mae)) * 100
             
             self.metrics = {
                 "mse": round(mse, 4),
                 "mae": round(mae, 4),
-                "accuracy_score": round(accuracy_score, 2)
+                "tolerance_accuracy": round(tolerance_accuracy, 2)
             }
-            logger.info(f"[DEEP CORE] AI Accuracy Evaluated: {self.metrics['accuracy_score']}% (MSE={self.metrics['mse']})")
+            logger.info(f"[DEEP CORE] AI Tolerance Accuracy Evaluated: {self.metrics['tolerance_accuracy']}% (MSE={self.metrics['mse']})")
         except Exception as e:
             logger.error(f"[DEEP CORE] Evaluation failed: {e}")
 
