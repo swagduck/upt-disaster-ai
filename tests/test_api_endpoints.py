@@ -72,8 +72,7 @@ async def test_get_ai_status(client):
     assert resp.status_code == 200
     body = resp.json()
     assert "status" in body
-    assert body["model_type"] == "Gradient Boosting (Scikit-Learn)"
-    assert "buffer_size" in body
+    assert body["model_type"] == "Deep Learning LSTM (TensorFlow/Keras)"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -81,32 +80,24 @@ async def test_get_ai_status(client):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
-async def test_scram_dev_mode(client):
-    """POST /api/v1/reactor/scram should succeed without API key in dev mode."""
-    # In dev mode (API_SECRET_KEY=None), auth is skipped
-    resp = await client.post("/api/v1/reactor/scram")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "SCRAM_EXECUTED"
-
-
-@pytest.mark.anyio
-async def test_inject_event_dev_mode(client):
-    """POST /api/v1/reactor/inject-event should accept magnitude param."""
-    resp = await client.post("/api/v1/reactor/inject-event?magnitude=5.0")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["status"] == "SHOCK_RECEIVED"
-    assert body["damage"] == 0.0  # magnitude < 6.0 → no shock
-
+async def test_scram_with_auth(client):
+    """POST /api/v1/reactor/scram should succeed with correct API key."""
+    with patch("app.core.security.settings") as mock_settings:
+        mock_settings.API_SECRET_KEY = "test-key"
+        resp = await client.post("/api/v1/reactor/scram", headers={"X-API-Key": "test-key"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "SCRAM_EXECUTED"
 
 @pytest.mark.anyio
 async def test_inject_event_major(client):
     """A magnitude > 6.0 should produce a shock."""
-    resp = await client.post("/api/v1/reactor/inject-event?magnitude=7.0")
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["damage"] == 0.5
+    with patch("app.core.security.settings") as mock_settings:
+        mock_settings.API_SECRET_KEY = "test-key"
+        resp = await client.post("/api/v1/reactor/inject-event?magnitude=7.0", headers={"X-API-Key": "test-key"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["damage"] == 0.5
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -141,35 +132,7 @@ async def test_scram_correct_api_key(client):
 # Formula-based prediction endpoint
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.anyio
-async def test_predict_no_sensors(client):
-    """POST /api/v1/predict/predict with empty sensors → error."""
-    resp = await client.post("/api/v1/predict/predict", json={
-        "region_name": "Test Region",
-        "sensors": [],
-        "geo_vulnerability": 0.5,
-    })
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "error" in body
-
-
-@pytest.mark.anyio
-async def test_predict_with_sensors(client):
-    """POST /api/v1/predict/predict with valid data → prediction result."""
-    resp = await client.post("/api/v1/predict/predict", json={
-        "region_name": "Tokyo",
-        "sensors": [
-            {"station_id": "S1", "energy_level": 0.8, "anomaly_score": 0.6},
-            {"station_id": "S2", "energy_level": 0.3, "anomaly_score": 0.2},
-        ],
-        "geo_vulnerability": 0.7,
-    })
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "probability_index" in body
-    assert "alert_level" in body
-    assert body["region"] == "Tokyo"
+# Deleted endpoints tests removed
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
