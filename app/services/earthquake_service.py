@@ -26,6 +26,7 @@ class DisasterService:
         f"https://api.nasa.gov/DONKI/FLR"
         f"?startDate=2024-01-01&api_key={settings.NASA_API_KEY}"
     )
+    GDACS_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC;FL;VO;DR&alertlevel=green;orange;red"
 
     TELEGRAM_TOKEN = settings.TELEGRAM_TOKEN
     CHAT_ID = settings.TELEGRAM_CHAT_ID
@@ -44,6 +45,7 @@ class DisasterService:
     CACHE_USGS: list = []
     CACHE_NASA: list = []
     CACHE_SOLAR: list = []
+    CACHE_GDACS: list = []
 
     # ── Telegram ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -67,10 +69,11 @@ class DisasterService:
 
         async with httpx.AsyncClient() as client:
             try:
-                resp_usgs, resp_nasa, resp_solar = await asyncio.gather(
+                resp_usgs, resp_nasa, resp_solar, resp_gdacs = await asyncio.gather(
                     client.get(DisasterService.USGS_URL, timeout=30.0),
                     client.get(DisasterService.NASA_EONET, timeout=30.0),
                     client.get(DisasterService.NASA_SOLAR, timeout=20.0),
+                    client.get(DisasterService.GDACS_URL, timeout=30.0),
                     return_exceptions=True,
                 )
 
@@ -219,10 +222,83 @@ class DisasterService:
                         f"[DISASTER SVC] NASA DONKI fetch failed or returned no data: {resp_solar}"
                     )
 
+                # ── 4. GDACS (UN/EU Multi-Hazard) ────────────────────────────
+                if isinstance(resp_gdacs, httpx.Response) and resp_gdacs.status_code == 200:
+                    try:
+                        gdacs_data = resp_gdacs.json()
+                        features = gdacs_data.get("features", [])
+                        logger.info(f"[DISASTER SVC] GDACS returned {len(features)} events.")
+                        
+                        gdacs_sensors = []
+                        gdacs_meta = {
+                            "TC": ("STORM", 0.90),
+                            "FL": ("FLOOD", 0.70),
+                            "VO": ("VOLCANO", 0.95),
+                            "DR": ("DROUGHT", 0.50)
+                        }
+
+                        for f in features:
+                            props = f.get("properties", {})
+                            geom = f.get("geometry", {})
+                            if not props or not geom or geom.get("type") != "Point":
+                                continue
+                            
+                            coords = geom.get("coordinates", [0, 0])
+                            lon, lat = coords[0], coords[1]
+                            
+                            ev_type = props.get("eventtype")
+                            if ev_type not in gdacs_meta:
+                                continue
+                                
+                            d_type, base_energy = gdacs_meta[ev_type]
+                            
+                            # Tính điểm anomaly dựa vào alert level
+                            alert_score = props.get("alertscore", 1) # 1 (green), 2 (orange), 3 (red)
+                            anomaly = alert_score / 3.0
+                            energy = min(base_energy * anomaly * 1.2, 1.0)
+                            
+                            date_str = props.get("fromdate", "")
+                            ts = 0
+                            if date_str:
+                                try:
+                                    ts = int(datetime.fromisoformat(date_str).timestamp() * 1000)
+                                except Exception:
+                                    ts = int(datetime.now(timezone.utc).timestamp() * 1000)
+                            
+                            gdacs_sensors.append({
+                                "type": d_type,
+                                "place": props.get("name", "Unknown GDACS Event"),
+                                "lat": lat, "lon": lon,
+                                "depth": 10.0,
+                                "energy_level": energy,
+                                "anomaly_score": anomaly,
+                                "raw_val": props.get("severitydata", {}).get("severity", 0),
+                                "timestamp": ts,
+                            })
+                            
+                            # Alert logic cho GDACS (Red alerts)
+                            if alert_score >= 2.5: # Red
+                                ev_name = props.get("name")
+                                if ev_name and ev_name not in DisasterService.alerted_events:
+                                    DisasterService.alerted_events.add(ev_name)
+                                    msg = (
+                                        f"🚨 [GDACS ALERT] Thảm họa mức ĐỎ!\n"
+                                        f"Loại: {d_type}\n"
+                                        f"Vị trí: {ev_name}\n"
+                                        f"Độ nghiêm trọng: {props.get('severitydata', {}).get('severitytext', '')}"
+                                    )
+                                    new_alerts.append(msg)
+                                    
+                        DisasterService.CACHE_GDACS = gdacs_sensors
+                    except Exception as e:
+                        logger.error(f"[DISASTER SVC] GDACS parse failed: {e}")
+                else:
+                    logger.error(f"[DISASTER SVC] GDACS fetch failed: {resp_gdacs}")
+
             except Exception as e:
                 logger.exception(f"[DISASTER SVC] Critical error during data fetch: {e}")
 
-        sensors = DisasterService.CACHE_USGS + DisasterService.CACHE_NASA + DisasterService.CACHE_SOLAR
+        sensors = DisasterService.CACHE_USGS + DisasterService.CACHE_NASA + DisasterService.CACHE_SOLAR + DisasterService.CACHE_GDACS
 
         # ── Cosmic Coupling → Reactor ─────────────────────────────────────────
         if total_cosmic_energy > 0:

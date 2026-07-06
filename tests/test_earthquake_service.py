@@ -80,7 +80,7 @@ class TestDisasterServiceFetch:
 
         empty_resp = MagicMock(spec=httpx.Response)
         empty_resp.status_code = 200
-        empty_resp.json.return_value = {"events": []}  # EONET
+        empty_resp.json.return_value = {"events": [], "features": []}  # EONET and GDACS
 
         solar_resp = MagicMock(spec=httpx.Response)
         solar_resp.status_code = 200
@@ -95,7 +95,7 @@ class TestDisasterServiceFetch:
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client.get = AsyncMock(
-                side_effect=[mock_resp, empty_resp, solar_resp]
+                side_effect=[mock_resp, empty_resp, solar_resp, empty_resp]
             )
             mock_client_cls.return_value = mock_client
 
@@ -125,7 +125,7 @@ class TestDisasterServiceFetch:
 
         empty_resp = MagicMock(spec=httpx.Response)
         empty_resp.status_code = 200
-        empty_resp.json.return_value = {"events": []}
+        empty_resp.json.return_value = {"events": [], "features": []}
 
         solar_resp = MagicMock(spec=httpx.Response)
         solar_resp.status_code = 200
@@ -140,7 +140,7 @@ class TestDisasterServiceFetch:
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client.get = AsyncMock(
-                side_effect=[mock_resp, empty_resp, solar_resp]
+                side_effect=[mock_resp, empty_resp, solar_resp, empty_resp]
             )
             mock_client_cls.return_value = mock_client
 
