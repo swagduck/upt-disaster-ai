@@ -14,6 +14,7 @@ slowapi==0.1.9
 pymongo
 scikit-learn
 tensorflow>=2.15.0
+global-land-mask
 # TensorFlow has been removed to run on Render Free
 # --- TESTING ---
 pytest
