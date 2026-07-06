@@ -1,9 +1,9 @@
 """
-Unit tests for app.upt_engine.formulas.UPTMath
+Unit tests for upt_guardian.formulas.UPTMath
 """
 import math
 import pytest
-from app.upt_engine.formulas import UPTMath
+from upt_guardian.formulas import UPTMath
 
 
 # ── calculate_collapse_probability ───────────────────────────────────────────

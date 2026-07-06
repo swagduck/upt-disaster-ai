@@ -1,5 +1,5 @@
 """
-Unit tests for app.upt_engine.reactor_core.UPTReactorCore
+Unit tests for upt_guardian.reactor_core.UPTReactorCore
 """
 import pytest
 from unittest.mock import patch
@@ -9,7 +9,7 @@ from unittest.mock import patch
 def make_reactor():
     """Return a fresh UPTReactorCore without touching the running singleton."""
     with patch("threading.Thread"):
-        from app.upt_engine.reactor_core import UPTReactorCore
+        from upt_guardian.reactor_core import UPTReactorCore
         return UPTReactorCore()
 
 
