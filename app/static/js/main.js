@@ -256,16 +256,27 @@ function applyFilters() {
     filteredData = filteredData.filter(d => d.timestamp >= cutoff);
   }
 
-  // Gộp thêm dự báo AI nếu đang bật
-  if (activeFilters["PREDICT"]) {
-    filteredData = filteredData.concat(predictionEvents);
+  // Ẩn lưới HexBin (không dùng nữa)
+  if (window.world) {
+    window.world.hexBinPointsData([]);
   }
+
+  // Gộp thêm AI vào Rings & CustomLayer (để vẽ Heatmap 2D)
+  let aiRings = [];
+  if (activeFilters["PREDICT"]) {
+    aiRings = predictionEvents.filter(d => d.maxR > 0);
+    filteredData = filteredData.concat(predictionEvents); 
+  }
+
   // Thêm marker người dùng
   if (userEventMarker) filteredData.push(userEventMarker);
 
   // Cập nhật lên quả cầu
   if (window.world) {
     window.world.customLayerData(filteredData);
+    // Clone các object để ép Globe.gl vẽ lại (Fix lỗi mất vòng sóng khi filter)
+    window.world.ringsData([...filteredData.filter(d => d.maxR > 0), ...aiRings].map(d => ({ ...d })));
+    if (window.gcUidToGroup) window.gcUidToGroup(filteredData); // Dọn rác memory
   }
   
   // Debounce proximity list — only recalculate if GPS is set
@@ -341,21 +352,36 @@ function processBackendData(events) {
     if (type.includes("EARTHQUAKE")) {
       counts.QUAKE++;
       const mag = e.raw_val;
-      color = mag > 7 ? "#ff003c" : mag > 5 ? "#ffd700" : "#00f3ff";
+      color = "#ff0000"; // Động đất: Đỏ thuần
       maxR = mag > 5 ? mag * 5 : 0;
       type = `QUAKE (M${mag.toFixed(1)})`;
     } else if (type.includes("WILDFIRE")) {
       counts.FIRE++;
-      color = "#ff6600";
+      color = "#ff4400"; // Cháy rừng: Cam đậm
     } else if (type.includes("VOLCANO")) {
       counts.VOLCANO++;
-      color = "#ff00cc";
+      color = "#ff00ff"; // Núi lửa: Tím/Hồng thuần
     } else if (type.includes("STORM")) {
       counts.STORM++;
-      color = "#bd00ff";
+      color = "#00aaff"; // Bão: Xanh lơ (Cyan)
+    } else if (type.includes("NUCLEAR")) {
+      counts.NUKE++;
+      color = "#00ff00"; // Phóng xạ: Xanh lá
     } else if (type.includes("SOLAR")) {
       color = "#ffffff";
       maxR = 50;
+      
+      // Trigger Glitch Effect cho Bão Mặt Trời
+      if (e.energy_level > 0.3) {
+        document.body.classList.remove("solar-glitch");
+        void document.body.offsetWidth; // trigger reflow
+        document.body.classList.add("solar-glitch");
+        printTerm("⚠️ SOLAR FLARE DETECTED: " + e.place, "err");
+        if (window.sfx) {
+          window.sfx.playTone(400, "square", 1.0, 0.2); // Báo động
+          setTimeout(() => window.sfx.playTone(300, "sawtooth", 1.5, 0.3), 100);
+        }
+      }
     } else {
       counts.OTHER++;
     }
@@ -363,6 +389,7 @@ function processBackendData(events) {
     combinedEvents.push({
       lat: e.lat,
       lng: e.lon,
+      depth: e.depth || 10.0,
       alt: e.energy_level * 0.5,
       color: color,
       type: type,
@@ -436,18 +463,19 @@ function processBackendData(events) {
   }
 }
 
-// 5. AI Functions (REAL DATA LOGIC)
+let lastKnowledgeCount = 0;
 async function trainModel() {
   if (isTraining) return;
   isTraining = true;
   try {
-    const res = await fetch("/api/v1/predict/train", { method: "POST" });
+    const res = await fetch("/api/v1/predict/train", { method: "POST", headers: { "X-API-Key": "your_super_secret_key_here" } });
     const json = await res.json();
-    if (json.total_events_learned > 0) {
+    if (json.total_events_learned > 0 && json.total_events_learned !== lastKnowledgeCount) {
       printTerm(
         `Neural Core updated. Knowledge: ${json.total_events_learned}`,
         "sys"
       );
+      lastKnowledgeCount = json.total_events_learned;
     }
     const statusModel = document.getElementById("status-model");
     if (statusModel) {
@@ -488,21 +516,70 @@ async function runNeuralPrediction() {
       });
     }
 
+    const aiPanel = document.getElementById("ai-predictions-panel");
+    const aiList = document.getElementById("ai-list");
+    if (aiPanel && aiList) {
+      aiPanel.style.display = "block";
+      aiList.innerHTML = "";
+      
+      data.data.forEach(r => {
+        const item = document.createElement("div");
+        item.className = "proximity-item";
+        item.style.cursor = "pointer";
+        item.style.padding = "8px";
+        item.style.marginBottom = "5px";
+        item.style.backgroundColor = r.alert_level === "CRITICAL" ? "#ff003c33" : (r.alert_level === "WARNING" ? "#ffaa0033" : "#00ff8833");
+        item.style.border = `1px solid ${r.alert_level === "CRITICAL" ? "#ff003c" : (r.alert_level === "WARNING" ? "#ffaa00" : "#00ff88")}`;
+        item.style.borderRadius = "3px";
+        item.innerHTML = `
+          <div style="font-weight:bold; color: ${r.alert_level === "CRITICAL" ? "#ff003c" : (r.alert_level === "WARNING" ? "#ffaa00" : "#00ff88")}">${r.name}</div>
+          <div style="font-size: 0.9em; opacity: 0.8">Risk: ${(r.risk_score * 100).toFixed(1)}% | [${r.lat.toFixed(2)}, ${r.lon.toFixed(2)}]</div>
+        `;
+        item.onclick = () => {
+          if (window.world) {
+            window.world.pointOfView({ lat: r.lat, lng: r.lon, altitude: 0.8 }, 1500);
+            printTerm(`>> Tracking AI Target: ${r.name}`, "ai");
+            window.sfx.playBeep();
+          }
+        };
+        aiList.appendChild(item);
+      });
+    }
+
+
     // Chuyển đổi dữ liệu quét thành các điểm vẽ trên quả cầu 3D
     predictionEvents = data.data.map((r, idx) => {
       const isCrit = r.alert_level === "CRITICAL";
       const isWarn = r.alert_level === "WARNING";
-      const color  = isCrit ? "#ff003c" : (isWarn ? "#ffaa00" : "#00ff88");
+      let typeName = "AI PREDICTION";
+      let color = "#ff0000"; // Mặc định Động đất (Đỏ)
+
+      if (r.hazard_type === "EARTHQUAKE") {
+          color = "#ff0000"; 
+          typeName = "AI: QUAKE";
+      } else if (r.hazard_type === "STORM") { 
+          color = "#00aaff"; 
+          typeName = "AI: TYPHOON"; 
+      } else if (r.hazard_type === "WILDFIRE") { 
+          color = "#ff4400"; 
+          typeName = "AI: WILDFIRE"; 
+      }
+      
+      let matchMag = r.name.match(/M([0-9.]+)/);
+      let expectedMag = matchMag ? parseFloat(matchMag[1]) : 0;
+      
       return {
         _uid: `pred_${idx}`,
         lat: r.lat,
         lng: r.lon,
+        depth: r.depth || 10.0,
         alt: Math.max(r.risk_score * 0.3, 0.05),
         color: color,
-        type: "AI PREDICTION",
+        type: typeName,
         place: `${r.name} — Risk: ${(r.risk_score * 100).toFixed(1)}% [${r.alert_level}]`,
         maxR: isCrit ? 12 : (isWarn ? 6 : 2),
         propagationSpeed: 2,
+        value: expectedMag
       };
     });
 
@@ -569,7 +646,7 @@ window.processCommand = async function (cmd) {
     printTerm("!!! EMERGENCY SCRAM INITIATED !!!", "err");
     window.sfx.playAlarm();
     try {
-      await fetch("/api/v1/reactor/scram", { method: "POST" });
+      await fetch("/api/v1/reactor/scram", { method: "POST", headers: { "X-API-Key": "your_super_secret_key_here" } });
       printTerm("CONTROL RODS DROPPED. FLUX ZERO.", "sys");
     } catch (e) {
       printTerm("SCRAM FAILED: Uplink Error.", "err");
@@ -953,6 +1030,7 @@ window.showInspector = (d) => {
       <div class="insp-row"><span class="insp-lbl">PLACE</span> <span class="insp-val" style="font-size:0.8rem">${d.place || "Unknown"}</span></div>
       <div class="insp-row"><span class="insp-lbl">LATITUDE</span> <span class="insp-val">${(d.lat || 0).toFixed(4)}</span></div>
       <div class="insp-row"><span class="insp-lbl">LONGITUDE</span> <span class="insp-val">${(d.lng || 0).toFixed(4)}</span></div>
+      <div class="insp-row"><span class="insp-lbl">DEPTH</span> <span class="insp-val" style="color: #00ffaa">${(d.depth || 10.0).toFixed(1)} KM</span></div>
       <div class="insp-row"><span class="insp-lbl">MAGNITUDE</span> <span class="insp-val">${(d.value || 0).toFixed(2)}</span></div>
       <div class="insp-row"><span class="insp-lbl">TIME</span> <span class="insp-val" style="font-size:0.75rem">${timeStr}</span></div>
       ${distanceHtml}

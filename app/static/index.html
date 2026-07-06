@@ -106,10 +106,17 @@
     </div>
 
     <div class="hud-overlay">
-      <div class="panel">
-        <h3>PROXIMITY ALERTS</h3>
-        <div id="proximity-list" class="proximity-container">
-          <div class="proximity-empty">AWAITING GPS SIGNAL</div>
+      <div style="display: flex; flex-direction: column; gap: 10px; pointer-events: none; min-height: 0;">
+        <div class="panel" style="flex: 1;">
+          <h3>PROXIMITY ALERTS</h3>
+          <div id="proximity-list" class="proximity-container">
+            <div class="proximity-empty">AWAITING GPS SIGNAL</div>
+          </div>
+        </div>
+        <div class="panel" id="ai-predictions-panel" style="display: none; border-color: #b026ff; box-shadow: 0 0 10px #b026ff55; flex: 1;">
+          <h3 style="color: #df99ff; text-shadow: 0 0 5px #b026ff;">AI PREDICTIONS</h3>
+          <div id="ai-list" class="proximity-container" style="max-height: 150px; overflow-y: auto;">
+          </div>
         </div>
       </div>
       <div class="panel">

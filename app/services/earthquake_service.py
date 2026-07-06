@@ -40,6 +40,10 @@ class DisasterService:
 
     alerted_events: set = set()
     LATEST_DATA: list = []
+    
+    CACHE_USGS: list = []
+    CACHE_NASA: list = []
+    CACHE_SOLAR: list = []
 
     # ── Telegram ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -74,6 +78,8 @@ class DisasterService:
                 if isinstance(resp_usgs, httpx.Response) and resp_usgs.status_code == 200:
                     features = resp_usgs.json().get("features", [])
                     logger.info(f"[DISASTER SVC] USGS returned {len(features)} raw events.")
+                    
+                    usgs_sensors = []
 
                     for q in features:
                         props = q["properties"]
@@ -98,16 +104,18 @@ class DisasterService:
                                 )
                                 upt_reactor.update_external_stress(energy)
 
-                        sensors.append({
+                        usgs_sensors.append({
                             "type": "EARTHQUAKE",
                             "place": place,
                             "lat": q["geometry"]["coordinates"][1],
                             "lon": q["geometry"]["coordinates"][0],
+                            "depth": q["geometry"]["coordinates"][2] if len(q["geometry"]["coordinates"]) > 2 else 10.0,
                             "energy_level": energy,
                             "anomaly_score": props.get("sig", 0) / 1000.0,
                             "raw_val": mag,
                             "timestamp": props.get("time", 0),
                         })
+                    DisasterService.CACHE_USGS = usgs_sensors
                 else:
                     logger.error(
                         f"[DISASTER SVC] USGS fetch failed: {resp_usgs}"
@@ -124,6 +132,8 @@ class DisasterService:
                         "severeStorms": ("STORM",    0.85),
                         "seaLakeIce":   ("ICEBERG",  0.40),
                     }
+                    
+                    nasa_sensors = []
 
                     for ev in events[:500]:
                         if not ev.get("geometry"):
@@ -147,15 +157,17 @@ class DisasterService:
                                 except Exception:
                                     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
                             
-                            sensors.append({
+                            nasa_sensors.append({
                                 "type": d_type,
                                 "place": ev["title"],
                                 "lat": lat, "lon": lon,
+                                "depth": 10.0,
                                 "energy_level": energy,
                                 "anomaly_score": 0.6,
                                 "raw_val": 5.0,
                                 "timestamp": ts,
                             })
+                    DisasterService.CACHE_NASA = nasa_sensors
                 else:
                     logger.error(
                         f"[DISASTER SVC] NASA EONET fetch failed: {resp_nasa}"
@@ -171,6 +183,8 @@ class DisasterService:
                         logger.info(
                             f"[DISASTER SVC] NASA DONKI: {len(latest_flares)} recent solar flares."
                         )
+                        
+                        solar_sensors = []
 
                         for flare in latest_flares:
                             class_type = flare.get("classType", "B")
@@ -189,15 +203,17 @@ class DisasterService:
                                 except Exception:
                                     ts = int(datetime.now(timezone.utc).timestamp() * 1000)
 
-                            sensors.append({
+                            solar_sensors.append({
                                 "type": "SOLAR_FLARE",
                                 "place": f"Sunspot {flare.get('activeRegionNum', 'Unknown')} ({class_type})",
                                 "lat": 90.0, "lon": 0.0,
+                                "depth": 10.0,
                                 "energy_level": energy,
                                 "anomaly_score": 0.99,
                                 "raw_val": 0.0,  # Không phải Richter — dùng energy_level để đo cường độ
                                 "timestamp": ts,
                             })
+                        DisasterService.CACHE_SOLAR = solar_sensors
                 else:
                     logger.warning(
                         f"[DISASTER SVC] NASA DONKI fetch failed or returned no data: {resp_solar}"
@@ -205,6 +221,8 @@ class DisasterService:
 
             except Exception as e:
                 logger.exception(f"[DISASTER SVC] Critical error during data fetch: {e}")
+
+        sensors = DisasterService.CACHE_USGS + DisasterService.CACHE_NASA + DisasterService.CACHE_SOLAR
 
         # ── Cosmic Coupling → Reactor ─────────────────────────────────────────
         if total_cosmic_energy > 0:

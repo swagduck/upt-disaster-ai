@@ -22,10 +22,20 @@ let _hoveredUid = null;
 let _selectedUid = null;
 let _inspectorOpen = false;
 
+window.gcUidToGroup = function(validData) {
+  const validUids = new Set(validData.map(d => d._uid));
+  for (const uid of _uidToGroup.keys()) {
+    if (!validUids.has(uid)) {
+      _uidToGroup.delete(uid);
+    }
+  }
+};
+
 function _applyHighlight(group, mode, d) {
   const col = group && group.userData && group.userData.column;
   if (!col) return;
   const baseOpacity = col.material._baseOpacity || 0.6;
+  
   if (mode === 'selected') {
     col.scale.set(1.8, 1.8, 1.8);
     col.material.opacity = 1.0;
@@ -51,75 +61,128 @@ window.clearSelectedHighlight = () => {
   _inspectorOpen = false;
 };
 
+// (Removed Canvas Texture block to save memory)
 function initGlobe() {
   try {
     window.world = Globe()(document.getElementById("globe-viz"))
       .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
       .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
       .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
-      .atmosphereColor("#00f3ff")
-      .atmosphereAltitude(0.25)
+      .atmosphereColor("#002244")
+      .atmosphereAltitude(0.15)
 
-      // Cấu hình Custom Layer cho Cột và Vòng sóng
+      // Cấu hình Sóng Xung Kích ôm sát bề mặt Trái Đất (Hiệu ứng gợn sóng mượt)
+      .ringColor(d => d.color)
+      .ringMaxRadius(d => (d.maxR || 0) / 10) // Bán kính
+      .ringPropagationSpeed(d => (d.propagationSpeed || 1) * 0.3) // Làm chậm tốc độ lan truyền (slow ripple)
+      .ringRepeatPeriod(d => (d.maxR > 0) ? 700 : 0) // Tần suất sóng liên tục (dưới 1s)
+
+      // --- Cấu hình Hexagon Heatmap cho AI Risk ---
+      .hexBinPointWeight('alt')
+      .hexBinResolution(4) // Tăng độ phân giải để các ô nhỏ lại, mịn hơn
+      .hexMargin(0) // Không có khoảng cách giữa các ô -> tạo thành mảng liên tục
+      .hexAltitude(0.005) // Dát mỏng, ôm sát mặt đất như bản đồ nhiệt
+      .hexBinMerge(true)
+      .hexTransitionDuration(1000)
+      .hexTopColor(d => d.sumWeight > 0.3 ? '#ff003c' : '#ffaa00')
+      .hexSideColor(d => d.sumWeight > 0.3 ? '#880020' : '#885500')
+
+      // Cấu hình Custom Layer cho Hình thù đặc trưng
       .customThreeObject((d) => {
         const group = new THREE.Group();
         const isNuclear = d.type === "NUCLEAR PLANT";
         const isAI = d.type === "AI PREDICTION";
 
-        // --- 1. Vẽ Cột Năng Lượng (Column) ---
-        const colHeight = Math.max((d.alt || 0) * 15, isNuclear ? 4 : 0.5);
+        // --- 1. Vẽ Cột Năng Lượng / Hình thù đặc trưng (Column/Shape) ---
+        const colHeight = Math.max((d.alt || 0) * 12, isNuclear ? 3.5 : 1.5);
         let colGeo;
         if (isAI) {
-            colGeo = new THREE.IcosahedronGeometry(1.5, 0);
-            colGeo.translate(0, 1.5, 0);
+            colGeo = new THREE.IcosahedronGeometry(1.2, 0);
+            colGeo.translate(0, 1.2, 0);
         } else if (isNuclear) {
-            colGeo = new THREE.CylinderGeometry(0.8, 0.8, colHeight, 6);
+            colGeo = new THREE.CylinderGeometry(0.6, 0.6, colHeight, 6);
             colGeo.translate(0, colHeight / 2, 0);
+        } else if (d.type && d.type.includes("WILDFIRE")) {
+            // Cháy rừng: Hình nón (Ngọn lửa)
+            colGeo = new THREE.ConeGeometry(0.5, colHeight * 1.5, 16);
+            colGeo.translate(0, (colHeight * 1.5) / 2, 0);
+        } else if (d.type && d.type.includes("STORM")) {
+            // Bão: Hình xoắn ốc (TorusKnot)
+            colGeo = new THREE.TorusKnotGeometry(0.6, 0.15, 64, 8);
+            colGeo.translate(0, 1.2, 0);
+        } else if (d.type && d.type.includes("QUAKE")) {
+            // Động đất: Quả cầu tâm chấn
+            colGeo = new THREE.SphereGeometry(0.6, 16, 16);
+            colGeo.translate(0, 0.6, 0);
         } else {
-            // Cột thiên tai lớn hơn để dễ nhìn và dễ click
-            colGeo = new THREE.CylinderGeometry(0.4, 0.8, colHeight, 8);
-            colGeo.translate(0, colHeight / 2, 0);
+            // Các thiên tai khác (Mặc định)
+            colGeo = new THREE.CylinderGeometry(0.3, 0.5, colHeight * 1.2, 8);
+            colGeo.translate(0, (colHeight * 1.2) / 2, 0);
         }
 
-        const colMat = new THREE.MeshBasicMaterial({
+        const colMat = new THREE.MeshStandardMaterial({
           color: d.color,
           transparent: true,
-          opacity: isAI ? 0.8 : 0.6,
+          opacity: isAI ? 1.0 : 0.8,
           wireframe: isAI,
-          blending: THREE.AdditiveBlending,
+          emissive: d.color,
+          emissiveIntensity: isAI ? 1.5 : 0.8, 
         });
+        if (isAI) {
+            colMat.blending = THREE.AdditiveBlending; // Chỉ AI mới dùng hòa trộn ánh sáng chói
+        }
         const column = new THREE.Mesh(colGeo, colMat);
-        colMat._baseOpacity = isAI ? 0.8 : 0.6;
+        colMat._baseOpacity = isAI ? 0.9 : 0.6;
         // FIX: gắn __data vào cả mesh con để Globe.gl tìm được datum khi raycast trúng cylinder
         column.__data = d;
+        
+        let heatmapMesh = null;
+        
+        // Luôn luôn vẽ hình thù 3D (column)
         group.add(column);
-
-        // --- 2. Vẽ Vòng Sóng (Wave Ring) ---
-        const ringGeo = new THREE.RingGeometry(1.4, 1.5, 32);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color: d.color,
-          transparent: true,
-          opacity: 0.8,
-          side: THREE.DoubleSide,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.rotation.x = -Math.PI / 2;
-        ring.raycast = function() {}; // Tắt raycast vòng sóng, không cản click vào cột
-        ring.__data = d; // safety
-
-        if (d.maxR > 0) {
-            group.add(ring);
+        
+        // NẾU LÀ AI -> Vẽ 2D Heatmap Patch bằng các lớp hình học xếp chồng (chống lỗi Texture)
+        if (isAI) {
+            const radius = Math.max((d.alt || 0) * 20, 6.0); // TĂNG KÍCH THƯỚC LÊN GẤP ĐÔI
+            heatmapMesh = new THREE.Group();
+            
+            const layers = [
+                { r: radius * 1.0, color: 0x0088ff, opacity: 0.15 }, 
+                { r: radius * 0.7, color: 0xffaa00, opacity: 0.4 }, 
+                { r: radius * 0.4, color: 0xff4400, opacity: 0.7 }, 
+                { r: radius * 0.15, color: 0xff0000, opacity: 1.0 } 
+            ];
+            
+            layers.forEach((layer, idx) => {
+                const heatGeo = new THREE.CircleGeometry(layer.r, 32);
+                const heatMat = new THREE.MeshBasicMaterial({ 
+                    color: layer.color,
+                    transparent: true, 
+                    opacity: layer.opacity,
+                    side: THREE.DoubleSide
+                });
+                const mesh = new THREE.Mesh(heatGeo, heatMat);
+                mesh.rotation.x = -Math.PI / 2; // Đặt nằm phẳng trên mặt đất
+                mesh.position.y = 0.5 + (idx * 0.02); // NÂNG CAO LÊN 0.5 để không bị lọt thỏm dưới bề mặt địa hình
+                heatmapMesh.add(mesh);
+            });
+            
+            heatmapMesh.__data = d;
+            group.add(heatmapMesh);
         }
 
+        // Tạo Hitbox tàng hình bọc bên ngoài để dễ click (đặc biệt cho Bão TorusKnot)
+        const hitBoxGeo = new THREE.SphereGeometry(isAI ? 4.0 : Math.max(colHeight, 2.5), 8, 8);
+        const hitBoxMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+        const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
+        hitBox.position.set(0, colHeight / 2, 0);
+        hitBox.__data = d;
+        group.add(hitBox);
+
         group.userData = {
-          ring: ring,
-          column: column,
-          maxR: d.maxR || 0,
-          speed: (d.propagationSpeed || 2) * 0.005,
-          animOffset: Math.random(),
+          column: column, // Dùng lại biểu tượng 3D làm gốc highlight cho đồng bộ
           isAI: isAI,
+          type: d.type || "UNKNOWN",
           oriented: false
         };
 
@@ -140,22 +203,27 @@ function initGlobe() {
             obj.userData.oriented = true;
         }
 
-        // Chạy Animation cho Vòng sóng độc lập (Không bị giật khi Filter)
-        if (obj.userData.maxR > 0) {
-            obj.userData.animOffset += obj.userData.speed;
-            if (obj.userData.animOffset > 1) obj.userData.animOffset = 0;
-            const t = obj.userData.animOffset;
-            obj.userData.ring.scale.set(1 + t * obj.userData.maxR * 2, 1 + t * obj.userData.maxR * 2, 1);
-            obj.userData.ring.material.opacity = (1 - Math.pow(t, 2)) * 0.8;
-        }
-
-        // Xoay khối cầu AI
+        // Các hiệu ứng xoay (Rotation) đặc thù cho từng loại thiên tai
+        const typeStr = obj.userData.type || "";
         if (obj.userData.isAI) {
             obj.userData.column.rotation.y += 0.05;
             obj.userData.column.rotation.z += 0.02;
+        } else if (typeStr.includes("STORM")) {
+            // Bão xoáy tròn
+            obj.userData.column.rotation.y -= 0.08;
+            obj.userData.column.rotation.x += 0.01;
+        } else if (typeStr.includes("WILDFIRE")) {
+            // Lửa bập bùng (Scale nhấp nháy)
+            const pulse = 1 + Math.sin(Date.now() * 0.01) * 0.2;
+            obj.userData.column.scale.set(1, pulse, 1);
+        } else if (typeStr.includes("QUAKE")) {
+            // Động đất đập thình thịch
+            const pulse = 1 + Math.sin(Date.now() * 0.02) * 0.15;
+            obj.userData.column.scale.set(pulse, pulse, pulse);
         }
       })
       .onCustomLayerHover((d, prevD) => {
+        if (!d && !prevD) return; // Early return nếu di chuyển chuột trong vùng trống
         // Bỏ highlight hover cũ
         if (_hoveredUid && _hoveredUid !== _selectedUid) {
             const prevGroup = _uidToGroup.get(_hoveredUid);
@@ -192,6 +260,27 @@ function initGlobe() {
 
     window.world.controls().autoRotate = true;
     window.world.controls().autoRotateSpeed = 0.15;
+
+    // --- LỚP PHỦ MÂY VỆ TINH (CLOUDS) ---
+    const CLOUDS_IMG_URL = 'https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/clouds/clouds.png';
+    const CLOUDS_ALT = 0.004;
+    const CLOUDS_ROTATION_SPEED = -0.005; // deg/frame
+
+    new THREE.TextureLoader().load(CLOUDS_IMG_URL, cloudsTexture => {
+      const clouds = new THREE.Mesh(
+        new THREE.SphereGeometry(window.world.getGlobeRadius() * (1 + CLOUDS_ALT), 75, 75),
+        new THREE.MeshPhongMaterial({ map: cloudsTexture, transparent: true, opacity: 0.8 })
+      );
+      // Vô hiệu hóa bắt sự kiện chuột trên lớp mây để không chặn click xuống quả cầu
+      clouds.raycast = function() {}; 
+      window.world.scene().add(clouds);
+
+      (function rotateClouds() {
+        clouds.rotation.y += CLOUDS_ROTATION_SPEED * Math.PI / 180;
+        requestAnimationFrame(rotateClouds);
+      })();
+    });
+
   } catch (e) {
     console.error("Globe Init Failed:", e);
   }

@@ -8,7 +8,6 @@ from fastapi import BackgroundTasks
 from typing import List, Optional
 
 from app.services.earthquake_service import DisasterService
-from app.upt_engine.formulas import UPTMath
 from app.upt_engine.deep_core import guardian_brain
 from app.core.logger import get_logger
 from app.core.limiter import limiter
@@ -66,83 +65,7 @@ def _calc_local_energy(lat: float, lon: float, events: list, radius_km: float = 
     # log1p(x) / log1p(10) cho phép khoảng 10 đơn vị năng lượng = 1.0
     return min(math.log1p(total) / math.log1p(10), 1.0)
 
-@router.post("/predict")
-async def predict_disaster(request: PredictionRequest):
-    """Formula-based disaster probability (kept for backwards compatibility)."""
-    if not request.sensors:
-        logger.warning("[PREDICTION API] /predict called with no sensor data.")
-        return {"error": "No sensor data provided"}
 
-    avg_energy = sum(s.energy_level for s in request.sensors) / len(request.sensors)
-    avg_anomaly = sum(s.anomaly_score for s in request.sensors) / len(request.sensors)
-
-    prob_index = UPTMath.calculate_collapse_probability(
-        avg_anomaly, avg_energy, request.geo_vulnerability
-    )
-    sensor_dicts = [s.model_dump() for s in request.sensors]
-    resonance = UPTMath.calculate_resonance(sensor_dicts)
-    stability = UPTMath.calculate_stability(
-        resonance, request.environmental_noise, request.active_dampening
-    )
-
-    alert = "NORMAL"
-    recommendation = "Hệ thống ổn định."
-    if prob_index > 0.4:
-        alert = "WARNING"
-        recommendation = "Dao động bất thường."
-    if prob_index > 0.7:
-        alert = "CRITICAL"
-        recommendation = "SƠ TÁN NGAY LẬP TỨC."
-
-    logger.info(
-        f"[PREDICTION API] Formula prediction for '{request.region_name}': "
-        f"P={prob_index:.3f} | Alert={alert}"
-    )
-    return {
-        "region": request.region_name,
-        "probability_index": prob_index,
-        "network_resonance": resonance,
-        "stability_score": stability,
-        "alert_level": alert,
-        "action_recommendation": recommendation,
-    }
-
-
-@router.get("/realtime/usgs")
-@cache(expire=30)
-async def get_realtime_prediction():
-    """Fetch live USGS + NASA data and compute UPT metrics."""
-    real_sensors = await DisasterService.fetch_all_realtime()
-    if not real_sensors:
-        logger.warning("[PREDICTION API] /realtime/usgs returned no sensor data.")
-        return {"message": "No data.", "upt_metrics": None, "raw_sensors": []}
-
-    avg_energy = sum(s["energy_level"] for s in real_sensors) / len(real_sensors)
-    avg_anomaly = sum(s["anomaly_score"] for s in real_sensors) / len(real_sensors)
-
-    prob_index = UPTMath.calculate_collapse_probability(avg_anomaly, avg_energy, 0.5)
-    resonance = avg_anomaly * avg_energy * 1.5
-    stability = UPTMath.calculate_stability(resonance, 0.1, 0.0)
-
-    alert = "NORMAL"
-    if prob_index > 0.45: alert = "WARNING"
-    if prob_index > 0.75: alert = "CRITICAL"
-
-    logger.info(
-        f"[PREDICTION API] Realtime: {len(real_sensors)} events | "
-        f"P={prob_index:.3f} | Alert={alert}"
-    )
-    return {
-        "source": "USGS & NASA",
-        "detected_events": len(real_sensors),
-        "upt_metrics": {
-            "probability_index": prob_index,
-            "network_resonance": resonance,
-            "stability_score": stability,
-            "alert_level": alert,
-        },
-        "raw_sensors": real_sensors,
-    }
 
 
 @router.get("/status")
@@ -152,7 +75,7 @@ async def get_ai_status():
     return {
         "status": "ONLINE" if guardian_brain.is_trained else "INITIALIZING",
         "buffer_size": len(guardian_brain.realtime_buffer),
-        "model_type": "Gradient Boosting (Scikit-Learn)",
+        "model_type": "Deep Learning LSTM (TensorFlow/Keras)",
     }
 
 @router.get("/evaluation")
@@ -206,65 +129,126 @@ async def forecast_disaster(req: NeuralPredictionRequest, request: Request):
         "lon": req.lon,
         "risk_score": risk,
         "alert_level": alert_level,
-        "model_type": "HistGradientBoosting Time-Series"
+        "model_type": "LSTM Neural Network Time-Series"
     }
+
+def _generate_dynamic_grid():
+    """Tạo ra lưới tọa độ động từ các cụm đứt gãy do AI DBSCAN phát hiện."""
+    hotspots = guardian_brain.dynamic_hotspots
+    
+    # Fallback nếu AI chưa quét xong
+    if not hotspots:
+        base_faults = [
+            {"lat_range": (30, 45), "lon_range": (130, 145), "base_risk": 0.22, "name": "Japan Trench"},
+            {"lat_range": (32, 40), "lon_range": (-125, -115), "base_risk": 0.18, "name": "San Andreas Fault"},
+        ]
+        grid = []
+        for fault in base_faults:
+            for _ in range(5):
+                lat = random.uniform(fault["lat_range"][0], fault["lat_range"][1])
+                lon = random.uniform(fault["lon_range"][0], fault["lon_range"][1])
+                grid.append({
+                    "name": f"{fault['name']} Region",
+                    "lat": round(lat, 3),
+                    "lon": round(lon, 3),
+                    "base_risk": fault["base_risk"]
+                })
+        return grid
+
+    grid = []
+    for spot in hotspots:
+        # Generate random points around the centroid
+        for _ in range(5):
+            lat = spot["lat"] + random.uniform(-2.0, 2.0)
+            lon = spot["lon"] + random.uniform(-2.0, 2.0)
+            grid.append({
+                "name": spot["name"],
+                "lat": round(lat, 3),
+                "lon": round(lon, 3),
+                "base_risk": spot["base_risk"]
+            })
+    return grid
+
+def _get_region_name(lat, lon):
+    hotspots = guardian_brain.dynamic_hotspots
+    if not hotspots:
+        return "Deep Ocean/Unknown"
+        
+    closest_name = "Deep Ocean/Unknown"
+    min_dist = 9999
+    for spot in hotspots:
+        dist = math.sqrt((lat - spot["lat"])**2 + (lon - spot["lon"])**2)
+        if dist < min_dist:
+            min_dist = dist
+            closest_name = spot["name"]
+    return closest_name if min_dist < 40 else "Deep Ocean/Unknown"
 
 @router.get("/global-scan")
 @limiter.limit("5/minute")
 async def global_scan(request: Request):
-    """AI-powered risk forecast for major global fault lines."""
-    # Các điểm nóng đứt gãy kiến tạo (Ring of Fire, v.v...)
-    # base_risk: Rủi ro nền địa chất lịch sử (0.0 - 1.0), phản ánh mức độ hoạt động
-    # địa chấn tự nhiên của từng vùng kể cả khi không có sự kiện live nào được ghi nhận.
-    # Nguồn tham khảo: USGS Seismic Hazard Maps & Global Earthquake Model (GEM).
-    HOTSPOTS = [
-        {"name": "Tokyo, Japan",       "lat": 35.6,  "lon": 139.6,  "base_risk": 0.22},  # Vành đai lửa, tần suất cao nhất TG
-        {"name": "California, USA",    "lat": 36.7,  "lon": -119.4, "base_risk": 0.18},  # Đứt gãy San Andreas
-        {"name": "Santiago, Chile",    "lat": -33.4, "lon": -70.6,  "base_risk": 0.20},  # Subduction zone mạnh nhất TG
-        {"name": "Manila, Philippines","lat": 14.5,  "lon": 120.9,  "base_risk": 0.19},  # Vành đai lửa, Thái Bình Dương
-        {"name": "Jakarta, Indonesia", "lat": -6.2,  "lon": 106.8,  "base_risk": 0.17},  # Sunda Trench
-        {"name": "Istanbul, Turkey",   "lat": 41.0,  "lon": 28.9,   "base_risk": 0.16},  # Đứt gãy North Anatolian
-        {"name": "Wellington, NZ",     "lat": -41.2, "lon": 174.7,  "base_risk": 0.18},  # Alpine Fault
-        {"name": "Taiwan",             "lat": 23.6,  "lon": 120.9,  "base_risk": 0.20},  # Mảng Philippine hội tụ
-        {"name": "Mexico City",        "lat": 19.4,  "lon": -99.1,  "base_risk": 0.15},  # Cocos Plate subduction
-        {"name": "Tehran, Iran",       "lat": 35.6,  "lon": 51.3,   "base_risk": 0.14},  # Zagros fold belt
-        {"name": "Lima, Peru",         "lat": -12.0, "lon": -77.0,  "base_risk": 0.18},  # Nazca Plate subduction
-        {"name": "Naples, Italy",      "lat": 40.8,  "lon": 14.2,   "base_risk": 0.12},  # Apennines + Vesuvius
-        {"name": "Iceland",            "lat": 64.9,  "lon": -19.0,  "base_risk": 0.13},  # Mid-Atlantic Ridge
-        {"name": "Alaska, USA",        "lat": 64.2,  "lon": -149.4, "base_risk": 0.19},  # Subduction zone, M9+ lịch sử
-        {"name": "Hawaii, USA",        "lat": 19.8,  "lon": -155.8, "base_risk": 0.11},  # Hotspot núi lửa
-        {"name": "Sumatra, Indonesia", "lat": 0.5,   "lon": 101.5,  "base_risk": 0.21},  # Nơi xảy ra M9.1 tsunami 2004
-        {"name": "Fiji",               "lat": -17.7, "lon": 178.0,  "base_risk": 0.14},  # Tonga Trench
-        {"name": "Kathmandu, Nepal",   "lat": 27.7,  "lon": 85.3,   "base_risk": 0.16},  # Mảng Ấn Độ - Á-Âu
-        {"name": "San Francisco, USA", "lat": 37.7,  "lon": -122.4, "base_risk": 0.17},  # San Andreas Fault trực tiếp
-        {"name": "Hokkaido, Japan",    "lat": 43.2,  "lon": 142.8,  "base_risk": 0.20},  # Kuril Subduction Zone
-    ]
-
-    # Lấy dữ liệu thiên tai đang xảy ra thực tế từ cache
+    """Spatio-Temporal AI-powered risk forecast for dynamic global grid."""
     live_events = DisasterService.get_latest_data()
-
     results = []
-    for spot in HOTSPOTS:
-        # 1. Tính năng lượng cục bộ THỰC TẾ từ các sự kiện live trong bán kính 800km
+    
+    # 1. AI PREDICTED HAZARDS (SPATIAL LSTMs)
+    next_hazards = await run_in_threadpool(guardian_brain.predict_next_hazards)
+    for hazard in next_hazards:
+        # Tự động gán rủi ro cực đại cho tọa độ AI dự đoán
+        local_energy = _calc_local_energy(hazard["lat"], hazard["lon"], live_events)
+        region = _get_region_name(hazard["lat"], hazard["lon"])
+        
+        hazard_type_name = "EPICENTER"
+        mag_str = f"M{hazard['mag']}"
+        if hazard["type"] == "STORM":
+            hazard_type_name = "TYPHOON"
+            cat = max(1, min(5, int(hazard['mag'] / 2)))
+            mag_str = f"Cat {cat}"
+        elif hazard["type"] == "WILDFIRE":
+            hazard_type_name = "WILDFIRE"
+            lvl = max(1, min(5, int(hazard['mag'] / 2)))
+            mag_str = f"Level {lvl}"
+        
+        # Calculate real probability
+        local_anomaly = min(local_energy * 1.5, 1.0)
+        base_prob = await run_in_threadpool(guardian_brain.predict_risk, hazard["lat"], hazard["lon"], local_energy, local_anomaly)
+        
+        # Factor in Severity
+        if hazard["type"] == "EARTHQUAKE":
+            severity = min(hazard["mag"] / 7.0, 1.0)
+        else:
+            severity = min(hazard["mag"] / 10.0, 1.0)
+            
+        final_risk = (base_prob * 0.4) + (severity * 0.6)
+        
+        alert_lvl = "NORMAL"
+        if final_risk > 0.75: alert_lvl = "CRITICAL"
+        elif final_risk > 0.45: alert_lvl = "WARNING"
+
+        results.append({
+            "name": f"AI PREDICTED {hazard_type_name}: {region} ({mag_str} EXPECTED)",
+            "lat": hazard["lat"],
+            "lon": hazard["lon"],
+            "depth": hazard.get("depth", 10.0),
+            "hazard_type": hazard["type"],
+            "risk_score": final_risk,
+            "local_energy": round(local_energy, 3),
+            "base_risk": float(base_prob),
+            "alert_level": alert_lvl
+        })
+        logger.info(f"[PREDICTION API] Spatial LSTM predicted {hazard_type_name} at {hazard['lat']}, {hazard['lon']} with Risk: {final_risk:.2f}")
+
+    # 2. DYNAMIC GRID SCAN (TEMPORAL LSTM)
+    dynamic_hotspots = _generate_dynamic_grid()
+    
+    for spot in dynamic_hotspots:
         local_energy = _calc_local_energy(spot["lat"], spot["lon"], live_events)
-
-        # 2. Pha trộn năng lượng live với rủi ro nền địa tầng lịch sử.
-        #    50/50: Cân bằng giữa tín hiệu thời gian thực và đặc tính địa chất nền.
-        #    Đảm bảo các vùng nguy hiểm (Tokyo, Sumatra) duy trì thứ hạng địa chất
-        #    ngay cả khi không có live events tại thời điểm scan.
         blended_energy = local_energy * 0.50 + spot["base_risk"] * 0.50
-
-        # 3. Dị thường cục bộ: tỉ lệ với mật độ sự kiện xung quanh, cộng thêm nền địa tầng
         local_anomaly = min(blended_energy * 1.2, 1.0)
 
-        # 4. Dự đoán AI (Global Instability từ Gradient Boosting)
         risk = await run_in_threadpool(
             guardian_brain.predict_risk, spot["lat"], spot["lon"], blended_energy, local_anomaly
         )
 
-        # 5. Nhiễu vi mô địa chấn: Mô phỏng sóng địa chấn nền (background seismic noise)
-        #    Mỗi lần quét cho ra một con số hơi khác nhau để phản ánh sự rung động liên tục
-        #    của vỏ Trái Đất (ngay cả khi không có động đất lớn, vỏ trái đất luôn vi rung).
         micro_noise = random.uniform(0.004, 0.018)
         risk = min(risk + micro_noise, 1.0)
 
@@ -282,7 +266,10 @@ async def global_scan(request: Request):
             "alert_level": alert_level
         })
 
-    logger.info(f"[PREDICTION API] Global scan completed for {len(HOTSPOTS)} regions.")
+    # Chỉ lấy Top 15 khu vực rủi ro cao nhất để hiển thị
+    results = sorted(results, key=lambda x: x["risk_score"], reverse=True)[:15]
+
+    logger.info(f"[PREDICTION API] Global scan completed. Generated {len(dynamic_hotspots)} dynamic zones, returning Top 15.")
 
     return {
         "status": "COMPLETED",

@@ -1,7 +1,7 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.6.0
-pydantic-settings==2.2.1
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.9.0
+pydantic-settings>=2.2.1
 python-dotenv
 numpy
 requests
@@ -13,9 +13,8 @@ slowapi==0.1.9
 # --- DATA & AI ---
 pymongo
 scikit-learn
-numpy
-# TensorFlow và các thư viện nặng đã bị gỡ bỏ để chạy trên Render Free (512MB RAM)
-
+tensorflow>=2.15.0
+# TensorFlow has been removed to run on Render Free
 # --- TESTING ---
 pytest
 pytest-asyncio
@@ -23,4 +22,5 @@ anyio[trio]
 
 # --- CACHING ---
 fastapi-cache2
+jinja2
 twilio

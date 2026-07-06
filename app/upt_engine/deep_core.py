@@ -1,8 +1,10 @@
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingRegressor
+import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.cluster import DBSCAN
 from collections import deque
+import logging
+from global_land_mask import globe
 
 from app.core.database import Database
 from app.core.logger import get_logger
@@ -12,28 +14,51 @@ logger = get_logger(__name__)
 class DeepGuardian:
     def __init__(self):
         self.scaler = MinMaxScaler(feature_range=(0, 1))
-        self.look_back = 20  # Tăng lên 20 để có tầm nhìn dài hơn (Time-Series)
+        self.look_back = 20  # Time steps for LSTM (temporal)
+        self.num_features = 5
+        
+        self.spatial_look_back = 10
+        self.spatial_features = 4 # lat, lon, mag, depth
+        
         self.is_trained = False
         self.metrics = {"mse": 0.0, "mae": 0.0, "tolerance_accuracy": 0.0}
         
-        # HistGradientBoostingRegressor: siêu tiết kiệm RAM và cực kỳ mạnh mẽ
-        self.model = HistGradientBoostingRegressor(
-            max_iter=200, 
-            learning_rate=0.1,
-            max_depth=5,
-            random_state=42
-        )
-
+        self.model = self._build_model()
+        
+        self.hazard_types = ["EARTHQUAKE", "STORM", "WILDFIRE"]
+        self.hazard_models = {ht: self._build_spatial_model() for ht in self.hazard_types}
+        self.hazard_buffers = {ht: deque(maxlen=self.spatial_look_back) for ht in self.hazard_types}
+        
+        self.dynamic_hotspots = []
+        
         self.realtime_buffer = deque(maxlen=self.look_back)
 
+    def _build_model(self):
+        model = tf.keras.Sequential([
+            tf.keras.layers.LSTM(64, input_shape=(self.look_back, self.num_features), return_sequences=False),
+            tf.keras.layers.Dense(32, activation='relu'),
+            tf.keras.layers.Dense(1, activation='sigmoid')  # Output risk score between 0 and 1
+        ])
+        model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+        return model
+
+    def _build_spatial_model(self):
+        model = tf.keras.Sequential([
+            tf.keras.layers.LSTM(32, input_shape=(self.spatial_look_back, self.spatial_features), return_sequences=False),
+            tf.keras.layers.Dense(16, activation='relu'),
+            tf.keras.layers.Dense(4, activation='sigmoid')  # Output normalized lat, lon, mag, depth
+        ])
+        model.compile(optimizer='adam', loss='mse')
+        return model
+
     def initialize(self):
-        """Khởi tạo AI và huấn luyện từ MongoDB."""
-        logger.info("[DEEP CORE] 🧠 DeepGuardian initialized. Connecting to memory...")
+        """Initialize AI and train from MongoDB."""
+        logger.info("[DEEP CORE] 🧠 DeepGuardian (Multi-Hazard LSTM) initialized. Connecting to memory...")
         try:
             if Database.db is not None:
                 self.train_from_memory()
         except Exception as e:
-            logger.error(f"[DEEP CORE] Initialization error: {e}")
+            logger.error(f"[DEEP CORE] Initialization error: {e}", exc_info=True)
 
     def _extract_features(self, sensors):
         if not sensors:
@@ -42,7 +67,6 @@ class DeepGuardian:
         avg_energy = np.mean([s.get("energy_level", 0) for s in sensors])
         avg_anomaly = np.mean([s.get("anomaly_score", 0) for s in sensors])
         
-        # An toàn khi list rỗng
         max_mag = 0.0
         try:
             max_mag = max(s.get("raw_val", 0) for s in sensors)
@@ -58,18 +82,71 @@ class DeepGuardian:
 
         return [avg_energy, avg_anomaly, max_mag / 10.0, event_count_norm, cosmic_energy]
 
+    def _normalize_spatial(self, lat, lon, mag, depth=10.0):
+        return [(lat + 90.0) / 180.0, (lon + 180.0) / 360.0, mag / 10.0, max(min(depth / 700.0, 1.0), 0.0)]
+
+    def _denormalize_spatial(self, n_lat, n_lon, n_mag, n_depth=0.0):
+        return (n_lat * 180.0) - 90.0, (n_lon * 360.0) - 180.0, n_mag * 10.0, n_depth * 700.0
+
+    def _detect_hotspots(self, logs):
+        """Sử dụng DBSCAN để tự động quét ra Top 5 Cụm đứt gãy hoạt động mạnh nhất."""
+        try:
+            coords = []
+            for log in logs:
+                for s in log.get("sensors_data", []):
+                    if s.get("type") == "EARTHQUAKE" and s.get("raw_val", 0) > 1.5:
+                        lat, lon = s.get("lat"), s.get("lon")
+                        if lat is not None and lon is not None:
+                            coords.append([lon, lat])
+            
+            if len(coords) < 100:
+                return []
+                
+            coords_arr = np.array(coords)
+            dbscan = DBSCAN(eps=3.5, min_samples=15)
+            labels = dbscan.fit_predict(coords_arr)
+            
+            from collections import defaultdict
+            clusters = defaultdict(list)
+            for i, lbl in enumerate(labels):
+                if lbl != -1:
+                    clusters[lbl].append(coords_arr[i])
+                    
+            sorted_clusters = sorted(clusters.items(), key=lambda x: len(x[1]), reverse=True)[:5]
+            
+            hotspots = []
+            for lbl, pts in sorted_clusters:
+                pts_arr = np.array(pts)
+                avg_lon = np.mean(pts_arr[:, 0])
+                avg_lat = np.mean(pts_arr[:, 1])
+                hotspots.append({
+                    "name": f"Dynamic Hotspot (Cluster {lbl})",
+                    "lat": float(avg_lat),
+                    "lon": float(avg_lon),
+                    "base_risk": min(0.30, 0.15 + (len(pts) / 5000.0))
+                })
+                
+            logger.info(f"[DEEP CORE] 🗺️ Detected {len(hotspots)} dynamic hotspots via DBSCAN.")
+            self.dynamic_hotspots = hotspots
+            return hotspots
+        except Exception as e:
+            logger.error(f"[DEEP CORE] DBSCAN Hotspot detection failed: {e}", exc_info=True)
+            return []
+
     def train_from_memory(self):
         col = Database.get_collection("raw_logs")
         if col is None:
             return 0
 
         try:
-            # Tăng dữ liệu lên 3000 vì Gradient Boosting xử lý rất nhanh mà không tốn RAM
             logs = list(col.find().sort("timestamp", -1).limit(3000))
             logs.reverse() # chronologically ascending
         except Exception as e:
             logger.error(f"[DEEP CORE] Failed to read training data from DB: {e}")
             return 0
+            
+        # Tích hợp quét Hotspots
+        self._detect_hotspots(logs)
 
         if len(logs) < self.look_back + 10:
             logger.warning(
@@ -79,14 +156,21 @@ class DeepGuardian:
             return 0
 
         data = []
+        # Tách riêng các chuỗi không gian cho từng thảm họa
+        all_hazards = {ht: [] for ht in self.hazard_types}
+        
         for log in logs:
             sensors = log.get("sensors_data", [])
             features = self._extract_features(sensors)
             data.append(features)
+            
+            for s in sensors:
+                htype = s.get("type")
+                if htype in self.hazard_types and s.get("raw_val", 0) > 0:
+                    all_hazards[htype].append(self._normalize_spatial(s.get("lat", 0), s.get("lon", 0), s.get("raw_val", 0), s.get("depth", 10.0)))
 
+        # Temporal Model
         dataset = np.array(data)
-        
-        # Chia dữ liệu theo thời gian (Chronological Split) trước khi fit Scaler để tránh Data Leakage
         split_idx = int(len(dataset) * 0.8)
         if split_idx > 0:
             self.scaler.fit(dataset[:split_idx])
@@ -95,87 +179,121 @@ class DeepGuardian:
             
         dataset_scaled = self.scaler.transform(dataset)
 
-        X, y = [], []
-        # Kỹ thuật Trượt Cửa Sổ (Time-Series Windowing) với Tầm nhìn Tương lai (Forecast Horizon)
-        forecast_horizon = 5  # Dự đoán xa hơn 5 nhịp thời gian vào tương lai
-        
+        X_temp, y_temp = [], []
+        forecast_horizon = 5 
         for i in range(self.look_back, len(dataset_scaled) - forecast_horizon):
             window = dataset_scaled[i - self.look_back: i, :]
-            X.append(window.flatten())
-            # Target: Dự đoán mức độ rủi ro chung ở TƯƠNG LAI (i + forecast_horizon)
+            X_temp.append(window)
             target_risk = (dataset_scaled[i + forecast_horizon, 1] + dataset_scaled[i + forecast_horizon, 2]) / 2.0
-            y.append(target_risk)
+            y_temp.append(target_risk)
 
-        X = np.array(X)
-        y = np.array(y)
+        X_temp = np.array(X_temp)
+        y_temp = np.array(y_temp)
 
-        # Chia dữ liệu theo thời gian (Chronological Split): 80% học, 20% mới nhất để thi
-        split_idx = int(len(X) * 0.8)
-        X_train, X_test = X[:split_idx], X[split_idx:]
-        y_train, y_test = y[:split_idx], y[split_idx:]
+        if len(X_temp) > 0:
+            logger.info(f"[DEEP CORE] Training Temporal LSTM on {len(X_temp)} samples...")
+            self.model.fit(X_temp, y_temp, epochs=10, batch_size=32, verbose=0)
+            self.evaluate_accuracy(X_temp, y_temp)
 
-        if len(X_train) == 0 or len(X_test) == 0:
-            # Fallback nếu dữ liệu quá ít
-            self.model.fit(X, y)
-            self.is_trained = True
-            self.evaluate_accuracy(X, y)
-        else:
-            self.model.fit(X_train, y_train)
-            self.is_trained = True
-            logger.info(
-                f"[DEEP CORE] ✅ Training complete: {len(X_train)} train samples. Evaluation on {len(X_test)} test samples."
-            )
-            # Đánh giá ĐỘ CHÍNH XÁC THỰC TẾ trên tập Test (dữ liệu tương lai giả lập)
-            self.evaluate_accuracy(X_test, y_test)
-        
-        
-        return len(X)
+        # Spatial Models
+        for ht in self.hazard_types:
+            h_data = all_hazards[ht]
+            if len(h_data) > self.spatial_look_back + 5:
+                X_spatial, y_spatial = [], []
+                for i in range(self.spatial_look_back, len(h_data) - 1):
+                    X_spatial.append(h_data[i - self.spatial_look_back : i])
+                    y_spatial.append(h_data[i])
+                
+                logger.info(f"[DEEP CORE] Training Spatial LSTM ({ht}) on {len(X_spatial)} sequences...")
+                self.hazard_models[ht].fit(np.array(X_spatial), np.array(y_spatial), epochs=10, batch_size=32, verbose=0)
+                
+                # Populate buffers
+                for eq in h_data[-self.spatial_look_back:]:
+                    self.hazard_buffers[ht].append(eq)
+
+        self.is_trained = True
+        return len(X_temp)
 
     def evaluate_accuracy(self, X, y):
-        """Đánh giá độ chính xác của AI trên tập dữ liệu."""
         if len(X) == 0:
             return
-            
         try:
-            preds = self.model.predict(np.array(X))
-            mse = mean_squared_error(y, preds)
-            mae = mean_absolute_error(y, preds)
-            
-            # Tính điểm Tolerance Accuracy (1 - sai số tuyệt đối trung bình so với biên độ)
-            # Vì target y nằm trong khoảng [0, 1] nên max error có thể là 1.
+            preds = self.model.predict(X, verbose=0).flatten()
+            mse = np.mean((y - preds) ** 2)
+            mae = np.mean(np.abs(y - preds))
             tolerance_accuracy = max(0.0, (1.0 - mae)) * 100
             
             self.metrics = {
-                "mse": round(mse, 4),
-                "mae": round(mae, 4),
-                "tolerance_accuracy": round(tolerance_accuracy, 2)
+                "mse": round(float(mse), 4),
+                "mae": round(float(mae), 4),
+                "tolerance_accuracy": round(float(tolerance_accuracy), 2)
             }
-            logger.info(f"[DEEP CORE] AI Tolerance Accuracy Evaluated: {self.metrics['tolerance_accuracy']}% (MSE={self.metrics['mse']})")
+            logger.info(f"[DEEP CORE] Temporal LSTM Accuracy: {self.metrics['tolerance_accuracy']}% (MSE={self.metrics['mse']})")
         except Exception as e:
-            logger.error(f"[DEEP CORE] Evaluation failed: {e}")
+            logger.error(f"[DEEP CORE] Evaluation failed: {e}", exc_info=True)
 
     def update_realtime_state(self, sensors):
         features = self._extract_features(sensors)
         self.realtime_buffer.append(features)
-        logger.debug(f"[DEEP CORE] Realtime buffer updated. Size: {len(self.realtime_buffer)}/{self.look_back}")
-
+        
+        for s in sensors:
+            htype = s.get("type")
+            if htype in self.hazard_types and s.get("raw_val", 0) > 0:
+                self.hazard_buffers[htype].append(self._normalize_spatial(s.get("lat", 0), s.get("lon", 0), s.get("raw_val", 0), s.get("depth", 10.0)))
+                
     def learn(self, sensors):
-        return self.update_realtime_state(sensors)
+        self.update_realtime_state(sensors)
+        
+        data = []
+        all_hazards = {ht: [] for ht in self.hazard_types}
+        sensors_chronological = list(reversed(sensors))
+        
+        for s in sensors_chronological:
+            data.append(self._extract_features([s]))
+            htype = s.get("type")
+            if htype in self.hazard_types and s.get("raw_val", 0) > 0:
+                all_hazards[htype].append(self._normalize_spatial(s.get("lat", 0), s.get("lon", 0), s.get("raw_val", 0), s.get("depth", 10.0)))
+                
+        dataset = np.array(data)
+        
+        # Temporal Model
+        if len(dataset) > self.look_back + 5:
+            self.scaler.fit(dataset)
+            dataset_scaled = self.scaler.transform(dataset)
+            X_temp, y_temp = [], []
+            forecast_horizon = 2
+            for i in range(self.look_back, len(dataset_scaled) - forecast_horizon):
+                window = dataset_scaled[i - self.look_back: i, :]
+                X_temp.append(window)
+                target_risk = (dataset_scaled[i + forecast_horizon, 1] + dataset_scaled[i + forecast_horizon, 2]) / 2.0
+                y_temp.append(target_risk)
+                
+            if len(X_temp) > 0:
+                logger.info(f"[DEEP CORE] Online Learning: Training Temporal LSTM on {len(X_temp)} live samples...")
+                self.model.fit(np.array(X_temp), np.array(y_temp), epochs=10, batch_size=16, verbose=0)
+                
+        # Spatial Models
+        for ht in self.hazard_types:
+            h_data = all_hazards[ht]
+            if len(h_data) > self.spatial_look_back + 3:
+                X_spatial, y_spatial = [], []
+                for i in range(self.spatial_look_back, len(h_data) - 1):
+                    X_spatial.append(h_data[i - self.spatial_look_back : i])
+                    y_spatial.append(h_data[i])
+                    
+                if len(X_spatial) > 0:
+                    logger.info(f"[DEEP CORE] Online Learning: Training Spatial LSTM ({ht}) on {len(X_spatial)} sequences...")
+                    self.hazard_models[ht].fit(np.array(X_spatial), np.array(y_spatial), epochs=15, batch_size=8, verbose=0)
+
+        # Trạng thái is_trained
+        # Nếu ít nhất 1 buffer đủ dữ liệu thì xem như được học (đủ để dự đoán)
+        if any(len(self.hazard_buffers[ht]) >= self.spatial_look_back for ht in self.hazard_types):
+            self.is_trained = True
+            
+        return len(sensors)
 
     def predict_risk(self, lat, lon, local_energy, local_anomaly):
-        """
-        Predicted Risk = Global Instability (Gradient Boosting) + Location-Specific Factor.
-
-        Công thức tái cân bằng:
-          - global_instability (40%): Xu hướng bất ổn toàn cầu từ AI — giống nhau cho mọi vùng
-            tại cùng một thời điểm, phản ánh "nhiệt độ" chung của hành tinh.
-          - location_factor (60%): Tín hiệu ĐỊA PHƯƠNG riêng biệt của từng hotspot, kết hợp:
-              • local_energy  (60% của 60%): Năng lượng pha trộn live + base_risk địa tầng
-              • local_anomaly (40% của 60%): Mật độ dị thường cục bộ quanh tọa độ đó
-        Tổng hợp: mỗi hotspot luôn cho ra điểm số riêng biệt, không bị san bằng bởi hệ số toàn cầu.
-        """
         if len(self.realtime_buffer) < self.look_back:
-            # Chưa đủ buffer: dựa hoàn toàn vào tín hiệu địa phương
             return min(local_energy * 0.6 + local_anomaly * 0.4, 1.0)
 
         if not self.is_trained:
@@ -184,22 +302,78 @@ class DeepGuardian:
         try:
             raw_seq = np.array(list(self.realtime_buffer))
             seq_scaled = self.scaler.transform(raw_seq)
-            input_flattened = seq_scaled.flatten().reshape(1, -1)
-            global_instability = float(self.model.predict(input_flattened)[0])
+            input_shaped = seq_scaled.reshape(1, self.look_back, self.num_features)
+            
+            global_instability = float(self.model.predict(input_shaped, verbose=0)[0][0])
 
-            # Tín hiệu địa phương: kết hợp năng lượng pha trộn + dị thường cục bộ
-            # local_energy ở đây là blended_energy (live * 0.65 + base_risk * 0.35)
             location_factor = (local_energy * 0.6) + (local_anomaly * 0.4)
-
-            # Global trend (40%) + Location-specific signal (60%)
-            # → Các vùng có base_risk / live events khác nhau sẽ phân hóa rõ rệt hơn
             final_risk = (global_instability * 0.4) + (location_factor * 0.6)
 
-            # Đảm bảo rủi ro từ 0 -> 1
             return min(max(final_risk, 0.0), 1.0)
 
         except Exception as e:
-            logger.error(f"[DEEP CORE] Gradient Boosting prediction failed: {e}", exc_info=True)
+            logger.error(f"[DEEP CORE] Temporal LSTM prediction failed: {e}", exc_info=True)
             return 0.5
+            
+    def _find_nearest_land(self, lat, lon, max_radius_deg=5.0, step=0.5):
+        """Spiral search for nearest land coordinate."""
+        radius = step
+        while radius <= max_radius_deg:
+            for angle in range(0, 360, 45):
+                rad = np.radians(angle)
+                test_lat = lat + radius * np.cos(rad)
+                test_lon = lon + radius * np.sin(rad)
+                # Keep within bounds
+                test_lat = max(min(test_lat, 90.0), -90.0)
+                test_lon = max(min(test_lon, 180.0), -180.0)
+                if globe.is_land(test_lat, test_lon):
+                    return test_lat, test_lon
+            radius += step
+        return None, None
+
+    def predict_next_hazards(self):
+        """Predict the next disaster coordinates for each supported hazard type."""
+        predictions = []
+        if not self.is_trained:
+            return predictions
+            
+        for ht in self.hazard_types:
+            buffer = self.hazard_buffers[ht]
+            if len(buffer) < self.spatial_look_back:
+                continue
+                
+            try:
+                seq = np.array(list(buffer))
+                input_shaped = seq.reshape(1, self.spatial_look_back, self.spatial_features)
+                pred_norm = self.hazard_models[ht].predict(input_shaped, verbose=0)[0]
+                lat, lon, mag, depth = self._denormalize_spatial(pred_norm[0], pred_norm[1], pred_norm[2], pred_norm[3] if len(pred_norm) > 3 else 0.0)
+                
+                lat = max(min(lat, 90.0), -90.0)
+                lon = max(min(lon, 180.0), -180.0)
+                
+                # TOPOGRAPHICAL FILTER
+                if ht == "WILDFIRE":
+                    if not globe.is_land(lat, lon):
+                        logger.warning(f"[DEEP CORE] Topographical Filter: Wildfire predicted in ocean at ({lat}, {lon}). Scanning for land...")
+                        new_lat, new_lon = self._find_nearest_land(lat, lon)
+                        if new_lat is not None:
+                            logger.info(f"[DEEP CORE] Shifted Wildfire prediction to nearest land: ({new_lat}, {new_lon})")
+                            lat, lon = new_lat, new_lon
+                        else:
+                            logger.warning("[DEEP CORE] No land found within radius. Dropping Wildfire prediction.")
+                            continue # Drop prediction if no land found
+                
+                predictions.append({
+                    "type": ht,
+                    "lat": round(float(lat), 3), 
+                    "lon": round(float(lon), 3), 
+                    "mag": round(float(mag), 1),
+                    "depth": round(float(depth), 1)
+                })
+                
+            except Exception as e:
+                logger.error(f"[DEEP CORE] Spatial LSTM prediction failed for {ht}: {e}", exc_info=True)
+                
+        return predictions
 
 guardian_brain = DeepGuardian()

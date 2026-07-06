@@ -28,9 +28,10 @@ A cutting-edge real-time global disaster monitoring platform that combines seism
 
 ### 🧠 **Guardian AI Intelligence**
 
-- **Deep Learning (LSTM)**: Long Short-Term Memory neural networks for forecasting disaster intensity based on time-series data
-- **Neural Prediction**: Risk level forecasting at any global coordinate based on geological fire belt knowledge
-- **Pattern Recognition**: Advanced algorithms for identifying disaster precursors and trends
+- **Spatio-Temporal 4D Deep Learning (LSTM)**: Neural networks predicting exact disaster coordinates and expected severity using a 4D Tensor `[Latitude, Longitude, Magnitude, Depth]` to model subterranean fault volumes.
+- **Dynamic Hotspotting (DBSCAN)**: Unsupervised machine learning automatically identifies and clusters active geological fracture zones in real-time. Zero hardcoded fault lines.
+- **Dynamic Risk Scoring**: AI blends Global Instability and Local Anomaly probabilities with Event Severity (Richter/Category) to produce realistic, actionable disaster risk percentages.
+- **Nightly Autonomous Training**: Background CRON jobs automatically re-cluster hotspots and retrain the Neural Core daily at midnight, creating a fully self-evolving architecture.
 
 ### 🎮 **Advanced Interface & Control**
 

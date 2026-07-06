@@ -35,7 +35,14 @@ async def _scheduled_fetch():
         logger.info("[SCHEDULER] ✅ Data refreshed successfully.")
     except Exception as e:
         logger.error(f"[SCHEDULER] ❌ Auto-fetch failed: {e}")
-
+async def _scheduled_nightly_batch():
+    """Tự động chạy vào 12h đêm: Học lại toàn bộ dữ liệu lịch sử và quét lại Hotspots."""
+    logger.info("[SCHEDULER] 🌙 Bắt đầu tiến trình Nightly Batch Training & Hotspot Scan...")
+    try:
+        await asyncio.to_thread(guardian_brain.train_from_memory)
+        logger.info("[SCHEDULER] ✅ Nightly Batch hoàn tất. Não bộ đã được làm mới!")
+    except Exception as e:
+        logger.error(f"[SCHEDULER] ❌ Nightly Batch thất bại: {e}")
 
 # ── Lifespan (replaces deprecated @app.on_event) ─────────────────────────────
 @asynccontextmanager
@@ -74,8 +81,16 @@ async def lifespan(app: FastAPI):
         max_instances=1,          # Không chạy chồng nhau nếu bị chậm
         misfire_grace_time=60,    # Bỏ qua nếu trễ > 60 giây
     )
+    scheduler.add_job(
+        _scheduled_nightly_batch,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        id="nightly_batch",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("[SCHEDULER] ✅ APScheduler started — auto-fetch every 5 minutes.")
+    logger.info("[SCHEDULER] ✅ APScheduler started — auto-fetch every 5 mins & nightly batch at 00:00.")
 
     logger.info("[MAIN] System fully online.")
 
@@ -114,12 +129,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 async def read_index():
     return FileResponse("app/static/index.html")
 
-
 @app.get("/dashboard")
 async def read_dashboard():
     return FileResponse("app/static/dashboard.html")
-
-
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(reactor.router, prefix="/api/v1/reactor", tags=["Reactor"])
