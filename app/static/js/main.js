@@ -256,7 +256,7 @@ function applyFilters() {
     filteredData = filteredData.filter(d => d.timestamp >= cutoff);
   }
 
-  // Ẩn lưới HexBin (không dùng nữa)
+  // Ẩn lưới HexBin (không dùng nữa, sử dụng 2D heatmap thay thế)
   if (window.world) {
     window.world.hexBinPointsData([]);
   }
@@ -386,9 +386,15 @@ function processBackendData(events) {
       counts.OTHER++;
     }
 
+    // Tạo một chút Jitter (độ lệch ngẫu nhiên nhỏ) dựa trên toạ độ để các điểm trùng lặp tản ra xung quanh
+    const jitterStr = (e.lat + e.lon).toString();
+    const seed = parseInt(jitterStr.substring(jitterStr.length - 3)) || Math.random() * 1000;
+    const jitterLat = (Math.sin(seed) * 0.5); // Lệch tối đa ~0.5 độ (vài chục km)
+    const jitterLon = (Math.cos(seed) * 0.5);
+
     combinedEvents.push({
-      lat: e.lat,
-      lng: e.lon,
+      lat: e.lat + jitterLat,
+      lng: e.lon + jitterLon,
       depth: e.depth || 10.0,
       alt: e.energy_level * 0.5,
       color: color,
@@ -581,7 +587,8 @@ async function runNeuralPrediction() {
         color: color,
         type: typeName,
         place: `${r.name} — Risk: ${(r.risk_score * 100).toFixed(1)}% [${r.alert_level}]`,
-        maxR: isCrit ? 12 : (isWarn ? 6 : 2),
+        // Tăng maxR lên gấp 5 lần để tạo hiệu ứng 2D Heatmap bằng các vòng sóng siêu âm khổng lồ
+        maxR: isCrit ? 60 : (isWarn ? 40 : 25),
         propagationSpeed: 2,
         value: expectedMag
       };

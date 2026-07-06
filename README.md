@@ -35,10 +35,10 @@ A cutting-edge real-time global disaster monitoring platform that combines seism
 
 ### 🎮 **Advanced Interface & Control**
 
-- **3D Visualizer**: Interactive 3D globe displaying disaster locations, nuclear facilities, and risk forecast zones
-- **Voice Command System**: Voice-controlled operations: Scan, Locate me, Status, Matrix, and more
-- **Tactical HUD**: Command panel with DEFCON indicators and intuitive risk distribution charts
-- **Cyberpunk UI**: Immersive interface design with neon aesthetics and futuristic elements
+- **3D Visualizer**: Interactive 3D globe powered by Globe.gl and Three.js. Features glowing Laser Beams for energy scaling, non-overlapping 3D Emoji Sprites for intuitive categorization, and Animated Radar Rings for AI Heatmap forecasting.
+- **Voice Command System**: Voice-controlled operations: Scan, Locate me, Status, Matrix, and more.
+- **Tactical HUD**: Command panel with DEFCON indicators, AI Predictive analysis board, and intuitive risk distribution charts.
+- **Cyberpunk UI**: Immersive interface design with neon aesthetics, glitch effects, and futuristic console logs.
 
 ---
 
