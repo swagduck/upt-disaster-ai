@@ -15,8 +15,8 @@ from app.core.logger import get_logger
 from app.api.v1.endpoints.router import api_router
 from app.api.v1.endpoints import reactor
 from app.api.v1.endpoints import prediction
-from app.upt_engine.reactor_core import upt_reactor
-from app.upt_engine.deep_core import guardian_brain
+from upt_guardian.reactor_core import upt_reactor
+from upt_guardian.deep_core import guardian_brain
 from app.services.earthquake_service import DisasterService
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter, cyber_rate_limit_handler
@@ -67,8 +67,17 @@ async def lifespan(app: FastAPI):
     # Lần fetch đầu tiên ngay khi boot
     asyncio.create_task(DisasterService.fetch_all_realtime())
 
-    # Khởi tạo mô hình AI và huấn luyện từ MongoDB dưới nền
-    asyncio.create_task(asyncio.to_thread(guardian_brain.initialize))
+    # Khởi tạo mô hình AI
+    # Pass MongoDB data explicitly to decouple core from app DB
+    logger.info("[STARTUP] Loading historical data for AI training...")
+    try:
+        col = Database.get_collection("raw_logs")
+        logs = list(col.find().sort("timestamp", -1).limit(3000)) if col is not None else []
+        logs.reverse()
+        guardian_brain.initialize(logs)
+    except Exception as e:
+        logger.error(f"[STARTUP] Error loading data for AI: {e}")
+        guardian_brain.initialize([])
 
     # ── Kích hoạt APScheduler: tự động fetch mỗi 5 phút ──────────────────────
     scheduler = AsyncIOScheduler(timezone="UTC")
@@ -132,6 +141,14 @@ async def read_index():
 @app.get("/dashboard")
 async def read_dashboard():
     return FileResponse("app/static/dashboard.html")
+
+@app.get("/service-worker.js")
+async def read_service_worker():
+    return FileResponse("app/static/service-worker.js", media_type="application/javascript")
+
+@app.get("/manifest.json")
+async def read_manifest():
+    return FileResponse("app/static/manifest.json", media_type="application/manifest+json")
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(reactor.router, prefix="/api/v1/reactor", tags=["Reactor"])

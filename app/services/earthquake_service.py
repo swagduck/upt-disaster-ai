@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from app.core.database import Database
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.upt_engine.reactor_core import upt_reactor
-from app.upt_engine.formulas import UPTMath
-from app.upt_engine.deep_core import guardian_brain
+from upt_guardian.reactor_core import upt_reactor
+from upt_guardian.formulas import UPTMath
+from upt_guardian.deep_core import guardian_brain
 
 load_dotenv()
 

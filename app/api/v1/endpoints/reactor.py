@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel
 import asyncio
 
-from app.upt_engine.reactor_core import upt_reactor
+from upt_guardian.reactor_core import upt_reactor
 from app.core.logger import get_logger
 from app.core.security import require_api_key
 

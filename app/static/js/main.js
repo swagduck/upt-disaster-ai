@@ -504,6 +504,10 @@ async function runNeuralPrediction() {
       return;
     }
 
+    if (typeof checkGeofenceAndAlert === "function") {
+      checkGeofenceAndAlert(data.data);
+    }
+
     const criticalZones = data.data.filter(r => r.alert_level === "CRITICAL");
     const warningZones  = data.data.filter(r => r.alert_level === "WARNING");
 
@@ -1143,3 +1147,72 @@ document.getElementById("btn-link").addEventListener("click", () => {
 
 printTerm("Guardian Kernel v29.0 loaded.");
 printTerm("Modules: SONAR + DISTANCE TRACKING + ZERO MOCK AI.");
+
+// ==========================================
+// PWA & GEOFENCED PUSH NOTIFICATIONS
+// ==========================================
+let swRegistration = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => {
+        swRegistration = reg;
+        printTerm("Service Worker Registered.", "sys");
+      })
+      .catch(err => printTerm("SW Registration Failed: " + err, "err"));
+  });
+}
+
+document.getElementById('enable-alerts-btn').addEventListener('click', async () => {
+  if (!('Notification' in window)) {
+    alert('Trình duyệt của bạn không hỗ trợ Push Notifications!');
+    return;
+  }
+  
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') {
+    alert('Bạn đã từ chối quyền gửi thông báo.');
+    return;
+  }
+
+  // Xin quyền GPS
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      printTerm(`GEOFENCE ENABLED AT: ${userLat.toFixed(2)}, ${userLng.toFixed(2)}`, "sys");
+      alert('Đã bật hệ thống Radar Địa lý! Nếu có thảm họa bán kính 50km, bạn sẽ nhận được cảnh báo đỏ.');
+      
+      const btn = document.getElementById('enable-alerts-btn');
+      btn.style.background = 'rgba(0, 255, 0, 0.2)';
+      btn.style.borderColor = '#00ff00';
+      btn.style.color = '#00ff00';
+      btn.innerText = '✔️ ALERTS ACTIVE';
+    },
+    err => {
+      alert('Không lấy được vị trí GPS. Geofencing không hoạt động.');
+    }
+  );
+});
+
+// Hàm kiểm tra Geofence (được gọi mỗi khi có Prediction mới từ AI)
+window.checkGeofenceAndAlert = function(predictions) {
+  if (!userLat || !userLng || !swRegistration) return;
+  
+  predictions.forEach(p => {
+    if (p.alert_level === "CRITICAL" || p.alert_level === "WARNING") {
+      const riskPct = p.risk_score * 100;
+      const dist = getDistance(userLat, userLng, p.lat, p.lon);
+      
+      // Cảnh báo nếu Rủi ro cao và Khoảng cách < 500km (Vì động đất ảnh hưởng rất rộng)
+      if (riskPct >= 60 && dist < 500) {
+        swRegistration.showNotification('⚠️ THẢM HỌA ĐẾN GẦN', {
+          body: `Phát hiện rủi ro thảm họa ${riskPct.toFixed(1)}% tại ${p.name}. Khoảng cách: ${dist.toFixed(1)}km!`,
+          icon: '/static/icon-192.png',
+          vibrate: [500, 250, 500, 250, 500]
+        });
+      }
+    }
+  });
+};

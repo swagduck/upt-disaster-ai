@@ -1,5 +1,5 @@
 """
-Unit tests for app.upt_engine.deep_core.DeepGuardian._extract_features
+Unit tests for upt_guardian.deep_core.DeepGuardian._extract_features
 and app.services.earthquake_service.DisasterService (mocked HTTP calls).
 """
 import pytest
@@ -14,9 +14,8 @@ class TestExtractFeatures:
     @pytest.fixture(autouse=True)
     def guardian(self):
         # Prevent DB calls and TF model build during test collection
-        with patch("app.core.database.Database.connect"), \
-             patch("app.upt_engine.deep_core.DeepGuardian.train_from_memory"):
-            from app.upt_engine.deep_core import DeepGuardian
+        with patch("upt_guardian.deep_core.DeepGuardian.train"):
+            from upt_guardian.deep_core import DeepGuardian
             self.brain = DeepGuardian.__new__(DeepGuardian)
             self.brain.look_back = 5
 

@@ -8,7 +8,7 @@ from fastapi import BackgroundTasks
 from typing import List, Optional
 
 from app.services.earthquake_service import DisasterService
-from app.upt_engine.deep_core import guardian_brain
+from upt_guardian.deep_core import guardian_brain
 from app.core.logger import get_logger
 from app.core.limiter import limiter
 from app.core.security import require_api_key

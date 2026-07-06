@@ -6,10 +6,7 @@ from collections import deque
 import logging
 from global_land_mask import globe
 
-from app.core.database import Database
-from app.core.logger import get_logger
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class DeepGuardian:
     def __init__(self):
@@ -51,12 +48,12 @@ class DeepGuardian:
         model.compile(optimizer='adam', loss='mse')
         return model
 
-    def initialize(self):
-        """Initialize AI and train from MongoDB."""
-        logger.info("[DEEP CORE] 🧠 DeepGuardian (Multi-Hazard LSTM) initialized. Connecting to memory...")
+    def initialize(self, logs=None):
+        """Initialize AI and optionally train from provided logs."""
+        logger.info("[DEEP CORE] 🧠 DeepGuardian (Multi-Hazard LSTM) initialized.")
         try:
-            if Database.db is not None:
-                self.train_from_memory()
+            if logs:
+                self.train(logs)
         except Exception as e:
             logger.error(f"[DEEP CORE] Initialization error: {e}", exc_info=True)
 
@@ -133,16 +130,8 @@ class DeepGuardian:
             logger.error(f"[DEEP CORE] DBSCAN Hotspot detection failed: {e}", exc_info=True)
             return []
 
-    def train_from_memory(self):
-        col = Database.get_collection("raw_logs")
-        if col is None:
-            return 0
-
-        try:
-            logs = list(col.find().sort("timestamp", -1).limit(3000))
-            logs.reverse() # chronologically ascending
-        except Exception as e:
-            logger.error(f"[DEEP CORE] Failed to read training data from DB: {e}")
+    def train(self, logs):
+        if not logs:
             return 0
             
         # Tích hợp quét Hotspots

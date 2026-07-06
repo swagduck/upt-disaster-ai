@@ -19,7 +19,7 @@ def fresh_reactor():
     """Return a brand-new UPTReactorCore instance (not the running singleton)."""
     # Patch threading.Thread so start_reactor() doesn't need an event loop
     with patch("threading.Thread"):
-        from app.upt_engine.reactor_core import UPTReactorCore
+        from upt_guardian.reactor_core import UPTReactorCore
         reactor = UPTReactorCore()
     return reactor
 

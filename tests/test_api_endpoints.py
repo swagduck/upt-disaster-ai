@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from httpx import AsyncClient, ASGITransport
 
-with patch("app.upt_engine.deep_core.Database"):
+with patch("upt_guardian.deep_core.guardian_brain"):
     from app.main import app
 
 
